@@ -22,7 +22,7 @@ describe('LoginPage', () => {
     );
 
     await userEvent.type(screen.getByLabelText(/email/i), 'admin@school.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.type(screen.getByLabelText('Password'), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalledWith('admin@school.com', 'password123'));
@@ -38,7 +38,7 @@ describe('LoginPage', () => {
     );
 
     await userEvent.type(screen.getByLabelText(/email/i), 'wrong@school.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'wrongpass');
+    await userEvent.type(screen.getByLabelText('Password'), 'wrongpass');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password');
@@ -55,7 +55,7 @@ describe('LoginPage', () => {
     );
 
     await userEvent.type(screen.getByLabelText(/email/i), 'admin@school.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.type(screen.getByLabelText('Password'), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled();

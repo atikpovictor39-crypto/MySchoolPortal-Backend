@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import PasswordInput from '../../components/common/PasswordInput';
 
 export default function SignupPage() {
   const { register } = useAuth();
@@ -78,9 +79,8 @@ export default function SignupPage() {
             <label htmlFor="adminPassword" className="block text-sm font-medium text-slate-700 mb-1">
               Password
             </label>
-            <input
+            <PasswordInput
               id="adminPassword"
-              type="password"
               required
               minLength={8}
               autoComplete="new-password"

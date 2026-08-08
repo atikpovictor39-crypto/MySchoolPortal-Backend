@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listSchools, createSchool } from '../../features/schools/api';
+import PasswordInput from '../../components/common/PasswordInput';
 
 const emptyForm = { name: '', adminName: '', adminEmail: '', adminPassword: '' };
 
@@ -87,9 +88,8 @@ export default function SchoolsPage() {
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Admin password</label>
-          <input
+          <PasswordInput
             required
-            type="password"
             value={form.adminPassword}
             onChange={(e) => setForm({ ...form, adminPassword: e.target.value })}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"

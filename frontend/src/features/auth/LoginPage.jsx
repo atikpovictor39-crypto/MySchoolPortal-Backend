@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import PasswordInput from '../../components/common/PasswordInput';
 
 function defaultRedirectFor(role) {
   if (role === 'PARENT') return '/overview';
@@ -62,9 +63,8 @@ export default function LoginPage() {
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               required
               autoComplete="current-password"
               value={password}

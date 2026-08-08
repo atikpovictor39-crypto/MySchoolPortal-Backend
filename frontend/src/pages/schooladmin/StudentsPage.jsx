@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listStudents, createStudent, updateStudent, listGuardians, addGuardian } from '../../features/students/api';
 import { listClasses } from '../../features/classes/api';
+import PasswordInput from '../../components/common/PasswordInput';
 
 const emptyForm = { classId: '', admissionNo: '', firstName: '', lastName: '', gender: '' };
 const emptyGuardianForm = { name: '', email: '', password: '', relationship: '', isPrimary: false };
@@ -349,8 +350,7 @@ export default function StudentsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="if new account"
                 value={guardianForm.password}
                 onChange={(e) => setGuardianForm({ ...guardianForm, password: e.target.value })}
