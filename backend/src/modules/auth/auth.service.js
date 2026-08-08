@@ -5,9 +5,11 @@ const { hashPassword } = require('../../utils/password');
 const { msFromDuration } = require('../../utils/time');
 
 // LEFT JOIN, not JOIN — SuperAdmin has no school_id, and must still be able to log in.
+// school_status travels along so login/refresh can reject a suspended school's
+// users without a second query.
 async function findUserByEmail(email) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, s.name AS school_name
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, s.name AS school_name, s.status AS school_status
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE u.email = ? LIMIT 1`,
     [email]
@@ -17,7 +19,7 @@ async function findUserByEmail(email) {
 
 async function findUserById(id) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, s.name AS school_name
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, s.name AS school_name, s.status AS school_status
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE u.id = ? LIMIT 1`,
     [id]

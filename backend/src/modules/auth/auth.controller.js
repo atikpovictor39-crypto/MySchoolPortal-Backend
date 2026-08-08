@@ -79,6 +79,14 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: 'Invalid email or password' });
   }
 
+  // Checked after the password so a suspended school doesn't double as a way
+  // to probe whether an email/password combo is otherwise valid.
+  if (user.school_id && user.school_status !== 'active') {
+    return res
+      .status(403)
+      .json({ success: false, message: "This school's account is currently suspended. Contact your platform administrator." });
+  }
+
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
   await authService.storeRefreshToken(user.id, refreshToken);
@@ -113,6 +121,11 @@ exports.refresh = asyncHandler(async (req, res) => {
   const user = await authService.findUserById(payload.id);
   if (!user || user.status !== 'active') {
     return res.status(401).json({ success: false, message: 'Account is no longer active' });
+  }
+  if (user.school_id && user.school_status !== 'active') {
+    return res
+      .status(403)
+      .json({ success: false, message: "This school's account is currently suspended. Contact your platform administrator." });
   }
 
   const accessToken = signAccessToken(user);

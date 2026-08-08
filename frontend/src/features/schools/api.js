@@ -10,6 +10,11 @@ export async function createSchool(payload) {
   return data.data;
 }
 
+export async function updateSchoolStatus(id, status) {
+  const { data } = await axiosClient.patch(`/schools/${id}/status`, { status });
+  return data.data;
+}
+
 export async function getPaymentDetails() {
   const { data } = await axiosClient.get('/schools/me/payment-details');
   return data.data;

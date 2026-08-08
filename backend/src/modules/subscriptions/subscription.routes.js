@@ -1,10 +1,15 @@
 const express = require('express');
 const router = express.Router();
+const controller = require('./subscription.controller');
 const requireAuth = require('../../middleware/auth.middleware');
+const tenantScope = require('../../middleware/tenant.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-// SuperAdmin manages plans/subscriptions across all tenants; SchoolAdmin can view their own.
-router.get('/plans', requireAuth, (req, res) => res.status(501).json({ success: false, message: 'Not implemented yet' }));
-router.get('/mine', requireAuth, requireRole('SCHOOL_ADMIN'), (req, res) => res.status(501).json({ success: false, message: 'Not implemented yet' }));
+// SuperAdmin manages plans across all tenants; SchoolAdmin can only view their own.
+router.get('/plans', requireAuth, requireRole('SUPERADMIN'), controller.listPlans);
+router.post('/plans', requireAuth, requireRole('SUPERADMIN'), controller.createPlan);
+router.put('/plans/:id', requireAuth, requireRole('SUPERADMIN'), controller.updatePlan);
+
+router.get('/mine', requireAuth, tenantScope, requireRole('SCHOOL_ADMIN'), controller.getMine);
 
 module.exports = router;

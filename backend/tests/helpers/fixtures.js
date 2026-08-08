@@ -1,5 +1,7 @@
 const request = require('supertest');
 const app = require('../../src/app');
+const db = require('../../src/config/db');
+const { hashPassword } = require('../../src/utils/password');
 
 function uniqueEmail(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
@@ -57,6 +59,19 @@ async function setupTenant(overrides = {}) {
   return { ...school, academicYearId, classId };
 }
 
+// SuperAdmin accounts have no self-service signup (by design), so tests seed
+// one directly rather than going through an API that intentionally doesn't exist.
+async function createSuperAdmin(overrides = {}) {
+  const email = overrides.email || uniqueEmail('superadmin');
+  const password = overrides.password || 'superadminpass123';
+  const passwordHash = await hashPassword(password);
+  await db.query(
+    "INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (NULL, 'SUPERADMIN', ?, ?, ?, 'active')",
+    [overrides.name || 'Platform Admin', email, passwordHash]
+  );
+  return login(email, password);
+}
+
 async function createStudent(accessToken, classId, overrides = {}) {
   const res = await request(app)
     .post('/api/v1/students')
@@ -73,4 +88,4 @@ async function createStudent(accessToken, classId, overrides = {}) {
   return res.body.data;
 }
 
-module.exports = { app, request, auth, uniqueEmail, registerSchool, login, setupTenant, createStudent };
+module.exports = { app, request, auth, uniqueEmail, registerSchool, login, setupTenant, createStudent, createSuperAdmin };

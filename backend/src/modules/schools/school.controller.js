@@ -23,6 +23,15 @@ exports.createSchool = asyncHandler(async (req, res) => {
   return ok(res, school, 201);
 });
 
+exports.updateStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!status) {
+    return fail(res, 'status is required', 400);
+  }
+  const school = await schoolService.updateSchoolStatus(req.params.id, status);
+  return ok(res, school);
+});
+
 const MAX_LENGTHS = {
   momoProvider: 30,
   momoNumber: 20,

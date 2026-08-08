@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const db = require('../../config/db');
 const { hashPassword } = require('../../utils/password');
 
+const SCHOOL_STATUSES = ['active', 'suspended', 'archived'];
+
 function slugify(name) {
   const base = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const suffix = crypto.randomBytes(3).toString('hex');
@@ -11,9 +13,10 @@ function slugify(name) {
 async function getSchoolById(id) {
   const [rows] = await db.query(
     `SELECT s.id, s.name, s.slug, s.email, s.status, s.created_at,
-       sub.status AS subscription_status, sub.plan_id
+       sub.status AS subscription_status, sub.plan_id, p.name AS plan_name
      FROM schools s
      LEFT JOIN subscriptions sub ON sub.school_id = s.id
+     LEFT JOIN subscription_plans p ON p.id = sub.plan_id
      WHERE s.id = ? LIMIT 1`,
     [id]
   );
@@ -23,12 +26,32 @@ async function getSchoolById(id) {
 async function listSchools() {
   const [rows] = await db.query(
     `SELECT s.id, s.name, s.slug, s.email, s.status, s.created_at,
-       sub.status AS subscription_status, sub.plan_id
+       sub.status AS subscription_status, sub.plan_id, p.name AS plan_name
      FROM schools s
      LEFT JOIN subscriptions sub ON sub.school_id = s.id
+     LEFT JOIN subscription_plans p ON p.id = sub.plan_id
      ORDER BY s.created_at DESC`
   );
   return rows;
+}
+
+// Suspending blocks that school's users at login/refresh (see auth.controller)
+// without touching their accounts individually — reactivating just flips it
+// back, no data is affected either way.
+async function updateSchoolStatus(schoolId, status) {
+  if (!SCHOOL_STATUSES.includes(status)) {
+    const err = new Error(`status must be one of: ${SCHOOL_STATUSES.join(', ')}`);
+    err.status = 400;
+    throw err;
+  }
+
+  const [result] = await db.query('UPDATE schools SET status = ? WHERE id = ?', [status, schoolId]);
+  if (result.affectedRows === 0) {
+    const err = new Error('School not found');
+    err.status = 404;
+    throw err;
+  }
+  return getSchoolById(schoolId);
 }
 
 // SuperAdmin-led onboarding for an already-vetted customer — same shape as
@@ -128,4 +151,12 @@ async function updatePaymentDetails(schoolId, details) {
   return getPaymentDetails(schoolId);
 }
 
-module.exports = { listSchools, getSchoolById, createSchool, getPaymentDetails, updatePaymentDetails };
+module.exports = {
+  SCHOOL_STATUSES,
+  listSchools,
+  getSchoolById,
+  createSchool,
+  updateSchoolStatus,
+  getPaymentDetails,
+  updatePaymentDetails,
+};
