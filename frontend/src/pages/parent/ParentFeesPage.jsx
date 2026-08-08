@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParent } from '../../context/ParentContext';
 import ChildTabs from '../../components/parent/ChildTabs';
-import { getChildFees } from '../../features/parent/api';
+import { getChildFees, getPaymentDetails } from '../../features/parent/api';
 import { formatMoney as money } from '../../utils/money';
 
 const STATUS_STYLE = {
@@ -18,6 +18,7 @@ export default function ParentFeesPage() {
   const [fees, setFees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [payoutDetails, setPayoutDetails] = useState(null);
 
   useEffect(() => {
     if (!selectedChildId) return;
@@ -28,6 +29,15 @@ export default function ParentFeesPage() {
       .catch((err) => setError(err.response?.data?.message || 'Failed to load fees'))
       .finally(() => setIsLoading(false));
   }, [selectedChildId]);
+
+  useEffect(() => {
+    getPaymentDetails()
+      .then(setPayoutDetails)
+      .catch(() => {});
+  }, []);
+
+  const hasMomo = payoutDetails?.momo_number;
+  const hasBank = payoutDetails?.bank_account_number;
 
   if (isLoadingChildren) return <p className="text-sm text-slate-500">Loading…</p>;
 
@@ -46,6 +56,37 @@ export default function ParentFeesPage() {
       ) : (
         <>
           <ChildTabs />
+
+          {(hasMomo || hasBank) && (
+            <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+              <p className="text-sm font-semibold text-indigo-900 mb-3">How to pay</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {hasMomo && (
+                  <div>
+                    <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide mb-1">Mobile Money</p>
+                    <p className="text-sm text-slate-800">{payoutDetails.momo_provider}</p>
+                    <p className="text-sm text-slate-800 font-medium">{payoutDetails.momo_number}</p>
+                    {payoutDetails.momo_account_name && (
+                      <p className="text-xs text-slate-500">{payoutDetails.momo_account_name}</p>
+                    )}
+                  </div>
+                )}
+                {hasBank && (
+                  <div>
+                    <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide mb-1">Bank transfer</p>
+                    <p className="text-sm text-slate-800">{payoutDetails.bank_name}</p>
+                    <p className="text-sm text-slate-800 font-medium">{payoutDetails.bank_account_number}</p>
+                    {payoutDetails.bank_account_name && (
+                      <p className="text-xs text-slate-500">{payoutDetails.bank_account_name}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-indigo-700/70 mt-3">
+                After paying, please allow the school a short while to record it against your invoice below.
+              </p>
+            </div>
+          )}
 
           {isLoading ? (
             <p className="text-sm text-slate-500">Loading…</p>

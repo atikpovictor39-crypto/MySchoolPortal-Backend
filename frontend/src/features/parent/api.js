@@ -44,3 +44,8 @@ export async function getChildOverview(studentId) {
   const { data } = await axiosClient.get(`/parent/children/${studentId}/overview`);
   return data.data;
 }
+
+export async function getPaymentDetails() {
+  const { data } = await axiosClient.get('/parent/payment-details');
+  return data.data;
+}

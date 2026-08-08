@@ -22,3 +22,32 @@ exports.createSchool = asyncHandler(async (req, res) => {
   });
   return ok(res, school, 201);
 });
+
+const MAX_LENGTHS = {
+  momoProvider: 30,
+  momoNumber: 20,
+  momoAccountName: 150,
+  bankName: 150,
+  bankAccountNumber: 50,
+  bankAccountName: 150,
+};
+
+exports.getPaymentDetails = asyncHandler(async (req, res) => {
+  const details = await schoolService.getPaymentDetails(req.schoolId);
+  return ok(res, details);
+});
+
+exports.updatePaymentDetails = asyncHandler(async (req, res) => {
+  const details = {};
+  for (const field of Object.keys(MAX_LENGTHS)) {
+    const value = req.body[field];
+    if (value === undefined || value === null || value === '') continue;
+    if (typeof value !== 'string' || value.length > MAX_LENGTHS[field]) {
+      return fail(res, `${field} must be a string of at most ${MAX_LENGTHS[field]} characters`, 400);
+    }
+    details[field] = value.trim();
+  }
+
+  const updated = await schoolService.updatePaymentDetails(req.schoolId, details);
+  return ok(res, updated);
+});

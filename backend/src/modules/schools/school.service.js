@@ -95,4 +95,37 @@ async function createSchool({ name, adminName, adminEmail, adminPassword, planId
   return getSchoolById(schoolId);
 }
 
-module.exports = { listSchools, getSchoolById, createSchool };
+// Manual fee-payment channels (Mobile Money + bank account) that a school
+// shows parents so they know where to send money. No payment gateway yet —
+// this is purely informational, the SchoolAdmin still records payments by
+// hand once they see the money land via /fees/invoices/:id/payments.
+async function getPaymentDetails(schoolId) {
+  const [rows] = await db.query(
+    `SELECT momo_provider, momo_number, momo_account_name,
+            bank_name, bank_account_number, bank_account_name
+     FROM schools WHERE id = ? LIMIT 1`,
+    [schoolId]
+  );
+  return rows[0] || null;
+}
+
+async function updatePaymentDetails(schoolId, details) {
+  await db.query(
+    `UPDATE schools SET
+       momo_provider = ?, momo_number = ?, momo_account_name = ?,
+       bank_name = ?, bank_account_number = ?, bank_account_name = ?
+     WHERE id = ?`,
+    [
+      details.momoProvider || null,
+      details.momoNumber || null,
+      details.momoAccountName || null,
+      details.bankName || null,
+      details.bankAccountNumber || null,
+      details.bankAccountName || null,
+      schoolId,
+    ]
+  );
+  return getPaymentDetails(schoolId);
+}
+
+module.exports = { listSchools, getSchoolById, createSchool, getPaymentDetails, updatePaymentDetails };

@@ -11,13 +11,26 @@ import {
   recordPayment,
   listDebtors,
 } from '../../features/fees/api';
+import { getPaymentDetails, updatePaymentDetails } from '../../features/schools/api';
 import { formatMoney as money } from '../../utils/money';
 
 const TABS = [
   { key: 'structures', label: 'Fee Structures' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'debtors', label: 'Debtors' },
+  { key: 'payment-details', label: 'Payment Details' },
 ];
+
+const MOMO_PROVIDERS = ['MTN Mobile Money', 'Telecel Cash', 'AirtelTigo Money'];
+
+const EMPTY_PAYMENT_FORM = {
+  momoProvider: '',
+  momoNumber: '',
+  momoAccountName: '',
+  bankName: '',
+  bankAccountNumber: '',
+  bankAccountName: '',
+};
 
 const INVOICE_STATUSES = ['unpaid', 'partial', 'paid', 'overdue', 'waived'];
 const PAYMENT_METHODS = ['cash', 'bank_transfer', 'card', 'mobile_money', 'other'];
@@ -48,6 +61,11 @@ export default function FeesPage() {
 
   const [debtors, setDebtors] = useState([]);
 
+  const [payoutForm, setPayoutForm] = useState(EMPTY_PAYMENT_FORM);
+  const [isLoadingPayoutDetails, setIsLoadingPayoutDetails] = useState(true);
+  const [isSavingPayoutDetails, setIsSavingPayoutDetails] = useState(false);
+  const [payoutDetailsSaved, setPayoutDetailsSaved] = useState(false);
+
   async function refreshLookups() {
     const [yearList, classList] = await Promise.all([listAcademicYears(), listClasses()]);
     setYears(yearList);
@@ -69,6 +87,22 @@ export default function FeesPage() {
   useEffect(() => {
     refreshLookups().catch((err) => setError(err.response?.data?.message || 'Failed to load classes/years'));
     refreshStructures().catch((err) => setError(err.response?.data?.message || 'Failed to load fee structures'));
+
+    if (isAdmin) {
+      getPaymentDetails()
+        .then((details) =>
+          setPayoutForm({
+            momoProvider: details.momo_provider || '',
+            momoNumber: details.momo_number || '',
+            momoAccountName: details.momo_account_name || '',
+            bankName: details.bank_name || '',
+            bankAccountNumber: details.bank_account_number || '',
+            bankAccountName: details.bank_account_name || '',
+          })
+        )
+        .catch((err) => setError(err.response?.data?.message || 'Failed to load payment details'))
+        .finally(() => setIsLoadingPayoutDetails(false));
+    }
   }, []);
 
   useEffect(() => {
@@ -144,6 +178,21 @@ export default function FeesPage() {
       setError(err.response?.data?.message || 'Failed to record payment');
     } finally {
       setIsRecordingPayment(false);
+    }
+  }
+
+  async function handleSavePayoutDetails(e) {
+    e.preventDefault();
+    setError('');
+    setPayoutDetailsSaved(false);
+    setIsSavingPayoutDetails(true);
+    try {
+      await updatePaymentDetails(payoutForm);
+      setPayoutDetailsSaved(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save payment details');
+    } finally {
+      setIsSavingPayoutDetails(false);
     }
   }
 
@@ -383,6 +432,107 @@ export default function FeesPage() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+        )}
+
+        {tab === 'payment-details' && (
+          <div className="max-w-2xl">
+            <p className="text-sm text-slate-500 mb-4">
+              These are shown to parents on their Fees page as where to send money. There's no automated payment
+              gateway yet — payments made this way still need to be recorded manually under Invoices once you see
+              them land.
+            </p>
+
+            {isLoadingPayoutDetails ? (
+              <p className="text-sm text-slate-500">Loading…</p>
+            ) : (
+              <form
+                onSubmit={handleSavePayoutDetails}
+                className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-6"
+              >
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Mobile Money</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Provider</label>
+                      <select
+                        value={payoutForm.momoProvider}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, momoProvider: e.target.value })}
+                        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      >
+                        <option value="">Select…</option>
+                        {MOMO_PROVIDERS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Number</label>
+                      <input
+                        value={payoutForm.momoNumber}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, momoNumber: e.target.value })}
+                        placeholder="024 000 0000"
+                        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Account name</label>
+                      <input
+                        value={payoutForm.momoAccountName}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, momoAccountName: e.target.value })}
+                        placeholder="School name"
+                        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Bank account</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Bank name</label>
+                      <input
+                        value={payoutForm.bankName}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, bankName: e.target.value })}
+                        placeholder="GCB Bank"
+                        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Account number</label>
+                      <input
+                        value={payoutForm.bankAccountNumber}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, bankAccountNumber: e.target.value })}
+                        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Account name</label>
+                      <input
+                        value={payoutForm.bankAccountName}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, bankAccountName: e.target.value })}
+                        placeholder="School name"
+                        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSavingPayoutDetails}
+                    className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {isSavingPayoutDetails ? 'Saving…' : 'Save payment details'}
+                  </button>
+                  {payoutDetailsSaved && <span className="text-sm text-green-600">Saved.</span>}
+                </div>
+              </form>
             )}
           </div>
         )}

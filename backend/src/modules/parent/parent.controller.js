@@ -5,6 +5,7 @@ const resultService = require('../results/result.service');
 const announcementService = require('../announcements/announcement.service');
 const homeworkService = require('../homework/homework.service');
 const timetableService = require('../timetable/timetable.service');
+const schoolService = require('../schools/school.service');
 
 exports.listChildren = asyncHandler(async (req, res) => {
   const children = await parentService.listChildren(req.schoolId, req.user.id);
@@ -14,6 +15,12 @@ exports.listChildren = asyncHandler(async (req, res) => {
 exports.listAnnouncements = asyncHandler(async (req, res) => {
   const announcements = await announcementService.listForParent(req.schoolId, req.user.id);
   return ok(res, announcements);
+});
+
+// School-level info, not tied to any specific child — no ownership check needed.
+exports.getPaymentDetails = asyncHandler(async (req, res) => {
+  const details = await schoolService.getPaymentDetails(req.schoolId);
+  return ok(res, details);
 });
 
 // Every handler below touches one specific student — always re-verify
