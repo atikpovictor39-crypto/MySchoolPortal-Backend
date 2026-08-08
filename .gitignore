@@ -1,20 +1,53 @@
 # Dependencies
 node_modules/
+jspm_packages/
 
 # Environment files — contain real secrets (DB password, JWT secrets, VAPID
-# keys). Only .env.example should ever be committed.
+# keys). Only .env.example / .env.test.example should ever be committed.
 .env
 .env.test
 .env.local
 .env.*.local
+!.env.example
+!.env.test.example
 
 # Build output
 frontend/dist/
+build/Release
 
 # Logs
-npm-debug.log*
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
-# OS/editor cruft
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage / test artifacts
+coverage
+*.lcov
+.nyc_output
+
+# Caches
+.npm
+.eslintcache
+.stylelintcache
+.cache
+.parcel-cache
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Editor/OS cruft
 .DS_Store
 Thumbs.db
+.vscode-test
+
+# npm pack output
+*.tgz
