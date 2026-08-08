@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import StatCard from '../../components/common/StatCard';
-import { UsersIcon, BriefcaseIcon, GridIcon, ClockIcon, DollarIcon } from '../../components/common/icons';
+import { UsersIcon, BriefcaseIcon, GridIcon, ClockIcon, DollarIcon, AttendanceIcon } from '../../components/common/icons';
 import { listStudents } from '../../features/students/api';
 import { listTeachers } from '../../features/teachers/api';
 import { listClasses } from '../../features/classes/api';
 import { listLeaveRequests } from '../../features/teacherClockIn/leaveApi';
-import { listDebtors } from '../../features/fees/api';
+import { listDebtors, getFeesSummary } from '../../features/fees/api';
+import { getAttendanceSummary } from '../../features/attendance/api';
 import { formatMoney } from '../../utils/money';
 
 const ADMIN_LINKS = [
@@ -45,10 +46,12 @@ export default function DashboardPage() {
       listClasses(),
       isAdmin ? listLeaveRequests({ status: 'pending' }) : Promise.resolve(null),
       isAdmin ? listDebtors() : Promise.resolve(null),
+      isAdmin ? getFeesSummary() : Promise.resolve(null),
+      isAdmin ? getAttendanceSummary() : Promise.resolve(null),
     ];
 
     Promise.all(requests)
-      .then(([students, teachers, classes, pendingLeave, debtors]) => {
+      .then(([students, teachers, classes, pendingLeave, debtors, feesSummary, attendanceSummary]) => {
         setStats({
           studentCount: students.pagination.total,
           teacherCount: teachers.length,
@@ -56,6 +59,8 @@ export default function DashboardPage() {
           pendingLeaveCount: pendingLeave?.length ?? null,
           debtorCount: debtors?.length ?? null,
           outstandingCents: debtors ? debtors.reduce((sum, d) => sum + d.balance_cents, 0) : null,
+          collectedCents: feesSummary?.totalPaidCents ?? null,
+          attendanceRate: attendanceSummary?.rate ?? null,
         });
       })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load dashboard'))
@@ -107,10 +112,28 @@ export default function DashboardPage() {
             {isAdmin && (
               <StatCard
                 icon={<DollarIcon />}
+                iconBg="bg-green-600"
+                label="Fees Collected"
+                value={formatMoney(stats.collectedCents)}
+                sublabel="all-time"
+              />
+            )}
+            {isAdmin && (
+              <StatCard
+                icon={<DollarIcon />}
                 iconBg="bg-emerald-500"
                 label="Outstanding Fees"
                 value={formatMoney(stats.outstandingCents)}
                 sublabel={stats.debtorCount ? `across ${stats.debtorCount} student${stats.debtorCount === 1 ? '' : 's'}` : 'all settled'}
+              />
+            )}
+            {isAdmin && (
+              <StatCard
+                icon={<AttendanceIcon />}
+                iconBg="bg-cyan-500"
+                label="Attendance Today"
+                value={stats.attendanceRate === null ? '—' : `${stats.attendanceRate}%`}
+                sublabel={stats.attendanceRate === null ? 'not marked yet' : 'of students marked present'}
               />
             )}
           </div>

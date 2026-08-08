@@ -76,6 +76,35 @@ describe('Recording payments', () => {
   });
 });
 
+describe('Fees summary', () => {
+  it('starts at zero collected before any payment', async () => {
+    const res = await request(app).get('/api/v1/fees/summary').set('Authorization', auth(school.accessToken));
+    expect(res.status).toBe(200);
+    expect(res.body.data.totalPaidCents).toBe(0);
+  });
+
+  it('reflects a partial payment immediately', async () => {
+    await request(app)
+      .post(`/api/v1/fees/invoices/${invoiceId}/payments`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ amountCents: 20000, paymentMethod: 'cash' });
+
+    const res = await request(app).get('/api/v1/fees/summary').set('Authorization', auth(school.accessToken));
+    expect(res.body.data.totalPaidCents).toBe(20000);
+  });
+
+  it('is isolated per school', async () => {
+    await request(app)
+      .post(`/api/v1/fees/invoices/${invoiceId}/payments`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ amountCents: 50000, paymentMethod: 'cash' });
+
+    const otherSchool = await setupTenant({ schoolName: 'Other School' });
+    const res = await request(app).get('/api/v1/fees/summary').set('Authorization', auth(otherSchool.accessToken));
+    expect(res.body.data.totalPaidCents).toBe(0);
+  });
+});
+
 describe('Invoice generation idempotency', () => {
   it('re-generating invoices for the same structure does not double-bill', async () => {
     const structuresRes = await request(app)

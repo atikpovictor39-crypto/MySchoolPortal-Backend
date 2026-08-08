@@ -9,3 +9,8 @@ export async function markAttendance(classId, date, records) {
   const { data } = await axiosClient.post('/attendance/mark', { classId, date, records });
   return data.data;
 }
+
+export async function getAttendanceSummary(date) {
+  const { data } = await axiosClient.get('/attendance/summary', { params: date ? { date } : {} });
+  return data.data;
+}

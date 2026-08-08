@@ -231,6 +231,19 @@ async function recordPayment(schoolId, invoiceId, { amountCents, paymentMethod, 
   return getInvoiceById(schoolId, invoiceId);
 }
 
+// ---- Summary (admin dashboard) ----
+
+// All-time total actually collected across every invoice, regardless of its
+// current status — separate from listDebtors, which only looks at invoices
+// still owing money.
+async function getFeesSummary(schoolId) {
+  const [[row]] = await db.query(
+    'SELECT COALESCE(SUM(amount_paid_cents), 0) AS totalPaidCents FROM fee_invoices WHERE school_id = ?',
+    [schoolId]
+  );
+  return { totalPaidCents: row.totalPaidCents };
+}
+
 // ---- Debtors ----
 
 async function listDebtors(schoolId) {
@@ -392,6 +405,7 @@ module.exports = {
   listInvoices,
   getInvoiceById,
   recordPayment,
+  getFeesSummary,
   listDebtors,
   listPaymentClaims,
   getPaymentClaimById,

@@ -35,6 +35,11 @@ export async function listDebtors() {
   return data.data;
 }
 
+export async function getFeesSummary() {
+  const { data } = await axiosClient.get('/fees/summary');
+  return data.data;
+}
+
 export async function listClaims(params = {}) {
   const { data } = await axiosClient.get('/fees/claims', { params });
   return data.data;

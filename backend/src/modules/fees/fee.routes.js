@@ -18,6 +18,7 @@ router.get('/invoices', requireRole('SCHOOL_ADMIN'), controller.listInvoices);
 router.get('/invoices/:id', requireRole('SCHOOL_ADMIN'), controller.getInvoice);
 router.post('/invoices/:id/payments', requireRole('SCHOOL_ADMIN'), controller.recordPayment);
 
+router.get('/summary', requireRole('SCHOOL_ADMIN'), controller.getSummary);
 router.get('/debtors', requireRole('SCHOOL_ADMIN'), controller.listDebtors);
 
 router.get('/claims', requireRole('SCHOOL_ADMIN'), controller.listClaims);

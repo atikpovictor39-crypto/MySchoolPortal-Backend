@@ -16,6 +16,13 @@ exports.getSheet = asyncHandler(async (req, res) => {
   return ok(res, { classId: Number(classId), date, students });
 });
 
+// GET /attendance/summary?date= — defaults to today, used by the admin dashboard.
+exports.getSummary = asyncHandler(async (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const summary = await attendanceService.getAttendanceSummary(req.schoolId, date);
+  return ok(res, summary);
+});
+
 // POST /attendance/mark  { classId, date, records: [{ studentId, status }] }
 exports.mark = asyncHandler(async (req, res) => {
   const { classId, date, records } = req.body;

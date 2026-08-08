@@ -71,6 +71,13 @@ exports.recordPayment = asyncHandler(async (req, res) => {
   return ok(res, invoice, 201);
 });
 
+// ---- Summary ----
+
+exports.getSummary = asyncHandler(async (req, res) => {
+  const summary = await feeService.getFeesSummary(req.schoolId);
+  return ok(res, summary);
+});
+
 // ---- Debtors ----
 
 exports.listDebtors = asyncHandler(async (req, res) => {

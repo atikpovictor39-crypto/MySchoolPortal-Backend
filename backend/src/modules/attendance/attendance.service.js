@@ -94,4 +94,23 @@ async function notifyGuardiansOfAbsence(schoolId, date, records, sheet) {
   );
 }
 
-module.exports = { classBelongsToSchool, getAttendanceSheet, markAttendance, ALLOWED_STATUSES };
+// School-wide attendance rate for a single date (defaults to today, see
+// controller). rate is null rather than 0 when nothing has been marked yet,
+// so the dashboard can show "not marked yet" instead of a misleading 0%.
+async function getAttendanceSummary(schoolId, date) {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS totalMarked, COALESCE(SUM(status = 'present'), 0) AS presentCount
+     FROM attendance WHERE school_id = ? AND date = ?`,
+    [schoolId, date]
+  );
+  const rate = row.totalMarked > 0 ? Math.round((row.presentCount / row.totalMarked) * 100) : null;
+  return { date, totalMarked: row.totalMarked, presentCount: row.presentCount, rate };
+}
+
+module.exports = {
+  classBelongsToSchool,
+  getAttendanceSheet,
+  markAttendance,
+  getAttendanceSummary,
+  ALLOWED_STATUSES,
+};
