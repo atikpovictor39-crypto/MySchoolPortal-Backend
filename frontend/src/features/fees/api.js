@@ -34,3 +34,18 @@ export async function listDebtors() {
   const { data } = await axiosClient.get('/fees/debtors');
   return data.data;
 }
+
+export async function listClaims(params = {}) {
+  const { data } = await axiosClient.get('/fees/claims', { params });
+  return data.data;
+}
+
+export async function confirmClaim(claimId) {
+  const { data } = await axiosClient.post(`/fees/claims/${claimId}/confirm`);
+  return data.data;
+}
+
+export async function rejectClaim(claimId, reason) {
+  const { data } = await axiosClient.post(`/fees/claims/${claimId}/reject`, { reason });
+  return data.data;
+}

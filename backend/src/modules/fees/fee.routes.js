@@ -20,4 +20,8 @@ router.post('/invoices/:id/payments', requireRole('SCHOOL_ADMIN'), controller.re
 
 router.get('/debtors', requireRole('SCHOOL_ADMIN'), controller.listDebtors);
 
+router.get('/claims', requireRole('SCHOOL_ADMIN'), controller.listClaims);
+router.post('/claims/:id/confirm', requireRole('SCHOOL_ADMIN'), controller.confirmClaim);
+router.post('/claims/:id/reject', requireRole('SCHOOL_ADMIN'), controller.rejectClaim);
+
 module.exports = router;

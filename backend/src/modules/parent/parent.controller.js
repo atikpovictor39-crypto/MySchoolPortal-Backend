@@ -6,6 +6,7 @@ const announcementService = require('../announcements/announcement.service');
 const homeworkService = require('../homework/homework.service');
 const timetableService = require('../timetable/timetable.service');
 const schoolService = require('../schools/school.service');
+const feeService = require('../fees/fee.service');
 
 exports.listChildren = asyncHandler(async (req, res) => {
   const children = await parentService.listChildren(req.schoolId, req.user.id);
@@ -58,6 +59,37 @@ exports.getChildFees = asyncHandler(async (req, res) => {
   if (!(await assertOwnChild(req, res))) return;
   const fees = await parentService.getChildFees(req.schoolId, req.params.studentId);
   return ok(res, fees);
+});
+
+// "I've made this payment" — the parent self-identifies as the payer for a
+// specific invoice so the admin isn't left guessing whose money just landed.
+exports.submitPaymentClaim = asyncHandler(async (req, res) => {
+  if (!(await assertOwnChild(req, res))) return;
+
+  const { amountCents, paymentMethod, paidAt, reference } = req.body;
+  if (!amountCents || !Number.isInteger(amountCents) || amountCents <= 0) {
+    return fail(res, 'amountCents must be a positive integer', 400);
+  }
+  if (!feeService.CLAIM_PAYMENT_METHODS.includes(paymentMethod)) {
+    return fail(res, `paymentMethod must be one of: ${feeService.CLAIM_PAYMENT_METHODS.join(', ')}`, 400);
+  }
+  if (!paidAt) {
+    return fail(res, 'paidAt is required', 400);
+  }
+  if (reference && (typeof reference !== 'string' || reference.length > 150)) {
+    return fail(res, 'reference must be a string of at most 150 characters', 400);
+  }
+
+  const claim = await feeService.createPaymentClaim(req.schoolId, {
+    invoiceId: req.params.invoiceId,
+    studentId: req.params.studentId,
+    parentUserId: req.user.id,
+    amountCents,
+    paymentMethod,
+    paidAt,
+    reference,
+  });
+  return ok(res, claim, 201);
 });
 
 exports.getChildHomework = asyncHandler(async (req, res) => {

@@ -54,9 +54,14 @@ async function getChildExams(schoolId, studentId) {
   return rows;
 }
 
+// latest_claim_status lets the parent's Fees page show "Pending review" on an
+// invoice they've already claimed a payment for, instead of letting them
+// submit the same claim over and over while waiting on the admin.
 async function getChildFees(schoolId, studentId) {
   const [rows] = await db.query(
-    `SELECT fi.id, fi.amount_due_cents, fi.amount_paid_cents, fi.status, fi.due_date, fs.name AS fee_name
+    `SELECT fi.id, fi.amount_due_cents, fi.amount_paid_cents, fi.status, fi.due_date, fs.name AS fee_name,
+       (SELECT fpc.status FROM fee_payment_claims fpc
+        WHERE fpc.invoice_id = fi.id ORDER BY fpc.created_at DESC LIMIT 1) AS latest_claim_status
      FROM fee_invoices fi
      JOIN fee_structures fs ON fs.id = fi.fee_structure_id
      WHERE fi.student_id = ? AND fi.school_id = ?

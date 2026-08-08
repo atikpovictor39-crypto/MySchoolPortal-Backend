@@ -10,6 +10,9 @@ import {
   getInvoice,
   recordPayment,
   listDebtors,
+  listClaims,
+  confirmClaim,
+  rejectClaim,
 } from '../../features/fees/api';
 import { getPaymentDetails, updatePaymentDetails } from '../../features/schools/api';
 import { formatMoney as money } from '../../utils/money';
@@ -18,8 +21,11 @@ const TABS = [
   { key: 'structures', label: 'Fee Structures' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'debtors', label: 'Debtors' },
+  { key: 'claims', label: 'Payment Claims' },
   { key: 'payment-details', label: 'Payment Details' },
 ];
+
+const CLAIM_STATUSES = ['pending', 'confirmed', 'rejected'];
 
 const MOMO_PROVIDERS = ['MTN Mobile Money', 'Telecel Cash', 'AirtelTigo Money'];
 
@@ -61,6 +67,10 @@ export default function FeesPage() {
 
   const [debtors, setDebtors] = useState([]);
 
+  const [claims, setClaims] = useState([]);
+  const [claimStatusFilter, setClaimStatusFilter] = useState('pending');
+  const [claimActionId, setClaimActionId] = useState(null);
+
   const [payoutForm, setPayoutForm] = useState(EMPTY_PAYMENT_FORM);
   const [isLoadingPayoutDetails, setIsLoadingPayoutDetails] = useState(true);
   const [isSavingPayoutDetails, setIsSavingPayoutDetails] = useState(false);
@@ -82,6 +92,10 @@ export default function FeesPage() {
 
   async function refreshDebtors() {
     setDebtors(await listDebtors());
+  }
+
+  async function refreshClaims() {
+    setClaims(await listClaims(claimStatusFilter ? { status: claimStatusFilter } : {}));
   }
 
   useEffect(() => {
@@ -112,7 +126,10 @@ export default function FeesPage() {
     if (tab === 'debtors') {
       refreshDebtors().catch((err) => setError(err.response?.data?.message || 'Failed to load debtors'));
     }
-  }, [tab, invoiceStatusFilter]);
+    if (tab === 'claims') {
+      refreshClaims().catch((err) => setError(err.response?.data?.message || 'Failed to load payment claims'));
+    }
+  }, [tab, invoiceStatusFilter, claimStatusFilter]);
 
   const yearNameById = Object.fromEntries(years.map((y) => [y.id, y.name]));
   const classNameById = Object.fromEntries(classes.map((c) => [c.id, `${c.name}${c.section ? ` ${c.section}` : ''}`]));
@@ -178,6 +195,34 @@ export default function FeesPage() {
       setError(err.response?.data?.message || 'Failed to record payment');
     } finally {
       setIsRecordingPayment(false);
+    }
+  }
+
+  async function handleConfirmClaim(claimId) {
+    setError('');
+    setClaimActionId(claimId);
+    try {
+      await confirmClaim(claimId);
+      await refreshClaims();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to confirm payment claim');
+    } finally {
+      setClaimActionId(null);
+    }
+  }
+
+  async function handleRejectClaim(claimId) {
+    const reason = window.prompt('Reason for rejecting (optional):');
+    if (reason === null) return; // admin cancelled the dialog
+    setError('');
+    setClaimActionId(claimId);
+    try {
+      await rejectClaim(claimId, reason || undefined);
+      await refreshClaims();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reject payment claim');
+    } finally {
+      setClaimActionId(null);
     }
   }
 
@@ -428,6 +473,88 @@ export default function FeesPage() {
                       <td className="px-4 py-2">{money(d.total_due_cents)}</td>
                       <td className="px-4 py-2">{money(d.total_paid_cents)}</td>
                       <td className="px-4 py-2 font-medium text-red-600">{money(d.balance_cents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {tab === 'claims' && (
+          <div>
+            <div className="mb-4 flex items-end justify-between">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Filter by status</label>
+                <select
+                  value={claimStatusFilter}
+                  onChange={(e) => setClaimStatusFilter(e.target.value)}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                >
+                  <option value="">All</option>
+                  {CLAIM_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-slate-500 max-w-sm text-right">
+                Parents can tell us they've sent money for an invoice. Check it landed in your MoMo/bank account,
+                then confirm it here — that's what actually marks the invoice paid.
+              </p>
+            </div>
+
+            {claims.length === 0 ? (
+              <p className="text-sm text-slate-500">No payment claims{claimStatusFilter ? ` with status "${claimStatusFilter}"` : ''}.</p>
+            ) : (
+              <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <thead className="bg-slate-50 text-left text-slate-600">
+                  <tr>
+                    <th className="px-4 py-2">Student</th>
+                    <th className="px-4 py-2">Fee</th>
+                    <th className="px-4 py-2">Claimed by</th>
+                    <th className="px-4 py-2">Amount</th>
+                    <th className="px-4 py-2">Method</th>
+                    <th className="px-4 py-2">Date paid</th>
+                    <th className="px-4 py-2">Reference</th>
+                    <th className="px-4 py-2">Status</th>
+                    <th className="px-4 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {claims.map((c) => (
+                    <tr key={c.id} className="border-t border-slate-100">
+                      <td className="px-4 py-2">
+                        {c.first_name} {c.last_name} <span className="text-slate-400">({c.admission_no})</span>
+                      </td>
+                      <td className="px-4 py-2">{c.fee_name}</td>
+                      <td className="px-4 py-2">{c.parent_name}</td>
+                      <td className="px-4 py-2">{money(c.amount_cents)}</td>
+                      <td className="px-4 py-2 capitalize">{c.payment_method.replace('_', ' ')}</td>
+                      <td className="px-4 py-2">{c.paid_at.slice(0, 10)}</td>
+                      <td className="px-4 py-2">{c.reference || '—'}</td>
+                      <td className="px-4 py-2 capitalize">{c.status}</td>
+                      <td className="px-4 py-2">
+                        {c.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleConfirmClaim(c.id)}
+                              disabled={claimActionId === c.id}
+                              className="text-green-700 text-xs font-medium disabled:opacity-50"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => handleRejectClaim(c.id)}
+                              disabled={claimActionId === c.id}
+                              className="text-red-600 text-xs font-medium disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

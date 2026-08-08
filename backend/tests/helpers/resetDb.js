@@ -16,6 +16,7 @@ const TABLES_TO_TRUNCATE = [
   'results',
   'exam_subjects',
   'exams',
+  'fee_payment_claims',
   'fee_payments',
   'fee_invoices',
   'fee_structures',

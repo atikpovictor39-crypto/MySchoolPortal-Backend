@@ -2,6 +2,8 @@ const db = require('../../config/db');
 
 const INVOICE_STATUSES = ['unpaid', 'partial', 'paid', 'overdue', 'waived'];
 const PAYMENT_METHODS = ['cash', 'bank_transfer', 'card', 'mobile_money', 'other'];
+const CLAIM_STATUSES = ['pending', 'confirmed', 'rejected'];
+const CLAIM_PAYMENT_METHODS = ['mobile_money', 'bank_transfer'];
 
 async function classBelongsToSchool(schoolId, classId) {
   const [rows] = await db.query('SELECT id FROM classes WHERE id = ? AND school_id = ? LIMIT 1', [
@@ -248,9 +250,141 @@ async function listDebtors(schoolId) {
   return rows;
 }
 
+// ---- Payment Claims ("I've made this payment", awaiting admin confirmation) ----
+
+const CLAIM_COLUMNS = `fpc.id, fpc.invoice_id, fpc.student_id, fpc.parent_user_id, fpc.amount_cents,
+  fpc.payment_method, fpc.paid_at, fpc.reference, fpc.status, fpc.reviewed_by, fpc.reviewed_at,
+  fpc.review_note, fpc.created_at, s.first_name, s.last_name, s.admission_no, fs.name AS fee_name,
+  u.name AS parent_name`;
+
+async function getPaymentClaimById(schoolId, id) {
+  const [rows] = await db.query(
+    `SELECT ${CLAIM_COLUMNS}
+     FROM fee_payment_claims fpc
+     JOIN students s ON s.id = fpc.student_id
+     JOIN fee_invoices fi ON fi.id = fpc.invoice_id
+     JOIN fee_structures fs ON fs.id = fi.fee_structure_id
+     JOIN users u ON u.id = fpc.parent_user_id
+     WHERE fpc.id = ? AND fpc.school_id = ? LIMIT 1`,
+    [id, schoolId]
+  );
+  return rows[0] || null;
+}
+
+async function listPaymentClaims(schoolId, { status } = {}) {
+  const conditions = ['fpc.school_id = ?'];
+  const params = [schoolId];
+  if (status) {
+    conditions.push('fpc.status = ?');
+    params.push(status);
+  }
+
+  const [rows] = await db.query(
+    `SELECT ${CLAIM_COLUMNS}
+     FROM fee_payment_claims fpc
+     JOIN students s ON s.id = fpc.student_id
+     JOIN fee_invoices fi ON fi.id = fpc.invoice_id
+     JOIN fee_structures fs ON fs.id = fi.fee_structure_id
+     JOIN users u ON u.id = fpc.parent_user_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY fpc.created_at DESC`,
+    params
+  );
+  return rows;
+}
+
+// Called by a parent claiming they've sent money for one of their child's
+// invoices. Re-validates the invoice the same way recordPayment does (still
+// open, amount within remaining balance) so an obviously-wrong claim is
+// rejected immediately rather than showing up to confuse the admin later.
+async function createPaymentClaim(schoolId, { invoiceId, studentId, parentUserId, amountCents, paymentMethod, paidAt, reference }) {
+  const [rows] = await db.query(
+    'SELECT id, amount_due_cents, amount_paid_cents, status FROM fee_invoices WHERE id = ? AND student_id = ? AND school_id = ? LIMIT 1',
+    [invoiceId, studentId, schoolId]
+  );
+  const invoice = rows[0];
+  if (!invoice) {
+    const err = new Error('Invoice not found');
+    err.status = 404;
+    throw err;
+  }
+  if (invoice.status === 'paid' || invoice.status === 'waived') {
+    const err = new Error(`Invoice is already ${invoice.status}`);
+    err.status = 400;
+    throw err;
+  }
+
+  const remaining = invoice.amount_due_cents - invoice.amount_paid_cents;
+  if (amountCents > remaining) {
+    const err = new Error(`Claimed amount of ${amountCents} exceeds remaining balance of ${remaining}`);
+    err.status = 400;
+    throw err;
+  }
+
+  const [result] = await db.query(
+    `INSERT INTO fee_payment_claims (school_id, invoice_id, student_id, parent_user_id, amount_cents, payment_method, paid_at, reference)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [schoolId, invoiceId, studentId, parentUserId, amountCents, paymentMethod, paidAt, reference || null]
+  );
+  return getPaymentClaimById(schoolId, result.insertId);
+}
+
+// Confirming a claim just calls the same recordPayment() an admin's manual
+// "Record payment" button uses, so invoice totals/status stay one source of
+// truth — a confirmed claim is indistinguishable from a hand-recorded payment.
+async function confirmPaymentClaim(schoolId, claimId, reviewedBy) {
+  const claim = await getPaymentClaimById(schoolId, claimId);
+  if (!claim) {
+    const err = new Error('Payment claim not found');
+    err.status = 404;
+    throw err;
+  }
+  if (claim.status !== 'pending') {
+    const err = new Error(`Claim is already ${claim.status}`);
+    err.status = 400;
+    throw err;
+  }
+
+  await recordPayment(schoolId, claim.invoice_id, {
+    amountCents: claim.amount_cents,
+    paymentMethod: claim.payment_method,
+    paymentRef: claim.reference,
+    paidAt: claim.paid_at,
+    recordedBy: reviewedBy,
+  });
+
+  await db.query(
+    "UPDATE fee_payment_claims SET status = 'confirmed', reviewed_by = ?, reviewed_at = NOW() WHERE id = ?",
+    [reviewedBy, claimId]
+  );
+  return getPaymentClaimById(schoolId, claimId);
+}
+
+async function rejectPaymentClaim(schoolId, claimId, reviewedBy, reviewNote) {
+  const claim = await getPaymentClaimById(schoolId, claimId);
+  if (!claim) {
+    const err = new Error('Payment claim not found');
+    err.status = 404;
+    throw err;
+  }
+  if (claim.status !== 'pending') {
+    const err = new Error(`Claim is already ${claim.status}`);
+    err.status = 400;
+    throw err;
+  }
+
+  await db.query(
+    "UPDATE fee_payment_claims SET status = 'rejected', reviewed_by = ?, reviewed_at = NOW(), review_note = ? WHERE id = ?",
+    [reviewedBy, reviewNote || null, claimId]
+  );
+  return getPaymentClaimById(schoolId, claimId);
+}
+
 module.exports = {
   INVOICE_STATUSES,
   PAYMENT_METHODS,
+  CLAIM_STATUSES,
+  CLAIM_PAYMENT_METHODS,
   listFeeStructures,
   getFeeStructureById,
   createFeeStructure,
@@ -259,4 +393,9 @@ module.exports = {
   getInvoiceById,
   recordPayment,
   listDebtors,
+  listPaymentClaims,
+  getPaymentClaimById,
+  createPaymentClaim,
+  confirmPaymentClaim,
+  rejectPaymentClaim,
 };

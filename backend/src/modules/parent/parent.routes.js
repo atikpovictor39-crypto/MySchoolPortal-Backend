@@ -12,6 +12,7 @@ router.get('/children/:studentId/attendance', controller.getChildAttendance);
 router.get('/children/:studentId/exams', controller.getChildExams);
 router.get('/children/:studentId/report-card/:examId', controller.getChildReportCard);
 router.get('/children/:studentId/fees', controller.getChildFees);
+router.post('/children/:studentId/fees/:invoiceId/claims', controller.submitPaymentClaim);
 router.get('/children/:studentId/homework', controller.getChildHomework);
 router.get('/children/:studentId/timetable', controller.getChildTimetable);
 router.get('/children/:studentId/overview', controller.getChildOverview);

@@ -77,3 +77,24 @@ exports.listDebtors = asyncHandler(async (req, res) => {
   const debtors = await feeService.listDebtors(req.schoolId);
   return ok(res, debtors);
 });
+
+// ---- Payment Claims ----
+
+exports.listClaims = asyncHandler(async (req, res) => {
+  const { status } = req.query;
+  if (status && !feeService.CLAIM_STATUSES.includes(status)) {
+    return fail(res, `status must be one of: ${feeService.CLAIM_STATUSES.join(', ')}`, 400);
+  }
+  const claims = await feeService.listPaymentClaims(req.schoolId, { status });
+  return ok(res, claims);
+});
+
+exports.confirmClaim = asyncHandler(async (req, res) => {
+  const claim = await feeService.confirmPaymentClaim(req.schoolId, req.params.id, req.user.id);
+  return ok(res, claim);
+});
+
+exports.rejectClaim = asyncHandler(async (req, res) => {
+  const claim = await feeService.rejectPaymentClaim(req.schoolId, req.params.id, req.user.id, req.body.reason);
+  return ok(res, claim);
+});
