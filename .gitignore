@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment files — contain real secrets (DB password, JWT secrets, VAPID
+# keys). Only .env.example should ever be committed.
+.env
+.env.test
+.env.local
+.env.*.local
+
+# Build output
+frontend/dist/
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
