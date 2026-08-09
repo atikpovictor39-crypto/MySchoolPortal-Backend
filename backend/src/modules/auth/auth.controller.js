@@ -9,10 +9,16 @@ const REFRESH_COOKIE_NAME = 'refresh_token';
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 function refreshCookieOptions() {
+  // Frontend and backend live on separate domains in production (e.g. two
+  // Vercel projects), so the refresh cookie has to be sent cross-site —
+  // SameSite=Lax is dropped by the browser on cross-origin XHR/fetch and
+  // would silently break session refresh. None requires Secure, which is
+  // only valid over HTTPS, hence both being tied to the same condition.
+  const isProd = env.nodeEnv === 'production';
   return {
     httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: msFromDuration(env.jwt.refreshExpiresIn),
     path: REFRESH_COOKIE_PATH,
   };
@@ -140,6 +146,7 @@ exports.logout = asyncHandler(async (req, res) => {
   if (rawToken) {
     await authService.revokeRefreshToken(rawToken);
   }
-  res.clearCookie(REFRESH_COOKIE_NAME, { path: REFRESH_COOKIE_PATH });
+  const { maxAge, ...clearOptions } = refreshCookieOptions();
+  res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
   return res.json({ success: true, data: null });
 });

@@ -64,11 +64,15 @@ async function markAttendance(schoolId, classId, date, markedBy, records) {
 
   const sheet = await getAttendanceSheet(schoolId, classId, date);
 
-  // Fire-and-forget: notifying guardians is best-effort. It must never make
-  // an already-committed attendance save fail or feel slow to the teacher.
-  notifyGuardiansOfAbsence(schoolId, date, records, sheet).catch((err) => {
+  // Awaited, not fire-and-forget — on serverless the function can be frozen
+  // the instant the response is sent, so background work after return isn't
+  // guaranteed to run. Still best-effort: a notification failure must never
+  // fail an already-committed attendance save.
+  try {
+    await notifyGuardiansOfAbsence(schoolId, date, records, sheet);
+  } catch (err) {
     console.error('Failed to notify guardians of absence:', err.message);
-  });
+  }
 
   return sheet;
 }
