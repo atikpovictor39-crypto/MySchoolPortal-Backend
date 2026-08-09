@@ -39,8 +39,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-xl font-semibold text-slate-900 mb-1">Sign in</h1>
-        <p className="text-sm text-slate-500 mb-6">Access your school's dashboard</p>
+        <div className="flex flex-col items-center mb-6">
+          <img src="/logo.svg" alt="MySchoolPortal" className="w-12 h-12 rounded-xl mb-3" />
+          <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
+          <p className="text-sm text-slate-500 mt-1">Access your school's dashboard</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>

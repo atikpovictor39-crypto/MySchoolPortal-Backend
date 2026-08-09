@@ -1,6 +1,6 @@
 {
-  "name": "School SaaS",
-  "short_name": "School",
+  "name": "MySchoolPortal",
+  "short_name": "MySchoolPortal",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
