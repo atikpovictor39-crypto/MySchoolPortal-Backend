@@ -22,11 +22,15 @@ module.exports = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
 
   db: {
+    // Set DATABASE_URL (what Supabase/most hosts give you) to connect with a
+    // single connection string instead of the discrete DB_* fields below —
+    // db.js prefers this when present. Local dev keeps using DB_HOST etc.
+    connectionString: process.env.DATABASE_URL || null,
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT) || 5432,
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
-    database: required('DB_NAME'),
+    database: process.env.DATABASE_URL ? undefined : required('DB_NAME'),
   },
 
   jwt: {

@@ -9,14 +9,19 @@ const env = require('./env');
 types.setTypeParser(20, (val) => parseInt(val, 10));
 types.setTypeParser(1700, (val) => parseFloat(val));
 
-const pool = new Pool({
-  host: env.db.host,
-  port: env.db.port,
-  user: env.db.user,
-  password: env.db.password,
-  database: env.db.database,
-  max: 10,
-});
+// A DATABASE_URL (Supabase, most hosts) takes over the connection entirely
+// and needs SSL; the discrete DB_* fields are for local Postgres, which has
+// no SSL listener at all.
+const pool = env.db.connectionString
+  ? new Pool({ connectionString: env.db.connectionString, ssl: { rejectUnauthorized: false }, max: 10 })
+  : new Pool({
+      host: env.db.host,
+      port: env.db.port,
+      user: env.db.user,
+      password: env.db.password,
+      database: env.db.database,
+      max: 10,
+    });
 
 // Every query across the codebase was written for mysql2 — '?' placeholders
 // and `const [rows] = await db.query(...)` destructuring. Rather than touch
