@@ -38,16 +38,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+      <div className="w-full max-w-sm bg-[#722F37] rounded-xl shadow-lg border border-[#5c2830] p-8">
         <div className="flex flex-col items-center mb-6">
           <img src="/logo.svg" alt="MySchoolPortal" className="w-12 h-12 rounded-xl mb-3" />
-          <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
-          <p className="text-sm text-slate-500 mt-1">Access your school's dashboard</p>
+          <h1 className="text-xl font-semibold text-white">Sign in</h1>
+          <p className="text-sm text-rose-100/70 mt-1">Access your school's dashboard</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-rose-50/90 mb-1">
               Email
             </label>
             <input
@@ -57,13 +57,13 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-white/20 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
               placeholder="you@school.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-rose-50/90 mb-1">
               Password
             </label>
             <PasswordInput
@@ -72,13 +72,13 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-white/20 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-rose-200 font-medium">
               {error}
             </p>
           )}
@@ -86,15 +86,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="w-full rounded-md bg-white text-[#722F37] py-2 text-sm font-semibold hover:bg-rose-50 disabled:opacity-50"
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p className="text-sm text-slate-500 text-center mt-6">
+        <p className="text-sm text-rose-100/70 text-center mt-6">
           New school?{' '}
-          <Link to="/register" className="text-indigo-600 font-medium hover:underline">
+          <Link to="/register" className="text-white font-medium hover:underline">
             Start your free trial
           </Link>
         </p>
