@@ -265,6 +265,7 @@ export default function SchoolsPage() {
           ) : schools.length === 0 ? (
             <p className="text-sm text-slate-500">No schools yet.</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
@@ -319,6 +320,7 @@ export default function SchoolsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -386,6 +388,7 @@ export default function SchoolsPage() {
           {isLoadingPlans ? (
             <p className="text-sm text-slate-500">Loading…</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
@@ -431,6 +434,7 @@ export default function SchoolsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}

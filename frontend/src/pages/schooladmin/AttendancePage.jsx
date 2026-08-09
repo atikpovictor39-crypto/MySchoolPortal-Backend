@@ -118,6 +118,7 @@ export default function AttendancePage() {
         <p className="text-sm text-slate-500">No active students in this class.</p>
       ) : (
         <>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-4">
             <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
@@ -157,6 +158,7 @@ export default function AttendancePage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {canMark && (
             <button

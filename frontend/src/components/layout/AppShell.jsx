@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ParentProvider } from '../../context/ParentContext';
 import PushNotificationButton from '../common/PushNotificationButton';
+import { MenuIcon, CloseIcon } from '../common/icons';
 
 const STAFF_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -48,21 +50,53 @@ function initials(name) {
 
 export default function AppShell() {
   const { user, logout } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const links = user.role === 'PARENT' ? PARENT_LINKS : user.role === 'SUPERADMIN' ? SUPERADMIN_LINKS : STAFF_LINKS;
   const roleLabel = user.role.replace('_', ' ');
   const brandName = user.role === 'SUPERADMIN' ? 'Platform Admin' : user.school_name || 'School SaaS';
 
   return (
     <div className="min-h-screen flex bg-slate-50">
-      <aside className="w-64 bg-slate-900 flex flex-col print:hidden">
-        <div className="px-5 py-5 border-b border-white/10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
+      {/* Mobile-only top bar: the sidebar below is an off-canvas drawer on
+          small screens (hidden unless isMenuOpen), always visible on md+. */}
+      <div className="md:hidden fixed inset-x-0 top-0 h-14 bg-slate-900 flex items-center justify-between px-4 z-30 print:hidden">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
             {initials(brandName) || 'S'}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{brandName}</p>
-            <p className="text-[11px] text-slate-400">Management Portal</p>
+          <p className="text-sm font-semibold text-white truncate">{brandName}</p>
+        </div>
+        <button onClick={() => setIsMenuOpen(true)} className="text-slate-300 hover:text-white p-1" aria-label="Open menu">
+          <MenuIcon />
+        </button>
+      </div>
+
+      {isMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-40 print:hidden" onClick={() => setIsMenuOpen(false)} />
+      )}
+
+      <aside
+        className={`w-64 bg-slate-900 flex flex-col print:hidden fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:static md:translate-x-0 ${
+          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
+              {initials(brandName) || 'S'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{brandName}</p>
+              <p className="text-[11px] text-slate-400">Management Portal</p>
+            </div>
           </div>
+          <button
+            onClick={() => setIsMenuOpen(false)}
+            className="md:hidden text-slate-400 hover:text-white p-1 shrink-0"
+            aria-label="Close menu"
+          >
+            <CloseIcon />
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -70,6 +104,7 @@ export default function AppShell() {
             <NavLink
               key={link.to}
               to={link.to}
+              onClick={() => setIsMenuOpen(false)}
               className={({ isActive }) =>
                 `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   isActive ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
@@ -104,7 +139,7 @@ export default function AppShell() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto mt-14 md:mt-0 min-w-0">
         {user.role === 'PARENT' ? (
           <ParentProvider>
             <Outlet />

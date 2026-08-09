@@ -90,6 +90,7 @@ export default function ParentResultsPage() {
               </p>
             </div>
 
+            <div className="overflow-x-auto">
             <table className="w-full text-sm mb-4">
               <thead className="text-left text-slate-500 border-b border-slate-200">
                 <tr>
@@ -112,6 +113,7 @@ export default function ParentResultsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             <div className="grid grid-cols-2 gap-2 text-sm border-t border-slate-200 pt-3">
               <div>

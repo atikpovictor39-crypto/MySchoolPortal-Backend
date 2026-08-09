@@ -301,6 +301,7 @@ export default function ResultsPage() {
             {exams.length === 0 ? (
               <p className="text-sm text-slate-500">No exams yet.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
@@ -327,6 +328,7 @@ export default function ResultsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
 
             {managingExam && (
@@ -450,6 +452,7 @@ export default function ResultsPage() {
 
             {sheet && (
               <>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-4">
                   <thead className="bg-slate-50 text-left text-slate-600">
                     <tr>
@@ -500,6 +503,7 @@ export default function ResultsPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
 
                 {canEnterScores && (
                   <button
@@ -581,6 +585,7 @@ export default function ResultsPage() {
             </div>
 
             {ranking && (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
@@ -607,6 +612,7 @@ export default function ResultsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -631,6 +637,7 @@ export default function ResultsPage() {
               </p>
             </div>
 
+            <div className="overflow-x-auto">
             <table className="w-full text-sm mb-4">
               <thead className="text-left text-slate-500 border-b border-slate-200">
                 <tr>
@@ -653,6 +660,7 @@ export default function ResultsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             <div className="grid grid-cols-2 gap-2 text-sm border-t border-slate-200 pt-3">
               <div>

@@ -50,6 +50,7 @@ export default function ParentAttendancePage() {
           ) : attendance.length === 0 ? (
             <p className="text-sm text-slate-500">No attendance recorded yet.</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
@@ -70,6 +71,7 @@ export default function ParentAttendancePage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </>
       )}

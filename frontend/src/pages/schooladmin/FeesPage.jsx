@@ -355,6 +355,7 @@ export default function FeesPage() {
             {structures.length === 0 ? (
               <p className="text-sm text-slate-500">No fee structures yet.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
@@ -387,6 +388,7 @@ export default function FeesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -412,6 +414,7 @@ export default function FeesPage() {
             {invoices.length === 0 ? (
               <p className="text-sm text-slate-500">No invoices yet — generate some from Fee Structures.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
@@ -443,6 +446,7 @@ export default function FeesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -452,6 +456,7 @@ export default function FeesPage() {
             {debtors.length === 0 ? (
               <p className="text-sm text-slate-500">No outstanding balances. 🎉</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
@@ -477,6 +482,7 @@ export default function FeesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -508,6 +514,7 @@ export default function FeesPage() {
             {claims.length === 0 ? (
               <p className="text-sm text-slate-500">No payment claims{claimStatusFilter ? ` with status "${claimStatusFilter}"` : ''}.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <thead className="bg-slate-50 text-left text-slate-600">
                   <tr>
@@ -559,6 +566,7 @@ export default function FeesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
