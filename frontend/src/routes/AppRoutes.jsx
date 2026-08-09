@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
+import LandingPage from '../features/marketing/LandingPage';
 import LoginPage from '../features/auth/LoginPage';
 import SignupPage from '../features/auth/SignupPage';
 import AppShell from '../components/layout/AppShell';
@@ -28,6 +29,7 @@ import ParentAnnouncementsPage from '../pages/parent/ParentAnnouncementsPage';
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<SignupPage />} />
 

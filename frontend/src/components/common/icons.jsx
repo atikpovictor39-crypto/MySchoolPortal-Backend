@@ -124,3 +124,21 @@ export function CloseIcon() {
     </svg>
   );
 }
+
+export function BellIcon() {
+  return (
+    <svg {...strokeProps}>
+      <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+export function DeviceIcon() {
+  return (
+    <svg {...strokeProps}>
+      <rect x="6" y="2" width="12" height="20" rx="2" />
+      <line x1="11" y1="18" x2="13" y2="18" />
+    </svg>
+  );
+}
