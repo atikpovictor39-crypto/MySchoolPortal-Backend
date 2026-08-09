@@ -6,6 +6,7 @@ jspm_packages/
 # keys). Only .env.example / .env.test.example should ever be committed.
 .env
 .env.test
+.env.production
 .env.local
 .env.*.local
 !.env.example

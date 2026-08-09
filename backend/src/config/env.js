@@ -3,9 +3,11 @@ const path = require('path');
 // Resolve relative to this file (backend/.env), not process.cwd() —
 // otherwise "DB_NAME missing" happens simply because the process started
 // from the wrong folder (e.g. the repo root instead of backend/).
-// NODE_ENV=test loads .env.test (points at school_saas_test) so the test
-// suite never touches the real development database.
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+// NODE_ENV=test loads .env.test (school_saas_test) and NODE_ENV=production
+// loads .env.production (Supabase) — local `npm run dev` always stays on
+// plain .env (local Postgres) so dev never accidentally touches prod data.
+const envFile =
+  process.env.NODE_ENV === 'test' ? '.env.test' : process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
 require('dotenv').config({ path: path.resolve(__dirname, '../../', envFile) });
 
 function required(name) {
