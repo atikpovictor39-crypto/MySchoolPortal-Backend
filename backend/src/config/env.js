@@ -21,7 +21,11 @@ function required(name) {
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 5000,
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // Comma-separated so both the apex and "www" domain (or a preview URL)
+  // can be allowed at once — a single exact string here previously caused
+  // requests from "www.myschoolportalgh.com" to be silently blocked by the
+  // browser when CORS_ORIGIN was set to the bare apex domain.
+  corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((origin) => origin.trim()),
 
   db: {
     // Set DATABASE_URL (what Supabase/most hosts give you) to connect with a

@@ -11,7 +11,19 @@ const { notFound, errorHandler } = require('./middleware/error.middleware');
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.corsOrigin, credentials: true }));
+app.use(
+  cors({
+    // No Origin header at all (curl, server-to-server, native apps) is let
+    // through; browser requests are checked against the allowlist so a
+    // mismatched domain fails loudly server-side instead of being silently
+    // dropped by the browser after the request already ran.
+    origin: (origin, callback) => {
+      if (!origin || env.corsOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 if (env.nodeEnv !== 'test') {
