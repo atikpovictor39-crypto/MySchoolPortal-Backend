@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Footer from '../../components/layout/Footer';
+import DashboardPreview from './DashboardPreview';
 import {
   UsersIcon,
   DollarIcon,
@@ -87,6 +88,21 @@ export default function LandingPage() {
           >
             Sign in
           </Link>
+        </div>
+
+        <p className="text-xs text-slate-500 mt-6">
+          Not ready to sign up? Explore a live demo — no account needed:{' '}
+          <Link to="/login?demo=admin" className="text-blue-600 font-medium hover:underline">
+            as a school admin
+          </Link>{' '}
+          or{' '}
+          <Link to="/login?demo=parent" className="text-blue-600 font-medium hover:underline">
+            as a parent
+          </Link>
+        </p>
+
+        <div className="max-w-3xl mx-auto mt-12">
+          <DashboardPreview />
         </div>
       </header>
 

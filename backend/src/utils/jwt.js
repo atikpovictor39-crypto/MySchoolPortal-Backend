@@ -10,6 +10,7 @@ function signAccessToken(user) {
       id: Number(user.id),
       role: user.role,
       school_id: user.school_id != null ? Number(user.school_id) : null,
+      is_demo: Boolean(user.is_demo),
     },
     env.jwt.accessSecret,
     { expiresIn: env.jwt.accessExpiresIn }

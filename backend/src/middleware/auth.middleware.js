@@ -12,8 +12,8 @@ module.exports = function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = verifyAccessToken(token); // { id, role, school_id, iat, exp }
-    req.user = { id: payload.id, role: payload.role, school_id: payload.school_id };
+    const payload = verifyAccessToken(token); // { id, role, school_id, is_demo, iat, exp }
+    req.user = { id: payload.id, role: payload.role, school_id: payload.school_id, is_demo: Boolean(payload.is_demo) };
     return next();
   } catch (err) {
     return res.status(401).json({ success: false, message: 'Invalid or expired token' });

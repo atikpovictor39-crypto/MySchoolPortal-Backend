@@ -43,6 +43,7 @@ CREATE TABLE schools (
   bank_account_name   VARCHAR(150),
   logo_url      VARCHAR(500),
   status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','archived')),
+  is_demo       BOOLEAN NOT NULL DEFAULT FALSE, -- public read-only demo tenant, see demoReadOnly.middleware.js
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

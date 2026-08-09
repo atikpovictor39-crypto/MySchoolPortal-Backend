@@ -3,9 +3,10 @@ const router = express.Router();
 const controller = require('./subject.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
+const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope);
+router.use(requireAuth, tenantScope, blockDemoWrites);
 
 // Staff-only — see students/student.routes.js for why Parents are excluded.
 router.get('/', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.list);

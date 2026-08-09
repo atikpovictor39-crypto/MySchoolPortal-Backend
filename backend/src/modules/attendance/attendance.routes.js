@@ -3,9 +3,10 @@ const router = express.Router();
 const controller = require('./attendance.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
+const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope);
+router.use(requireAuth, tenantScope, blockDemoWrites);
 
 // Staff-only — a class attendance sheet exposes every student in the class,
 // not just one family's child. Parents use /api/v1/parent/* instead.

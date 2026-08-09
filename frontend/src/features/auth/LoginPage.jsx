@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PasswordInput from '../../components/common/PasswordInput';
@@ -9,14 +9,31 @@ function defaultRedirectFor(role) {
   return '/dashboard';
 }
 
+// Public, read-only accounts seeded for the "view a live demo" links on the
+// landing page (writes are blocked server-side — see demoReadOnly.middleware.js).
+const DEMO_CREDENTIALS = {
+  admin: { email: 'demo.admin@myschoolportalgh.com', password: 'Demo1234!' },
+  parent: { email: 'demo.parent@myschoolportalgh.com', password: 'Demo1234!' },
+};
+
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const demoKey = new URLSearchParams(location.search).get('demo');
+  const demo = DEMO_CREDENTIALS[demoKey] || null;
+  const [email, setEmail] = useState(demo?.email || '');
+  const [password, setPassword] = useState(demo?.password || '');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (demo) {
+      setEmail(demo.email);
+      setPassword(demo.password);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoKey]);
 
   const explicitRedirect = location.state?.from?.pathname;
 
@@ -44,6 +61,12 @@ export default function LoginPage() {
           <h1 className="text-xl font-semibold text-blue-800">Sign in</h1>
           <p className="text-sm text-slate-500 mt-1">Access your school's dashboard</p>
         </div>
+
+        {demo && (
+          <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-2 mb-4 text-center">
+            Demo {demoKey} credentials filled in — just hit Sign in. Changes are disabled on this account.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
