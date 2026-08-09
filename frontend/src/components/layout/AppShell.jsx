@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ParentProvider } from '../../context/ParentContext';
@@ -23,7 +23,7 @@ const STAFF_LINKS = [
 ];
 
 // The backend only lets a Parent read their own linked children (see
-// parent.routes.js) — showing them links to the staff pages above would
+// parent.routes.js) â€” showing them links to the staff pages above would
 // just dead-end in a 403, so the nav itself must be role-aware too.
 const PARENT_LINKS = [
   { to: '/overview', label: 'Overview' },
@@ -34,7 +34,7 @@ const PARENT_LINKS = [
   { to: '/parent-announcements', label: 'Announcements' },
 ];
 
-// SuperAdmin operates at the platform level, not inside one school — it
+// SuperAdmin operates at the platform level, not inside one school â€” it
 // only ever gets the Schools onboarding page, not the tenant-scoped staff nav.
 const SUPERADMIN_LINKS = [{ to: '/schools', label: 'Schools' }];
 
@@ -56,12 +56,12 @@ export default function AppShell() {
   const brandName = user.role === 'SUPERADMIN' ? 'Platform Admin' : user.school_name || 'School SaaS';
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-[#F5F8FF]">
       {/* Mobile-only top bar: the sidebar below is an off-canvas drawer on
           small screens (hidden unless isMenuOpen), always visible on md+. */}
       <div className="md:hidden fixed inset-x-0 top-0 h-14 bg-slate-900 flex items-center justify-between px-4 z-30 print:hidden">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
             {initials(brandName) || 'S'}
           </div>
           <p className="text-sm font-semibold text-white truncate">{brandName}</p>
@@ -82,7 +82,7 @@ export default function AppShell() {
       >
         <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
               {initials(brandName) || 'S'}
             </div>
             <div className="min-w-0">
@@ -107,7 +107,7 @@ export default function AppShell() {
               onClick={() => setIsMenuOpen(false)}
               className={({ isActive }) =>
                 `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                  isActive ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
                 }`
               }
             >
@@ -128,7 +128,7 @@ export default function AppShell() {
           </div>
 
           {/* Only Parents have a notification type wired up so far (absence
-              alerts) — showing this to staff would just be a dead button. */}
+              alerts) â€” showing this to staff would just be a dead button. */}
           {user.role === 'PARENT' && <PushNotificationButton />}
 
           <button

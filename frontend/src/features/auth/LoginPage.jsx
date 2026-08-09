@@ -37,11 +37,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#722F37] px-4">
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-slate-200 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#F5F8FF] to-[#E8EEFB] px-4">
+      <div className="w-full max-w-sm bg-white rounded-xl shadow-md p-8">
         <div className="flex flex-col items-center mb-6">
           <img src="/logo.svg" alt="MySchoolPortal" className="w-12 h-12 rounded-xl mb-3" />
-          <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
+          <h1 className="text-xl font-semibold text-blue-800">Sign in</h1>
           <p className="text-sm text-slate-500 mt-1">Access your school's dashboard</p>
         </div>
 
@@ -57,7 +57,7 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="you@school.com"
             />
           </div>
@@ -72,7 +72,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
             />
           </div>
@@ -86,7 +86,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
@@ -94,7 +94,7 @@ export default function LoginPage() {
 
         <p className="text-sm text-slate-500 text-center mt-6">
           New school?{' '}
-          <Link to="/register" className="text-indigo-600 font-medium hover:underline">
+          <Link to="/register" className="text-blue-600 font-medium hover:underline">
             Start your free trial
           </Link>
         </p>

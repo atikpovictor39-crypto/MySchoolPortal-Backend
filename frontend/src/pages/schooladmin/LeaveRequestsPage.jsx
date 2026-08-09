@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   listLeaveRequests,
@@ -15,7 +15,7 @@ const STATUS_STYLE = {
 };
 
 function formatDate(d) {
-  return d ? d.slice(0, 10) : '—';
+  return d ? d.slice(0, 10) : 'â€”';
 }
 
 export default function LeaveRequestsPage() {
@@ -128,9 +128,9 @@ export default function LeaveRequestsPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Submitting…' : 'Request leave'}
+            {isSubmitting ? 'Submittingâ€¦' : 'Request leave'}
           </button>
         </form>
       )}
@@ -160,7 +160,7 @@ export default function LeaveRequestsPage() {
       <h2 className="text-sm font-semibold text-slate-900 mb-2">{isTeacher ? 'My requests' : 'Requests'}</h2>
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500">Loadingâ€¦</p>
       ) : requests.length === 0 ? (
         <p className="text-sm text-slate-500">No leave requests yet.</p>
       ) : (
@@ -180,9 +180,9 @@ export default function LeaveRequestsPage() {
               <tr key={r.id} className="border-t border-slate-100">
                 {isAdmin && <td className="px-4 py-2">{r.teacher_name}</td>}
                 <td className="px-4 py-2">
-                  {formatDate(r.start_date)} – {formatDate(r.end_date)}
+                  {formatDate(r.start_date)} â€“ {formatDate(r.end_date)}
                 </td>
-                <td className="px-4 py-2">{r.reason || '—'}</td>
+                <td className="px-4 py-2">{r.reason || 'â€”'}</td>
                 <td className="px-4 py-2">
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLE[r.status]}`}>
                     {r.status}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../features/announcements/api';
 import { listClasses } from '../../features/classes/api';
@@ -138,9 +138,9 @@ export default function AnnouncementsPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSubmitting ? 'Posting…' : 'Post announcement'}
+              {isSubmitting ? 'Postingâ€¦' : 'Post announcement'}
             </button>
           </div>
         </form>
@@ -153,7 +153,7 @@ export default function AnnouncementsPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500">Loadingâ€¦</p>
       ) : announcements.length === 0 ? (
         <p className="text-sm text-slate-500">No announcements yet.</p>
       ) : (
@@ -197,7 +197,7 @@ export default function AnnouncementsPage() {
                       </option>
                     ))}
                   </select>
-                  <button onClick={() => saveEdit(a.id)} className="text-indigo-600 text-xs font-medium">
+                  <button onClick={() => saveEdit(a.id)} className="text-blue-600 text-xs font-medium">
                     Save
                   </button>
                   <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
@@ -211,7 +211,7 @@ export default function AnnouncementsPage() {
                   <h3 className="text-sm font-semibold text-slate-900">{a.title}</h3>
                   {isAdmin && (
                     <div className="flex gap-3 shrink-0">
-                      <button onClick={() => startEdit(a)} className="text-indigo-600 text-xs font-medium">
+                      <button onClick={() => startEdit(a)} className="text-blue-600 text-xs font-medium">
                         Edit
                       </button>
                       <button onClick={() => handleDelete(a.id)} className="text-red-600 text-xs font-medium">
@@ -223,8 +223,8 @@ export default function AnnouncementsPage() {
                 <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.content}</p>
                 <p className="text-xs text-slate-400 mt-2">
                   {a.target_role}
-                  {a.class_id ? ` · ${classNameById[a.class_id] || a.class_id}` : ' · whole school'} · by{' '}
-                  {a.created_by_name} · {a.published_at.slice(0, 10)}
+                  {a.class_id ? ` Â· ${classNameById[a.class_id] || a.class_id}` : ' Â· whole school'} Â· by{' '}
+                  {a.created_by_name} Â· {a.published_at.slice(0, 10)}
                 </p>
               </div>
             )

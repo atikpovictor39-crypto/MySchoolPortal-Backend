@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listClasses, createClass } from '../../features/classes/api';
 import { listAcademicYears } from '../../features/academicYears/api';
@@ -68,7 +68,7 @@ export default function ClassesPage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Select…
+                Selectâ€¦
               </option>
               {years.map((y) => (
                 <option key={y.id} value={y.id}>
@@ -99,9 +99,9 @@ export default function ClassesPage() {
           <button
             type="submit"
             disabled={isSubmitting || years.length === 0}
-            className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Adding…' : 'Add class'}
+            {isSubmitting ? 'Addingâ€¦' : 'Add class'}
           </button>
         </form>
       )}
@@ -117,7 +117,7 @@ export default function ClassesPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500">Loadingâ€¦</p>
       ) : classes.length === 0 ? (
         <p className="text-sm text-slate-500">No classes yet.</p>
       ) : (
@@ -134,7 +134,7 @@ export default function ClassesPage() {
             {classes.map((c) => (
               <tr key={c.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">{c.name}</td>
-                <td className="px-4 py-2">{c.section || '—'}</td>
+                <td className="px-4 py-2">{c.section || 'â€”'}</td>
                 <td className="px-4 py-2">{yearNameById[c.academic_year_id] || c.academic_year_id}</td>
               </tr>
             ))}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listAcademicYears } from '../../features/academicYears/api';
 import { listClasses } from '../../features/classes/api';
@@ -211,7 +211,7 @@ export default function ResultsPage() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                tab === t.key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
               {t.label}
@@ -241,7 +241,7 @@ export default function ResultsPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="" disabled>
-                      Select…
+                      Selectâ€¦
                     </option>
                     {years.map((y) => (
                       <option key={y.id} value={y.id}>
@@ -259,7 +259,7 @@ export default function ResultsPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="" disabled>
-                      Select…
+                      Selectâ€¦
                     </option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -291,9 +291,9 @@ export default function ResultsPage() {
                 <button
                   type="submit"
                   disabled={isCreatingExam}
-                  className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isCreatingExam ? 'Adding…' : 'Add exam'}
+                  {isCreatingExam ? 'Addingâ€¦' : 'Add exam'}
                 </button>
               </form>
             )}
@@ -316,11 +316,11 @@ export default function ResultsPage() {
                   {exams.map((e) => (
                     <tr key={e.id} className="border-t border-slate-100">
                       <td className="px-4 py-2">{e.name}</td>
-                      <td className="px-4 py-2">{e.term || '—'}</td>
+                      <td className="px-4 py-2">{e.term || 'â€”'}</td>
                       <td className="px-4 py-2">{classNameById[e.class_id] || e.class_id}</td>
                       <td className="px-4 py-2">{yearNameById[e.academic_year_id] || e.academic_year_id}</td>
                       <td className="px-4 py-2">
-                        <button onClick={() => openManageSubjects(e.id)} className="text-indigo-600 text-xs font-medium">
+                        <button onClick={() => openManageSubjects(e.id)} className="text-blue-600 text-xs font-medium">
                           Manage subjects
                         </button>
                       </td>
@@ -372,7 +372,7 @@ export default function ResultsPage() {
                         className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                       >
                         <option value="" disabled>
-                          Select…
+                          Selectâ€¦
                         </option>
                         {subjects.map((s) => (
                           <option key={s.id} value={s.id}>
@@ -402,7 +402,7 @@ export default function ResultsPage() {
                     <button
                       type="submit"
                       disabled={isAddingExamSubject}
-                      className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                      className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                     >
                       Add
                     </button>
@@ -423,7 +423,7 @@ export default function ResultsPage() {
                   onChange={(e) => setSelectedExamId(e.target.value)}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 >
-                  <option value="">Select…</option>
+                  <option value="">Selectâ€¦</option>
                   {exams.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.name} ({classNameById[e.class_id] || e.class_id})
@@ -439,7 +439,7 @@ export default function ResultsPage() {
                     onChange={(e) => setSelectedExamSubjectId(e.target.value)}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
-                    <option value="">Select…</option>
+                    <option value="">Selectâ€¦</option>
                     {selectedExam.subjects.map((s) => (
                       <option key={s.exam_subject_id} value={s.exam_subject_id}>
                         {s.subject_name}
@@ -484,10 +484,10 @@ export default function ResultsPage() {
                               className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
                             />
                           ) : (
-                            s.marks_obtained ?? '—'
+                            s.marks_obtained ?? 'â€”'
                           )}
                         </td>
-                        <td className="px-4 py-2">{s.grade || '—'}</td>
+                        <td className="px-4 py-2">{s.grade || 'â€”'}</td>
                         <td className="px-4 py-2">
                           {canEnterScores ? (
                             <input
@@ -509,9 +509,9 @@ export default function ResultsPage() {
                   <button
                     onClick={handleSaveResults}
                     disabled={isSavingResults}
-                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {isSavingResults ? 'Saving…' : 'Save results'}
+                    {isSavingResults ? 'Savingâ€¦' : 'Save results'}
                   </button>
                 )}
               </>
@@ -529,7 +529,7 @@ export default function ResultsPage() {
                   onChange={(e) => setSelectedExamId(e.target.value)}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 >
-                  <option value="">Select…</option>
+                  <option value="">Selectâ€¦</option>
                   {exams.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.name} ({classNameById[e.class_id] || e.class_id})
@@ -545,7 +545,7 @@ export default function ResultsPage() {
                     onChange={(e) => setSelectedStudentId(e.target.value)}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
-                    <option value="">Select…</option>
+                    <option value="">Selectâ€¦</option>
                     {classStudents.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.first_name} {s.last_name} ({s.admission_no})
@@ -557,7 +557,7 @@ export default function ResultsPage() {
               {selectedStudentId && (
                 <button
                   onClick={handleViewReportCard}
-                  className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+                  className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   View report card
                 </button>
@@ -575,7 +575,7 @@ export default function ResultsPage() {
                 onChange={(e) => setSelectedExamId(e.target.value)}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               >
-                <option value="">Select…</option>
+                <option value="">Selectâ€¦</option>
                 {exams.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name} ({classNameById[e.class_id] || e.class_id})
@@ -633,7 +633,7 @@ export default function ResultsPage() {
                 {reportCard.student.first_name} {reportCard.student.last_name} ({reportCard.student.admission_no})
               </p>
               <p className="text-sm text-slate-600">
-                {reportCard.exam.name} {reportCard.exam.term ? `· ${reportCard.exam.term}` : ''}
+                {reportCard.exam.name} {reportCard.exam.term ? `Â· ${reportCard.exam.term}` : ''}
               </p>
             </div>
 
@@ -654,7 +654,7 @@ export default function ResultsPage() {
                     <td className="py-1">
                       {s.marks_obtained !== null ? `${s.marks_obtained} / ${s.max_marks}` : 'Not entered'}
                     </td>
-                    <td className="py-1">{s.grade || '—'}</td>
+                    <td className="py-1">{s.grade || 'â€”'}</td>
                     <td className="py-1">{s.remarks || ''}</td>
                   </tr>
                 ))}
@@ -671,7 +671,7 @@ export default function ResultsPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Overall grade</p>
-                <p className="font-medium">{reportCard.overallGrade || '—'}</p>
+                <p className="font-medium">{reportCard.overallGrade || 'â€”'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Position</p>
@@ -681,7 +681,7 @@ export default function ResultsPage() {
               </div>
             </div>
 
-            <button onClick={() => window.print()} className="print:hidden mt-4 text-sm text-indigo-600 underline">
+            <button onClick={() => window.print()} className="print:hidden mt-4 text-sm text-blue-600 underline">
               Print report card
             </button>
           </div>

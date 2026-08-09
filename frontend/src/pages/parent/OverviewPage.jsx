@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParent } from '../../context/ParentContext';
 import ChildTabs from '../../components/parent/ChildTabs';
 import StatCard from '../../components/common/StatCard';
@@ -11,7 +11,7 @@ function initials(first, last) {
 }
 
 function ordinal(n) {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return 'â€”';
   const rem100 = n % 100;
   if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
   switch (n % 10) {
@@ -68,7 +68,7 @@ export default function OverviewPage() {
       .finally(() => setIsLoading(false));
   }, [selectedChildId]);
 
-  if (isLoadingChildren) return <p className="text-sm text-slate-500">Loading…</p>;
+  if (isLoadingChildren) return <p className="text-sm text-slate-500">Loadingâ€¦</p>;
 
   return (
     <div className="max-w-4xl">
@@ -89,7 +89,7 @@ export default function OverviewPage() {
 
       {childList.length === 0 ? (
         <p className="text-sm text-slate-500">
-          No children are linked to your account yet — ask your school's admin to add you as a guardian.
+          No children are linked to your account yet â€” ask your school's admin to add you as a guardian.
         </p>
       ) : (
         <>
@@ -97,7 +97,7 @@ export default function OverviewPage() {
 
           {selectedChild && (
             <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4 mb-6 shadow-sm">
-              <div className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-semibold shrink-0">
+              <div className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold shrink-0">
                 {initials(selectedChild.first_name, selectedChild.last_name)}
               </div>
               <div>
@@ -106,14 +106,14 @@ export default function OverviewPage() {
                 </p>
                 <p className="text-sm text-slate-500">
                   {selectedChild.class_name}
-                  {selectedChild.section ? ` ${selectedChild.section}` : ''} · Admission No. {selectedChild.admission_no}
+                  {selectedChild.section ? ` ${selectedChild.section}` : ''} Â· Admission No. {selectedChild.admission_no}
                 </p>
               </div>
             </div>
           )}
 
           {isLoading ? (
-            <p className="text-sm text-slate-500">Loading…</p>
+            <p className="text-sm text-slate-500">Loadingâ€¦</p>
           ) : (
             overview && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -121,14 +121,14 @@ export default function OverviewPage() {
                   icon={<AttendanceIcon />}
                   iconBg="bg-sky-500"
                   label="Attendance Rate"
-                  value={overview.attendanceRate !== null ? `${overview.attendanceRate}%` : '—'}
+                  value={overview.attendanceRate !== null ? `${overview.attendanceRate}%` : 'â€”'}
                   valueColor={attendanceColor(overview.attendanceRate)}
                 />
                 <StatCard
                   icon={<ChartIcon />}
                   iconBg="bg-violet-500"
                   label="Class Average"
-                  value={overview.classAverage !== null ? overview.classAverage : '—'}
+                  value={overview.classAverage !== null ? overview.classAverage : 'â€”'}
                   valueColor={averageColor(overview.classAverage)}
                   sublabel={overview.latestExam ? overview.latestExam.name : undefined}
                 />
@@ -168,9 +168,9 @@ export default function OverviewPage() {
                   <div key={a.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                     <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
                       <span>{a.published_at.slice(0, 10)}</span>
-                      <span>·</span>
+                      <span>Â·</span>
                       <span>{a.created_by_name}</span>
-                      <span className="ml-auto px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium capitalize">
+                      <span className="ml-auto px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium capitalize">
                         {a.target_role}
                       </span>
                     </div>

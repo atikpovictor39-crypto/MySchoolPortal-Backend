@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listAcademicYears } from '../../features/academicYears/api';
 import { listClasses } from '../../features/classes/api';
@@ -255,7 +255,7 @@ export default function FeesPage() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                tab === t.key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
               {t.label}
@@ -285,7 +285,7 @@ export default function FeesPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="" disabled>
-                      Select…
+                      Selectâ€¦
                     </option>
                     {years.map((y) => (
                       <option key={y.id} value={y.id}>
@@ -345,9 +345,9 @@ export default function FeesPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingStructure}
-                  className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isSubmittingStructure ? 'Adding…' : 'Add fee'}
+                  {isSubmittingStructure ? 'Addingâ€¦' : 'Add fee'}
                 </button>
               </form>
             )}
@@ -372,15 +372,15 @@ export default function FeesPage() {
                       <td className="px-4 py-2">{s.name}</td>
                       <td className="px-4 py-2">{s.class_id ? classNameById[s.class_id] || s.class_id : 'All classes'}</td>
                       <td className="px-4 py-2">{money(s.amount_cents)}</td>
-                      <td className="px-4 py-2">{s.due_date ? s.due_date.slice(0, 10) : '—'}</td>
+                      <td className="px-4 py-2">{s.due_date ? s.due_date.slice(0, 10) : 'â€”'}</td>
                       {isAdmin && (
                         <td className="px-4 py-2">
                           <button
                             onClick={() => handleGenerate(s.id)}
                             disabled={generatingId === s.id}
-                            className="text-indigo-600 text-xs font-medium disabled:opacity-50"
+                            className="text-blue-600 text-xs font-medium disabled:opacity-50"
                           >
-                            {generatingId === s.id ? 'Generating…' : 'Generate invoices'}
+                            {generatingId === s.id ? 'Generatingâ€¦' : 'Generate invoices'}
                           </button>
                         </td>
                       )}
@@ -412,7 +412,7 @@ export default function FeesPage() {
             </div>
 
             {invoices.length === 0 ? (
-              <p className="text-sm text-slate-500">No invoices yet — generate some from Fee Structures.</p>
+              <p className="text-sm text-slate-500">No invoices yet â€” generate some from Fee Structures.</p>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -438,7 +438,7 @@ export default function FeesPage() {
                       <td className="px-4 py-2">{money(inv.amount_paid_cents)}</td>
                       <td className="px-4 py-2 capitalize">{inv.status}</td>
                       <td className="px-4 py-2">
-                        <button onClick={() => openInvoice(inv.id)} className="text-indigo-600 text-xs font-medium">
+                        <button onClick={() => openInvoice(inv.id)} className="text-blue-600 text-xs font-medium">
                           View
                         </button>
                       </td>
@@ -454,7 +454,7 @@ export default function FeesPage() {
         {tab === 'debtors' && (
           <div>
             {debtors.length === 0 ? (
-              <p className="text-sm text-slate-500">No outstanding balances. 🎉</p>
+              <p className="text-sm text-slate-500">No outstanding balances. ðŸŽ‰</p>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -507,7 +507,7 @@ export default function FeesPage() {
               </div>
               <p className="text-xs text-slate-500 max-w-sm text-right">
                 Parents can tell us they've sent money for an invoice. Check it landed in your MoMo/bank account,
-                then confirm it here — that's what actually marks the invoice paid.
+                then confirm it here â€” that's what actually marks the invoice paid.
               </p>
             </div>
 
@@ -540,7 +540,7 @@ export default function FeesPage() {
                       <td className="px-4 py-2">{money(c.amount_cents)}</td>
                       <td className="px-4 py-2 capitalize">{c.payment_method.replace('_', ' ')}</td>
                       <td className="px-4 py-2">{c.paid_at.slice(0, 10)}</td>
-                      <td className="px-4 py-2">{c.reference || '—'}</td>
+                      <td className="px-4 py-2">{c.reference || 'â€”'}</td>
                       <td className="px-4 py-2 capitalize">{c.status}</td>
                       <td className="px-4 py-2">
                         {c.status === 'pending' && (
@@ -575,12 +575,12 @@ export default function FeesPage() {
           <div className="max-w-2xl">
             <p className="text-sm text-slate-500 mb-4">
               These are shown to parents on their Fees page as where to send money. There's no automated payment
-              gateway yet — payments made this way still need to be recorded manually under Invoices once you see
+              gateway yet â€” payments made this way still need to be recorded manually under Invoices once you see
               them land.
             </p>
 
             {isLoadingPayoutDetails ? (
-              <p className="text-sm text-slate-500">Loading…</p>
+              <p className="text-sm text-slate-500">Loadingâ€¦</p>
             ) : (
               <form
                 onSubmit={handleSavePayoutDetails}
@@ -596,7 +596,7 @@ export default function FeesPage() {
                         onChange={(e) => setPayoutForm({ ...payoutForm, momoProvider: e.target.value })}
                         className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                       >
-                        <option value="">Select…</option>
+                        <option value="">Selectâ€¦</option>
                         {MOMO_PROVIDERS.map((p) => (
                           <option key={p} value={p}>
                             {p}
@@ -661,9 +661,9 @@ export default function FeesPage() {
                   <button
                     type="submit"
                     disabled={isSavingPayoutDetails}
-                    className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {isSavingPayoutDetails ? 'Saving…' : 'Save payment details'}
+                    {isSavingPayoutDetails ? 'Savingâ€¦' : 'Save payment details'}
                   </button>
                   {payoutDetailsSaved && <span className="text-sm text-green-600">Saved.</span>}
                 </div>
@@ -689,7 +689,7 @@ export default function FeesPage() {
               </p>
               <p className="text-sm text-slate-600">{selectedInvoice.fee_name}</p>
               <p className="text-xs text-slate-500 mt-1">
-                Due: {selectedInvoice.due_date ? selectedInvoice.due_date.slice(0, 10) : '—'}
+                Due: {selectedInvoice.due_date ? selectedInvoice.due_date.slice(0, 10) : 'â€”'}
               </p>
             </div>
 
@@ -715,7 +715,7 @@ export default function FeesPage() {
                   {selectedInvoice.payments.map((p) => (
                     <li key={p.id} className="flex justify-between text-slate-700">
                       <span>
-                        {p.paid_at.slice(0, 10)} · {p.payment_method}
+                        {p.paid_at.slice(0, 10)} Â· {p.payment_method}
                         {p.payment_ref ? ` (${p.payment_ref})` : ''}
                       </span>
                       <span>{money(p.amount_cents)}</span>
@@ -764,16 +764,16 @@ export default function FeesPage() {
                 <button
                   type="submit"
                   disabled={isRecordingPayment}
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isRecordingPayment ? 'Saving…' : 'Record payment'}
+                  {isRecordingPayment ? 'Savingâ€¦' : 'Record payment'}
                 </button>
               </form>
             )}
 
             <button
               onClick={() => window.print()}
-              className="print:hidden mt-4 text-sm text-indigo-600 underline"
+              className="print:hidden mt-4 text-sm text-blue-600 underline"
             >
               Print receipt
             </button>

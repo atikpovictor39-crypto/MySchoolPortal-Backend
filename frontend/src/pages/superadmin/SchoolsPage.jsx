@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { listSchools, createSchool, updateSchoolStatus } from '../../features/schools/api';
 import { listPlans, createPlan, updatePlan } from '../../features/subscriptions/api';
 import PasswordInput from '../../components/common/PasswordInput';
@@ -179,7 +179,7 @@ export default function SchoolsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === t.key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+              tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             {t.label}
@@ -254,14 +254,14 @@ export default function SchoolsPage() {
             <button
               type="submit"
               disabled={isSubmittingSchool}
-              className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSubmittingSchool ? 'Creating…' : 'Create school'}
+              {isSubmittingSchool ? 'Creatingâ€¦' : 'Create school'}
             </button>
           </form>
 
           {isLoadingSchools ? (
-            <p className="text-sm text-slate-500">Loading…</p>
+            <p className="text-sm text-slate-500">Loadingâ€¦</p>
           ) : schools.length === 0 ? (
             <p className="text-sm text-slate-500">No schools yet.</p>
           ) : (
@@ -283,7 +283,7 @@ export default function SchoolsPage() {
                   <tr key={s.id} className="border-t border-slate-100">
                     <td className="px-4 py-2">{s.name}</td>
                     <td className="px-4 py-2">{s.email}</td>
-                    <td className="px-4 py-2">{s.plan_name || '—'}</td>
+                    <td className="px-4 py-2">{s.plan_name || 'â€”'}</td>
                     <td className="px-4 py-2">
                       <span
                         className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${STATUS_STYLE[s.status] || ''}`}
@@ -299,7 +299,7 @@ export default function SchoolsPage() {
                           {s.subscription_status}
                         </span>
                       ) : (
-                        '—'
+                        'â€”'
                       )}
                     </td>
                     <td className="px-4 py-2">{s.created_at.slice(0, 10)}</td>
@@ -312,7 +312,7 @@ export default function SchoolsPage() {
                             s.status === 'suspended' ? 'text-green-700' : 'text-red-600'
                           }`}
                         >
-                          {statusActionId === s.id ? 'Saving…' : s.status === 'suspended' ? 'Reactivate' : 'Suspend'}
+                          {statusActionId === s.id ? 'Savingâ€¦' : s.status === 'suspended' ? 'Reactivate' : 'Suspend'}
                         </button>
                       )}
                     </td>
@@ -379,14 +379,14 @@ export default function SchoolsPage() {
             <button
               type="submit"
               disabled={isSubmittingPlan}
-              className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSubmittingPlan ? 'Adding…' : 'Add plan'}
+              {isSubmittingPlan ? 'Addingâ€¦' : 'Add plan'}
             </button>
           </form>
 
           {isLoadingPlans ? (
-            <p className="text-sm text-slate-500">Loading…</p>
+            <p className="text-sm text-slate-500">Loadingâ€¦</p>
           ) : (
             <div className="overflow-x-auto">
             <table className="w-full text-sm bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -418,7 +418,7 @@ export default function SchoolsPage() {
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex gap-2">
-                        <button onClick={() => openEditPlan(p)} className="text-indigo-600 text-xs font-medium">
+                        <button onClick={() => openEditPlan(p)} className="text-blue-600 text-xs font-medium">
                           Edit
                         </button>
                         <button
@@ -426,7 +426,7 @@ export default function SchoolsPage() {
                           disabled={planToggleId === p.id}
                           className="text-slate-500 text-xs font-medium disabled:opacity-50"
                         >
-                          {planToggleId === p.id ? 'Saving…' : p.is_active ? 'Deactivate' : 'Activate'}
+                          {planToggleId === p.id ? 'Savingâ€¦' : p.is_active ? 'Deactivate' : 'Activate'}
                         </button>
                       </div>
                     </td>
@@ -495,9 +495,9 @@ export default function SchoolsPage() {
               <button
                 type="submit"
                 disabled={isSubmittingPlan}
-                className="w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {isSubmittingPlan ? 'Saving…' : 'Save changes'}
+                {isSubmittingPlan ? 'Savingâ€¦' : 'Save changes'}
               </button>
             </form>
           </div>

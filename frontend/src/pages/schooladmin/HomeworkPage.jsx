@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { listHomework, createHomework, updateHomework, deleteHomework } from '../../features/homework/api';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
@@ -98,7 +98,7 @@ export default function HomeworkPage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Select…
+                Selectâ€¦
               </option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -117,7 +117,7 @@ export default function HomeworkPage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Select…
+                Selectâ€¦
               </option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -158,9 +158,9 @@ export default function HomeworkPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {isSubmitting ? 'Posting…' : 'Post homework'}
+          {isSubmitting ? 'Postingâ€¦' : 'Post homework'}
         </button>
       </form>
 
@@ -171,7 +171,7 @@ export default function HomeworkPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500">Loadingâ€¦</p>
       ) : homework.length === 0 ? (
         <p className="text-sm text-slate-500">No homework posted yet.</p>
       ) : (
@@ -197,7 +197,7 @@ export default function HomeworkPage() {
                     onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   />
-                  <button onClick={() => saveEdit(hw.id)} className="text-indigo-600 text-xs font-medium">
+                  <button onClick={() => saveEdit(hw.id)} className="text-blue-600 text-xs font-medium">
                     Save
                   </button>
                   <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
@@ -210,7 +210,7 @@ export default function HomeworkPage() {
                 <div className="flex justify-between items-start">
                   <h3 className="text-sm font-semibold text-slate-900">{hw.title}</h3>
                   <div className="flex gap-3 shrink-0">
-                    <button onClick={() => startEdit(hw)} className="text-indigo-600 text-xs font-medium">
+                    <button onClick={() => startEdit(hw)} className="text-blue-600 text-xs font-medium">
                       Edit
                     </button>
                     <button onClick={() => handleDelete(hw.id)} className="text-red-600 text-xs font-medium">
@@ -220,7 +220,7 @@ export default function HomeworkPage() {
                 </div>
                 {hw.description && <p className="text-sm text-slate-600 mt-1">{hw.description}</p>}
                 <p className="text-xs text-slate-400 mt-2">
-                  {classNameById[hw.class_id] || hw.class_id} · {hw.subject_name} · due {hw.due_date.slice(0, 10)} · by{' '}
+                  {classNameById[hw.class_id] || hw.class_id} Â· {hw.subject_name} Â· due {hw.due_date.slice(0, 10)} Â· by{' '}
                   {hw.created_by_name}
                 </p>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParent } from '../../context/ParentContext';
 import ChildTabs from '../../components/parent/ChildTabs';
 import { getChildFees, getPaymentDetails, submitPaymentClaim } from '../../features/parent/api';
@@ -21,7 +21,7 @@ const CLAIM_STYLE = {
 const CLAIM_LABEL = {
   pending: 'Pending review',
   confirmed: 'Confirmed',
-  rejected: 'Not found — try again',
+  rejected: 'Not found â€” try again',
 };
 
 const EMPTY_CLAIM_FORM = { amount: '', paymentMethod: 'mobile_money', paidAt: '', reference: '' };
@@ -96,7 +96,7 @@ export default function ParentFeesPage() {
     }
   }
 
-  if (isLoadingChildren) return <p className="text-sm text-slate-500">Loading…</p>;
+  if (isLoadingChildren) return <p className="text-sm text-slate-500">Loadingâ€¦</p>;
 
   return (
     <div className="max-w-2xl">
@@ -115,12 +115,12 @@ export default function ParentFeesPage() {
           <ChildTabs />
 
           {(hasMomo || hasBank) && (
-            <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-              <p className="text-sm font-semibold text-indigo-900 mb-3">How to pay</p>
+            <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <p className="text-sm font-semibold text-blue-900 mb-3">How to pay</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {hasMomo && (
                   <div>
-                    <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide mb-1">Mobile Money</p>
+                    <p className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-1">Mobile Money</p>
                     <p className="text-sm text-slate-800">{payoutDetails.momo_provider}</p>
                     <p className="text-sm text-slate-800 font-medium">{payoutDetails.momo_number}</p>
                     {payoutDetails.momo_account_name && (
@@ -130,7 +130,7 @@ export default function ParentFeesPage() {
                 )}
                 {hasBank && (
                   <div>
-                    <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide mb-1">Bank transfer</p>
+                    <p className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-1">Bank transfer</p>
                     <p className="text-sm text-slate-800">{payoutDetails.bank_name}</p>
                     <p className="text-sm text-slate-800 font-medium">{payoutDetails.bank_account_number}</p>
                     {payoutDetails.bank_account_name && (
@@ -139,15 +139,15 @@ export default function ParentFeesPage() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-indigo-700/70 mt-3">
-                After paying, tell us below so the school knows to look out for it — they still have to confirm it
+              <p className="text-xs text-blue-700/70 mt-3">
+                After paying, tell us below so the school knows to look out for it â€” they still have to confirm it
                 landed before it shows as paid.
               </p>
             </div>
           )}
 
           {isLoading ? (
-            <p className="text-sm text-slate-500">Loading…</p>
+            <p className="text-sm text-slate-500">Loadingâ€¦</p>
           ) : fees.length === 0 ? (
             <p className="text-sm text-slate-500">No fee invoices yet.</p>
           ) : (
@@ -171,7 +171,7 @@ export default function ParentFeesPage() {
                       <td className="px-4 py-2">{f.fee_name}</td>
                       <td className="px-4 py-2">{money(f.amount_due_cents)}</td>
                       <td className="px-4 py-2">{money(f.amount_paid_cents)}</td>
-                      <td className="px-4 py-2">{f.due_date ? f.due_date.slice(0, 10) : '—'}</td>
+                      <td className="px-4 py-2">{f.due_date ? f.due_date.slice(0, 10) : 'â€”'}</td>
                       <td className="px-4 py-2">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${STATUS_STYLE[f.status]}`}>
                           {f.status}
@@ -188,7 +188,7 @@ export default function ParentFeesPage() {
                         {canClaim && (
                           <button
                             onClick={() => openClaimForm(f)}
-                            className="text-indigo-600 text-xs font-medium whitespace-nowrap"
+                            className="text-blue-600 text-xs font-medium whitespace-nowrap"
                           >
                             I've made this payment
                           </button>
@@ -214,7 +214,7 @@ export default function ParentFeesPage() {
               </button>
             </div>
             <p className="text-sm text-slate-500 mb-4">
-              For {claimInvoice.fee_name}. This doesn't record the payment automatically — the school still confirms
+              For {claimInvoice.fee_name}. This doesn't record the payment automatically â€” the school still confirms
               it against their own MoMo/bank statement.
             </p>
 
@@ -273,9 +273,9 @@ export default function ParentFeesPage() {
               <button
                 type="submit"
                 disabled={isSubmittingClaim}
-                className="w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {isSubmittingClaim ? 'Submitting…' : 'Submit'}
+                {isSubmittingClaim ? 'Submittingâ€¦' : 'Submit'}
               </button>
             </form>
           </div>

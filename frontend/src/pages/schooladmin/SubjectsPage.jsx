@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listSubjects, createSubject } from '../../features/subjects/api';
 
@@ -75,9 +75,9 @@ export default function SubjectsPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Adding…' : 'Add subject'}
+            {isSubmitting ? 'Addingâ€¦' : 'Add subject'}
           </button>
         </form>
       )}
@@ -89,7 +89,7 @@ export default function SubjectsPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500">Loadingâ€¦</p>
       ) : subjects.length === 0 ? (
         <p className="text-sm text-slate-500">No subjects yet.</p>
       ) : (
@@ -105,7 +105,7 @@ export default function SubjectsPage() {
             {subjects.map((s) => (
               <tr key={s.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">{s.name}</td>
-                <td className="px-4 py-2">{s.code || '—'}</td>
+                <td className="px-4 py-2">{s.code || 'â€”'}</td>
               </tr>
             ))}
           </tbody>
