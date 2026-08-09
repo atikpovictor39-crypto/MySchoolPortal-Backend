@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listClasses } from '../../features/classes/api';
 import { getAttendanceSheet, markAttendance } from '../../features/attendance/api';
@@ -83,7 +83,7 @@ export default function AttendancePage() {
             onChange={(e) => setClassId(e.target.value)}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           >
-            <option value="">Selectâ€¦</option>
+            <option value="">Select…</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -113,7 +113,7 @@ export default function AttendancePage() {
       {!classId ? (
         <p className="text-sm text-slate-500">Select a class to mark attendance.</p>
       ) : isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : students.length === 0 ? (
         <p className="text-sm text-slate-500">No active students in this class.</p>
       ) : (
@@ -166,7 +166,7 @@ export default function AttendancePage() {
               disabled={isSaving}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSaving ? 'Savingâ€¦' : 'Save attendance'}
+              {isSaving ? 'Saving…' : 'Save attendance'}
             </button>
           )}
         </>

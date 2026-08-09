@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listTeachers, createTeacher } from '../../features/teachers/api';
 import PasswordInput from '../../components/common/PasswordInput';
@@ -95,7 +95,7 @@ export default function TeachersPage() {
             disabled={isSubmitting}
             className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Addingâ€¦' : 'Add teacher'}
+            {isSubmitting ? 'Adding…' : 'Add teacher'}
           </button>
         </form>
       )}
@@ -107,7 +107,7 @@ export default function TeachersPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : teachers.length === 0 ? (
         <p className="text-sm text-slate-500">No teachers yet.</p>
       ) : (
@@ -125,7 +125,7 @@ export default function TeachersPage() {
               <tr key={t.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">{t.name}</td>
                 <td className="px-4 py-2">{t.email}</td>
-                <td className="px-4 py-2">{t.employee_no || 'â€”'}</td>
+                <td className="px-4 py-2">{t.employee_no || '—'}</td>
               </tr>
             ))}
           </tbody>

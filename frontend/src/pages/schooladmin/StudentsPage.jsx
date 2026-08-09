@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listStudents, createStudent, updateStudent, listGuardians, addGuardian } from '../../features/students/api';
 import { listClasses } from '../../features/classes/api';
@@ -124,7 +124,7 @@ export default function StudentsPage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Selectâ€¦
+                Select…
               </option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -168,7 +168,7 @@ export default function StudentsPage() {
               onChange={(e) => setForm({ ...form, gender: e.target.value })}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
-              <option value="">â€”</option>
+              <option value="">—</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
@@ -179,7 +179,7 @@ export default function StudentsPage() {
             disabled={isSubmitting || classes.length === 0}
             className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Addingâ€¦' : 'Add student'}
+            {isSubmitting ? 'Adding…' : 'Add student'}
           </button>
         </form>
       )}
@@ -195,7 +195,7 @@ export default function StudentsPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : students.length === 0 ? (
         <p className="text-sm text-slate-500">No students yet.</p>
       ) : (
@@ -323,7 +323,7 @@ export default function StudentsPage() {
                   </span>
                   <span className="text-slate-500">
                     {g.relationship || ''}
-                    {g.is_primary ? ' Â· primary' : ''}
+                    {g.is_primary ? ' · primary' : ''}
                   </span>
                 </li>
               ))}
@@ -381,11 +381,11 @@ export default function StudentsPage() {
               disabled={isAddingGuardian}
               className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isAddingGuardian ? 'Addingâ€¦' : 'Add guardian'}
+              {isAddingGuardian ? 'Adding…' : 'Add guardian'}
             </button>
           </form>
           <p className="text-xs text-slate-400 mt-2">
-            If the email already belongs to an existing guardian, they'll just be linked to this student too â€” leave
+            If the email already belongs to an existing guardian, they'll just be linked to this student too — leave
             password blank in that case.
           </p>
         </div>

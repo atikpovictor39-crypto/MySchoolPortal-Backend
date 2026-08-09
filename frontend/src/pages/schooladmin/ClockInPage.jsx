@@ -1,10 +1,10 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyStatus, clockIn, clockOut, listClockIns } from '../../features/teacherClockIn/api';
 import { listTeachers } from '../../features/teachers/api';
 
 function formatDateTime(dt) {
-  return dt ? new Date(dt).toLocaleString() : 'â€”';
+  return dt ? new Date(dt).toLocaleString() : '—';
 }
 
 export default function ClockInPage() {
@@ -91,7 +91,7 @@ export default function ClockInPage() {
               disabled={isBusy}
               className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {isBusy ? 'Workingâ€¦' : 'Clock out'}
+              {isBusy ? 'Working…' : 'Clock out'}
             </button>
           ) : (
             <button
@@ -99,7 +99,7 @@ export default function ClockInPage() {
               disabled={isBusy}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isBusy ? 'Workingâ€¦' : 'Clock in'}
+              {isBusy ? 'Working…' : 'Clock in'}
             </button>
           )}
         </div>
@@ -126,7 +126,7 @@ export default function ClockInPage() {
       <h2 className="text-sm font-semibold text-slate-900 mb-2">{isTeacher ? 'My history' : 'Records'}</h2>
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : records.length === 0 ? (
         <p className="text-sm text-slate-500">No clock-in records yet.</p>
       ) : (

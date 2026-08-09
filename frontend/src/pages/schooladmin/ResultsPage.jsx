@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Tabs from '../../components/common/Tabs';
 import { listAcademicYears } from '../../features/academicYears/api';
@@ -230,7 +230,7 @@ export default function ResultsPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="" disabled>
-                      Selectâ€¦
+                      Select…
                     </option>
                     {years.map((y) => (
                       <option key={y.id} value={y.id}>
@@ -248,7 +248,7 @@ export default function ResultsPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="" disabled>
-                      Selectâ€¦
+                      Select…
                     </option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -282,7 +282,7 @@ export default function ResultsPage() {
                   disabled={isCreatingExam}
                   className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isCreatingExam ? 'Addingâ€¦' : 'Add exam'}
+                  {isCreatingExam ? 'Adding…' : 'Add exam'}
                 </button>
               </form>
             )}
@@ -305,7 +305,7 @@ export default function ResultsPage() {
                   {exams.map((e) => (
                     <tr key={e.id} className="border-t border-slate-100">
                       <td className="px-4 py-2">{e.name}</td>
-                      <td className="px-4 py-2">{e.term || 'â€”'}</td>
+                      <td className="px-4 py-2">{e.term || '—'}</td>
                       <td className="px-4 py-2">{classNameById[e.class_id] || e.class_id}</td>
                       <td className="px-4 py-2">{yearNameById[e.academic_year_id] || e.academic_year_id}</td>
                       <td className="px-4 py-2">
@@ -361,7 +361,7 @@ export default function ResultsPage() {
                         className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                       >
                         <option value="" disabled>
-                          Selectâ€¦
+                          Select…
                         </option>
                         {subjects.map((s) => (
                           <option key={s.id} value={s.id}>
@@ -412,7 +412,7 @@ export default function ResultsPage() {
                   onChange={(e) => setSelectedExamId(e.target.value)}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 >
-                  <option value="">Selectâ€¦</option>
+                  <option value="">Select…</option>
                   {exams.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.name} ({classNameById[e.class_id] || e.class_id})
@@ -428,7 +428,7 @@ export default function ResultsPage() {
                     onChange={(e) => setSelectedExamSubjectId(e.target.value)}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
-                    <option value="">Selectâ€¦</option>
+                    <option value="">Select…</option>
                     {selectedExam.subjects.map((s) => (
                       <option key={s.exam_subject_id} value={s.exam_subject_id}>
                         {s.subject_name}
@@ -473,10 +473,10 @@ export default function ResultsPage() {
                               className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
                             />
                           ) : (
-                            s.marks_obtained ?? 'â€”'
+                            s.marks_obtained ?? '—'
                           )}
                         </td>
-                        <td className="px-4 py-2">{s.grade || 'â€”'}</td>
+                        <td className="px-4 py-2">{s.grade || '—'}</td>
                         <td className="px-4 py-2">
                           {canEnterScores ? (
                             <input
@@ -500,7 +500,7 @@ export default function ResultsPage() {
                     disabled={isSavingResults}
                     className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {isSavingResults ? 'Savingâ€¦' : 'Save results'}
+                    {isSavingResults ? 'Saving…' : 'Save results'}
                   </button>
                 )}
               </>
@@ -518,7 +518,7 @@ export default function ResultsPage() {
                   onChange={(e) => setSelectedExamId(e.target.value)}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 >
-                  <option value="">Selectâ€¦</option>
+                  <option value="">Select…</option>
                   {exams.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.name} ({classNameById[e.class_id] || e.class_id})
@@ -534,7 +534,7 @@ export default function ResultsPage() {
                     onChange={(e) => setSelectedStudentId(e.target.value)}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
-                    <option value="">Selectâ€¦</option>
+                    <option value="">Select…</option>
                     {classStudents.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.first_name} {s.last_name} ({s.admission_no})
@@ -564,7 +564,7 @@ export default function ResultsPage() {
                 onChange={(e) => setSelectedExamId(e.target.value)}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               >
-                <option value="">Selectâ€¦</option>
+                <option value="">Select…</option>
                 {exams.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name} ({classNameById[e.class_id] || e.class_id})
@@ -622,7 +622,7 @@ export default function ResultsPage() {
                 {reportCard.student.first_name} {reportCard.student.last_name} ({reportCard.student.admission_no})
               </p>
               <p className="text-sm text-slate-600">
-                {reportCard.exam.name} {reportCard.exam.term ? `Â· ${reportCard.exam.term}` : ''}
+                {reportCard.exam.name} {reportCard.exam.term ? `· ${reportCard.exam.term}` : ''}
               </p>
             </div>
 
@@ -643,7 +643,7 @@ export default function ResultsPage() {
                     <td className="py-1">
                       {s.marks_obtained !== null ? `${s.marks_obtained} / ${s.max_marks}` : 'Not entered'}
                     </td>
-                    <td className="py-1">{s.grade || 'â€”'}</td>
+                    <td className="py-1">{s.grade || '—'}</td>
                     <td className="py-1">{s.remarks || ''}</td>
                   </tr>
                 ))}
@@ -660,7 +660,7 @@ export default function ResultsPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Overall grade</p>
-                <p className="font-medium">{reportCard.overallGrade || 'â€”'}</p>
+                <p className="font-medium">{reportCard.overallGrade || '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Position</p>

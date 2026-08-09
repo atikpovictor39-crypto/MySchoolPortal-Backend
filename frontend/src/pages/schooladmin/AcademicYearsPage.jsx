@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listAcademicYears, createAcademicYear } from '../../features/academicYears/api';
 
@@ -96,7 +96,7 @@ export default function AcademicYearsPage() {
             disabled={isSubmitting}
             className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Addingâ€¦' : 'Add year'}
+            {isSubmitting ? 'Adding…' : 'Add year'}
           </button>
         </form>
       )}
@@ -108,7 +108,7 @@ export default function AcademicYearsPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : years.length === 0 ? (
         <p className="text-sm text-slate-500">No academic years yet.</p>
       ) : (

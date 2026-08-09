@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParent } from '../../context/ParentContext';
 import ChildTabs from '../../components/parent/ChildTabs';
 import { getChildExams, getChildReportCard } from '../../features/parent/api';
@@ -30,7 +30,7 @@ export default function ParentResultsPage() {
     }
   }
 
-  if (isLoadingChildren) return <p className="text-sm text-slate-500">Loadingâ€¦</p>;
+  if (isLoadingChildren) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
     <>
@@ -50,7 +50,7 @@ export default function ParentResultsPage() {
             <ChildTabs />
 
             {isLoading ? (
-              <p className="text-sm text-slate-500">Loadingâ€¦</p>
+              <p className="text-sm text-slate-500">Loading…</p>
             ) : exams.length === 0 ? (
               <p className="text-sm text-slate-500">No exams recorded yet.</p>
             ) : (
@@ -58,7 +58,7 @@ export default function ParentResultsPage() {
                 {exams.map((exam) => (
                   <li key={exam.id} className="flex justify-between items-center px-4 py-3">
                     <span className="text-sm text-slate-900">
-                      {exam.name} {exam.term ? <span className="text-slate-400">Â· {exam.term}</span> : null}
+                      {exam.name} {exam.term ? <span className="text-slate-400">· {exam.term}</span> : null}
                     </span>
                     <button onClick={() => openReportCard(exam.id)} className="text-blue-600 text-xs font-medium">
                       View report card
@@ -86,7 +86,7 @@ export default function ParentResultsPage() {
                 {reportCard.student.first_name} {reportCard.student.last_name} ({reportCard.student.admission_no})
               </p>
               <p className="text-sm text-slate-600">
-                {reportCard.exam.name} {reportCard.exam.term ? `Â· ${reportCard.exam.term}` : ''}
+                {reportCard.exam.name} {reportCard.exam.term ? `· ${reportCard.exam.term}` : ''}
               </p>
             </div>
 
@@ -107,7 +107,7 @@ export default function ParentResultsPage() {
                     <td className="py-1">
                       {s.marks_obtained !== null ? `${s.marks_obtained} / ${s.max_marks}` : 'Not entered'}
                     </td>
-                    <td className="py-1">{s.grade || 'â€”'}</td>
+                    <td className="py-1">{s.grade || '—'}</td>
                     <td className="py-1">{s.remarks || ''}</td>
                   </tr>
                 ))}
@@ -124,7 +124,7 @@ export default function ParentResultsPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Overall grade</p>
-                <p className="font-medium">{reportCard.overallGrade || 'â€”'}</p>
+                <p className="font-medium">{reportCard.overallGrade || '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Position</p>

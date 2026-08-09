@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Tabs from '../../components/common/Tabs';
 import { listAcademicYears } from '../../features/academicYears/api';
@@ -274,7 +274,7 @@ export default function FeesPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="" disabled>
-                      Selectâ€¦
+                      Select…
                     </option>
                     {years.map((y) => (
                       <option key={y.id} value={y.id}>
@@ -336,7 +336,7 @@ export default function FeesPage() {
                   disabled={isSubmittingStructure}
                   className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isSubmittingStructure ? 'Addingâ€¦' : 'Add fee'}
+                  {isSubmittingStructure ? 'Adding…' : 'Add fee'}
                 </button>
               </form>
             )}
@@ -361,7 +361,7 @@ export default function FeesPage() {
                       <td className="px-4 py-2">{s.name}</td>
                       <td className="px-4 py-2">{s.class_id ? classNameById[s.class_id] || s.class_id : 'All classes'}</td>
                       <td className="px-4 py-2">{money(s.amount_cents)}</td>
-                      <td className="px-4 py-2">{s.due_date ? s.due_date.slice(0, 10) : 'â€”'}</td>
+                      <td className="px-4 py-2">{s.due_date ? s.due_date.slice(0, 10) : '—'}</td>
                       {isAdmin && (
                         <td className="px-4 py-2">
                           <button
@@ -369,7 +369,7 @@ export default function FeesPage() {
                             disabled={generatingId === s.id}
                             className="text-blue-600 text-xs font-medium disabled:opacity-50"
                           >
-                            {generatingId === s.id ? 'Generatingâ€¦' : 'Generate invoices'}
+                            {generatingId === s.id ? 'Generating…' : 'Generate invoices'}
                           </button>
                         </td>
                       )}
@@ -401,7 +401,7 @@ export default function FeesPage() {
             </div>
 
             {invoices.length === 0 ? (
-              <p className="text-sm text-slate-500">No invoices yet â€” generate some from Fee Structures.</p>
+              <p className="text-sm text-slate-500">No invoices yet — generate some from Fee Structures.</p>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -443,7 +443,7 @@ export default function FeesPage() {
         {tab === 'debtors' && (
           <div>
             {debtors.length === 0 ? (
-              <p className="text-sm text-slate-500">No outstanding balances. ðŸŽ‰</p>
+              <p className="text-sm text-slate-500">No outstanding balances. 🎉</p>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -496,7 +496,7 @@ export default function FeesPage() {
               </div>
               <p className="text-xs text-slate-500 max-w-sm text-right">
                 Parents can tell us they've sent money for an invoice. Check it landed in your MoMo/bank account,
-                then confirm it here â€” that's what actually marks the invoice paid.
+                then confirm it here — that's what actually marks the invoice paid.
               </p>
             </div>
 
@@ -529,7 +529,7 @@ export default function FeesPage() {
                       <td className="px-4 py-2">{money(c.amount_cents)}</td>
                       <td className="px-4 py-2 capitalize">{c.payment_method.replace('_', ' ')}</td>
                       <td className="px-4 py-2">{c.paid_at.slice(0, 10)}</td>
-                      <td className="px-4 py-2">{c.reference || 'â€”'}</td>
+                      <td className="px-4 py-2">{c.reference || '—'}</td>
                       <td className="px-4 py-2 capitalize">{c.status}</td>
                       <td className="px-4 py-2">
                         {c.status === 'pending' && (
@@ -564,12 +564,12 @@ export default function FeesPage() {
           <div className="max-w-2xl">
             <p className="text-sm text-slate-500 mb-4">
               These are shown to parents on their Fees page as where to send money. There's no automated payment
-              gateway yet â€” payments made this way still need to be recorded manually under Invoices once you see
+              gateway yet — payments made this way still need to be recorded manually under Invoices once you see
               them land.
             </p>
 
             {isLoadingPayoutDetails ? (
-              <p className="text-sm text-slate-500">Loadingâ€¦</p>
+              <p className="text-sm text-slate-500">Loading…</p>
             ) : (
               <form
                 onSubmit={handleSavePayoutDetails}
@@ -585,7 +585,7 @@ export default function FeesPage() {
                         onChange={(e) => setPayoutForm({ ...payoutForm, momoProvider: e.target.value })}
                         className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                       >
-                        <option value="">Selectâ€¦</option>
+                        <option value="">Select…</option>
                         {MOMO_PROVIDERS.map((p) => (
                           <option key={p} value={p}>
                             {p}
@@ -652,7 +652,7 @@ export default function FeesPage() {
                     disabled={isSavingPayoutDetails}
                     className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {isSavingPayoutDetails ? 'Savingâ€¦' : 'Save payment details'}
+                    {isSavingPayoutDetails ? 'Saving…' : 'Save payment details'}
                   </button>
                   {payoutDetailsSaved && <span className="text-sm text-green-600">Saved.</span>}
                 </div>
@@ -678,7 +678,7 @@ export default function FeesPage() {
               </p>
               <p className="text-sm text-slate-600">{selectedInvoice.fee_name}</p>
               <p className="text-xs text-slate-500 mt-1">
-                Due: {selectedInvoice.due_date ? selectedInvoice.due_date.slice(0, 10) : 'â€”'}
+                Due: {selectedInvoice.due_date ? selectedInvoice.due_date.slice(0, 10) : '—'}
               </p>
             </div>
 
@@ -704,7 +704,7 @@ export default function FeesPage() {
                   {selectedInvoice.payments.map((p) => (
                     <li key={p.id} className="flex justify-between text-slate-700">
                       <span>
-                        {p.paid_at.slice(0, 10)} Â· {p.payment_method}
+                        {p.paid_at.slice(0, 10)} · {p.payment_method}
                         {p.payment_ref ? ` (${p.payment_ref})` : ''}
                       </span>
                       <span>{money(p.amount_cents)}</span>
@@ -755,7 +755,7 @@ export default function FeesPage() {
                   disabled={isRecordingPayment}
                   className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isRecordingPayment ? 'Savingâ€¦' : 'Record payment'}
+                  {isRecordingPayment ? 'Saving…' : 'Record payment'}
                 </button>
               </form>
             )}

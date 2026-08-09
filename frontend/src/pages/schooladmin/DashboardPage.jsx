@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import StatCard from '../../components/common/StatCard';
@@ -34,7 +34,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // SuperAdmin has no school_id â€” the stat endpoints below are all
+    // SuperAdmin has no school_id — the stat endpoints below are all
     // tenant-scoped and would 403 for it, so skip fetching entirely.
     if (user.role === 'PARENT' || user.role === 'SUPERADMIN') return;
 
@@ -67,7 +67,7 @@ export default function DashboardPage() {
       .finally(() => setIsLoading(false));
   }, [user.role, isAdmin]);
 
-  // Parents/SuperAdmin land elsewhere by default (see LoginPage) â€” this only
+  // Parents/SuperAdmin land elsewhere by default (see LoginPage) — this only
   // catches someone typing /dashboard directly in the URL bar.
   if (user.role === 'PARENT') {
     return <Navigate to="/overview" replace />;
@@ -94,7 +94,7 @@ export default function DashboardPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : (
         stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -132,7 +132,7 @@ export default function DashboardPage() {
                 icon={<AttendanceIcon />}
                 iconBg="bg-cyan-500"
                 label="Attendance Today"
-                value={stats.attendanceRate === null ? 'â€”' : `${stats.attendanceRate}%`}
+                value={stats.attendanceRate === null ? '—' : `${stats.attendanceRate}%`}
                 sublabel={stats.attendanceRate === null ? 'not marked yet' : 'of students marked present'}
               />
             )}

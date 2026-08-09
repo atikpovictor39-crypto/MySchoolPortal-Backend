@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
@@ -126,7 +126,7 @@ export default function TimetablePage() {
           onChange={(e) => setClassId(e.target.value)}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
         >
-          <option value="">Selectâ€¦</option>
+          <option value="">Select…</option>
           {classes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -190,7 +190,7 @@ export default function TimetablePage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Selectâ€¦
+                Select…
               </option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -206,7 +206,7 @@ export default function TimetablePage() {
               onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
-              <option value="">â€”</option>
+              <option value="">—</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -219,7 +219,7 @@ export default function TimetablePage() {
             disabled={isSubmitting}
             className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Addingâ€¦' : 'Add period'}
+            {isSubmitting ? 'Adding…' : 'Add period'}
           </button>
         </form>
       )}
@@ -227,7 +227,7 @@ export default function TimetablePage() {
       {!classId ? (
         <p className="text-sm text-slate-500">Select a class to view its timetable.</p>
       ) : isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : slots.length === 0 ? (
         <p className="text-sm text-slate-500">No periods scheduled yet.</p>
       ) : (
@@ -267,7 +267,7 @@ export default function TimetablePage() {
                         onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
                         className="rounded border border-slate-300 px-2 py-1 text-sm"
                       />
-                      <span>â€“</span>
+                      <span>–</span>
                       <input
                         type="time"
                         value={editForm.endTime}
@@ -295,7 +295,7 @@ export default function TimetablePage() {
                       onChange={(e) => setEditForm({ ...editForm, teacherId: e.target.value })}
                       className="rounded border border-slate-300 px-2 py-1 text-sm"
                     >
-                      <option value="">â€”</option>
+                      <option value="">—</option>
                       {teachers.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
@@ -318,10 +318,10 @@ export default function TimetablePage() {
                 <tr key={slot.id} className="border-t border-slate-100">
                   <td className="px-4 py-2">{DAY_NAMES[slot.day_of_week]}</td>
                   <td className="px-4 py-2">
-                    {slot.start_time.slice(0, 5)} â€“ {slot.end_time.slice(0, 5)}
+                    {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
                   </td>
                   <td className="px-4 py-2">{subjectNameById[slot.subject_id] || slot.subject_name}</td>
-                  <td className="px-4 py-2">{slot.teacher_name || teacherNameById[slot.teacher_id] || 'â€”'}</td>
+                  <td className="px-4 py-2">{slot.teacher_name || teacherNameById[slot.teacher_id] || '—'}</td>
                   {isAdmin && (
                     <td className="px-4 py-2">
                       <div className="flex gap-3">

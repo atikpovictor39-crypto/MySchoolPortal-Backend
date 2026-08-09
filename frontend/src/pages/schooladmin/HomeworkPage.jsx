@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listHomework, createHomework, updateHomework, deleteHomework } from '../../features/homework/api';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
@@ -98,7 +98,7 @@ export default function HomeworkPage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Selectâ€¦
+                Select…
               </option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -117,7 +117,7 @@ export default function HomeworkPage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
-                Selectâ€¦
+                Select…
               </option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -160,7 +160,7 @@ export default function HomeworkPage() {
           disabled={isSubmitting}
           className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {isSubmitting ? 'Postingâ€¦' : 'Post homework'}
+          {isSubmitting ? 'Posting…' : 'Post homework'}
         </button>
       </form>
 
@@ -171,7 +171,7 @@ export default function HomeworkPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loadingâ€¦</p>
+        <p className="text-sm text-slate-500">Loading…</p>
       ) : homework.length === 0 ? (
         <p className="text-sm text-slate-500">No homework posted yet.</p>
       ) : (
@@ -220,7 +220,7 @@ export default function HomeworkPage() {
                 </div>
                 {hw.description && <p className="text-sm text-slate-600 mt-1">{hw.description}</p>}
                 <p className="text-xs text-slate-400 mt-2">
-                  {classNameById[hw.class_id] || hw.class_id} Â· {hw.subject_name} Â· due {hw.due_date.slice(0, 10)} Â· by{' '}
+                  {classNameById[hw.class_id] || hw.class_id} · {hw.subject_name} · due {hw.due_date.slice(0, 10)} · by{' '}
                   {hw.created_by_name}
                 </p>
               </div>

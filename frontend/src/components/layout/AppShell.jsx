@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ParentProvider } from '../../context/ParentContext';
@@ -23,7 +23,7 @@ const STAFF_LINKS = [
 ];
 
 // The backend only lets a Parent read their own linked children (see
-// parent.routes.js) â€” showing them links to the staff pages above would
+// parent.routes.js) — showing them links to the staff pages above would
 // just dead-end in a 403, so the nav itself must be role-aware too.
 const PARENT_LINKS = [
   { to: '/overview', label: 'Overview' },
@@ -34,7 +34,7 @@ const PARENT_LINKS = [
   { to: '/parent-announcements', label: 'Announcements' },
 ];
 
-// SuperAdmin operates at the platform level, not inside one school â€” it
+// SuperAdmin operates at the platform level, not inside one school — it
 // only ever gets the Schools onboarding page, not the tenant-scoped staff nav.
 const SUPERADMIN_LINKS = [{ to: '/schools', label: 'Schools' }];
 
@@ -128,7 +128,7 @@ export default function AppShell() {
           </div>
 
           {/* Only Parents have a notification type wired up so far (absence
-              alerts) â€” showing this to staff would just be a dead button. */}
+              alerts) — showing this to staff would just be a dead button. */}
           {user.role === 'PARENT' && <PushNotificationButton />}
 
           <button
