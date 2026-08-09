@@ -2,6 +2,7 @@
 import { listSchools, createSchool, updateSchoolStatus } from '../../features/schools/api';
 import { listPlans, createPlan, updatePlan } from '../../features/subscriptions/api';
 import PasswordInput from '../../components/common/PasswordInput';
+import Tabs from '../../components/common/Tabs';
 import { formatMoney as money } from '../../utils/money';
 
 const TABS = [
@@ -173,19 +174,7 @@ export default function SchoolsPage() {
       <h1 className="text-xl font-semibold text-slate-900 mb-1">Platform Admin</h1>
       <p className="text-sm text-slate-500 mb-6">Onboard schools and manage what subscription plans they can be on.</p>
 
-      <div className="flex gap-1 mb-6 border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
       {error && (
         <p role="alert" className="text-sm text-red-600 mb-4">

@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import Tabs from '../../components/common/Tabs';
 import { listAcademicYears } from '../../features/academicYears/api';
 import { listClasses } from '../../features/classes/api';
 import {
@@ -249,19 +250,7 @@ export default function FeesPage() {
       <div className="max-w-5xl print:hidden">
         <h1 className="text-xl font-semibold text-slate-900 mb-6">Fees &amp; Accounts</h1>
 
-        <div className="flex gap-1 mb-6 border-b border-slate-200">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                tab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
         {error && (
           <p role="alert" className="text-sm text-red-600 mb-4">

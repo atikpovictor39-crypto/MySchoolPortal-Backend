@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Mobile browsers impose a ~300ms delay on taps for interactive elements
+     so they can detect a double-tap-to-zoom gesture — the visible symptom
+     is a tap that highlights an element (:active) but only fires its click
+     handler on a second tap. touch-action: manipulation tells the browser
+     to skip that wait (pinch-zoom elsewhere on the page still works). */
+  button,
+  a,
+  [role='tab'],
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
