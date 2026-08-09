@@ -54,10 +54,10 @@ async function createFeeStructure(schoolId, { academicYearId, classId, name, amo
   }
 
   const [result] = await db.query(
-    'INSERT INTO fee_structures (school_id, academic_year_id, class_id, name, amount_cents, due_date) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO fee_structures (school_id, academic_year_id, class_id, name, amount_cents, due_date) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
     [schoolId, academicYearId, classId || null, name, amountCents, dueDate || null]
   );
-  return getFeeStructureById(schoolId, result.insertId);
+  return getFeeStructureById(schoolId, result[0].id);
 }
 
 // Generates one invoice per matching active student (all students if the
@@ -238,7 +238,7 @@ async function recordPayment(schoolId, invoiceId, { amountCents, paymentMethod, 
 // still owing money.
 async function getFeesSummary(schoolId) {
   const [[row]] = await db.query(
-    'SELECT COALESCE(SUM(amount_paid_cents), 0) AS totalPaidCents FROM fee_invoices WHERE school_id = ?',
+    'SELECT COALESCE(SUM(amount_paid_cents), 0) AS "totalPaidCents" FROM fee_invoices WHERE school_id = ?',
     [schoolId]
   );
   return { totalPaidCents: row.totalPaidCents };
@@ -256,7 +256,7 @@ async function listDebtors(schoolId) {
      JOIN students s ON s.id = fi.student_id
      WHERE fi.school_id = ? AND fi.status IN ('unpaid', 'partial', 'overdue')
      GROUP BY s.id, s.admission_no, s.first_name, s.last_name, s.class_id
-     HAVING balance_cents > 0
+     HAVING SUM(fi.amount_due_cents - fi.amount_paid_cents) > 0
      ORDER BY balance_cents DESC`,
     [schoolId]
   );
@@ -336,10 +336,10 @@ async function createPaymentClaim(schoolId, { invoiceId, studentId, parentUserId
 
   const [result] = await db.query(
     `INSERT INTO fee_payment_claims (school_id, invoice_id, student_id, parent_user_id, amount_cents, payment_method, paid_at, reference)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     [schoolId, invoiceId, studentId, parentUserId, amountCents, paymentMethod, paidAt, reference || null]
   );
-  return getPaymentClaimById(schoolId, result.insertId);
+  return getPaymentClaimById(schoolId, result[0].id);
 }
 
 // Confirming a claim just calls the same recordPayment() an admin's manual

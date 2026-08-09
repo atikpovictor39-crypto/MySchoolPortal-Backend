@@ -82,7 +82,7 @@ async function getChildClassId(schoolId, studentId) {
 // Powers the Overview dashboard's attendance-rate and fee-balance cards.
 async function getChildOverviewStats(schoolId, studentId) {
   const [[attendanceRow]] = await db.query(
-    `SELECT COUNT(*) AS total, SUM(status = 'present') AS presentCount
+    `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'present') AS "presentCount"
      FROM attendance WHERE student_id = ? AND school_id = ?`,
     [studentId, schoolId]
   );
@@ -90,7 +90,7 @@ async function getChildOverviewStats(schoolId, studentId) {
     attendanceRow.total > 0 ? Math.round((attendanceRow.presentCount / attendanceRow.total) * 100) : null;
 
   const [[feeRow]] = await db.query(
-    `SELECT COALESCE(SUM(amount_due_cents), 0) AS totalDue, COALESCE(SUM(amount_paid_cents), 0) AS totalPaid
+    `SELECT COALESCE(SUM(amount_due_cents), 0) AS "totalDue", COALESCE(SUM(amount_paid_cents), 0) AS "totalPaid"
      FROM fee_invoices WHERE student_id = ? AND school_id = ?`,
     [studentId, schoolId]
   );

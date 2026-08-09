@@ -33,13 +33,11 @@ const TABLES_TO_TRUNCATE = [
 ];
 
 // Gives every test file a clean slate with auto-increment reset to 1, so
-// assertions about specific IDs stay predictable and readable.
+// assertions about specific IDs stay predictable and readable. CASCADE lets
+// Postgres truncate all of these in one go regardless of FK dependency
+// order; RESTART IDENTITY is the equivalent of resetting AUTO_INCREMENT.
 async function resetDatabase() {
-  await db.query('SET FOREIGN_KEY_CHECKS = 0');
-  for (const table of TABLES_TO_TRUNCATE) {
-    await db.query(`TRUNCATE TABLE ${table}`);
-  }
-  await db.query('SET FOREIGN_KEY_CHECKS = 1');
+  await db.query(`TRUNCATE TABLE ${TABLES_TO_TRUNCATE.join(', ')} RESTART IDENTITY CASCADE`);
 }
 
 module.exports = { resetDatabase };

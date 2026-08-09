@@ -78,7 +78,7 @@ async function createSchool({ name, adminName, adminEmail, adminPassword, planId
     let resolvedPlanId = planId;
     if (!resolvedPlanId) {
       const [plans] = await conn.query(
-        'SELECT id FROM subscription_plans WHERE is_active = 1 ORDER BY price_cents ASC LIMIT 1'
+        'SELECT id FROM subscription_plans WHERE is_active = TRUE ORDER BY price_cents ASC LIMIT 1'
       );
       if (plans.length === 0) {
         const err = new Error('No subscription plan is configured yet');
@@ -89,10 +89,10 @@ async function createSchool({ name, adminName, adminEmail, adminPassword, planId
     }
 
     const [schoolResult] = await conn.query(
-      'INSERT INTO schools (name, slug, email, status) VALUES (?, ?, ?, ?)',
+      'INSERT INTO schools (name, slug, email, status) VALUES (?, ?, ?, ?) RETURNING id',
       [name, slugify(name), adminEmail, 'active']
     );
-    schoolId = schoolResult.insertId;
+    schoolId = schoolResult[0].id;
 
     const passwordHash = await hashPassword(adminPassword);
     await conn.query(

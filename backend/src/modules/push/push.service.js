@@ -12,7 +12,8 @@ async function saveSubscription(schoolId, userId, { endpoint, keys }) {
   await db.query(
     `INSERT INTO push_subscriptions (school_id, user_id, endpoint, p256dh, auth)
      VALUES (?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE p256dh = VALUES(p256dh), auth = VALUES(auth)`,
+     ON CONFLICT ON CONSTRAINT uq_user_endpoint
+     DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
     [schoolId, userId, endpoint, keys.p256dh, keys.auth]
   );
 }

@@ -66,10 +66,10 @@ async function createHomework(schoolId, createdBy, { classId, subjectId, title, 
   }
 
   const [result] = await db.query(
-    'INSERT INTO homework (school_id, class_id, subject_id, title, description, due_date, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO homework (school_id, class_id, subject_id, title, description, due_date, created_by) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
     [schoolId, classId, subjectId, title, description || null, dueDate, createdBy]
   );
-  return getHomeworkById(schoolId, result.insertId);
+  return getHomeworkById(schoolId, result[0].id);
 }
 
 async function updateHomework(schoolId, id, { classId, subjectId, title, description, dueDate }) {

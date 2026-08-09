@@ -25,16 +25,16 @@ async function createAcademicYear(schoolId, { name, startDate, endDate, isCurren
     await conn.beginTransaction();
 
     if (isCurrent) {
-      await conn.query('UPDATE academic_years SET is_current = 0 WHERE school_id = ?', [schoolId]);
+      await conn.query('UPDATE academic_years SET is_current = FALSE WHERE school_id = ?', [schoolId]);
     }
 
     const [result] = await conn.query(
-      'INSERT INTO academic_years (school_id, name, start_date, end_date, is_current) VALUES (?, ?, ?, ?, ?)',
-      [schoolId, name, startDate, endDate, isCurrent ? 1 : 0]
+      'INSERT INTO academic_years (school_id, name, start_date, end_date, is_current) VALUES (?, ?, ?, ?, ?) RETURNING id',
+      [schoolId, name, startDate, endDate, Boolean(isCurrent)]
     );
 
     await conn.commit();
-    return getAcademicYearById(schoolId, result.insertId);
+    return getAcademicYearById(schoolId, result[0].id);
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -52,7 +52,7 @@ async function updateAcademicYear(schoolId, id, { name, startDate, endDate, isCu
     await conn.beginTransaction();
 
     if (isCurrent) {
-      await conn.query('UPDATE academic_years SET is_current = 0 WHERE school_id = ?', [schoolId]);
+      await conn.query('UPDATE academic_years SET is_current = FALSE WHERE school_id = ?', [schoolId]);
     }
 
     const fields = [];
@@ -66,7 +66,7 @@ async function updateAcademicYear(schoolId, id, { name, startDate, endDate, isCu
     set('name', name);
     set('start_date', startDate);
     set('end_date', endDate);
-    if (isCurrent !== undefined) set('is_current', isCurrent ? 1 : 0);
+    if (isCurrent !== undefined) set('is_current', Boolean(isCurrent));
 
     if (fields.length > 0) {
       params.push(id, schoolId);

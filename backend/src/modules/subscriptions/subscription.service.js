@@ -22,17 +22,17 @@ async function listPlans() {
 async function createPlan({ name, priceCents, billingCycle, maxStudents, features, isActive }) {
   const [result] = await db.query(
     `INSERT INTO subscription_plans (name, price_cents, billing_cycle, max_students, features, is_active)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
     [
       name,
       priceCents,
       billingCycle || 'monthly',
       maxStudents ?? null,
       JSON.stringify(features || {}),
-      isActive === false ? 0 : 1,
+      isActive !== false,
     ]
   );
-  return getPlanById(result.insertId);
+  return getPlanById(result[0].id);
 }
 
 // Every field is optional here — omitted ones keep their current value, so a
@@ -53,7 +53,7 @@ async function updatePlan(id, { name, priceCents, billingCycle, maxStudents, fea
       billingCycle ?? existing.billing_cycle,
       maxStudents !== undefined ? maxStudents : existing.max_students,
       features ? JSON.stringify(features) : JSON.stringify(existing.features || {}),
-      isActive !== undefined ? (isActive ? 1 : 0) : existing.is_active,
+      isActive !== undefined ? Boolean(isActive) : existing.is_active,
       id,
     ]
   );

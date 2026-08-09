@@ -14,12 +14,12 @@ async function getSubjectById(schoolId, id) {
 }
 
 async function createSubject(schoolId, { name, code }) {
-  const [result] = await db.query('INSERT INTO subjects (school_id, name, code) VALUES (?, ?, ?)', [
+  const [result] = await db.query('INSERT INTO subjects (school_id, name, code) VALUES (?, ?, ?) RETURNING id', [
     schoolId,
     name,
     code || null,
   ]);
-  return getSubjectById(schoolId, result.insertId);
+  return getSubjectById(schoolId, result[0].id);
 }
 
 async function updateSubject(schoolId, id, { name, code }) {

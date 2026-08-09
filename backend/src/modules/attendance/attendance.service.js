@@ -48,7 +48,8 @@ async function markAttendance(schoolId, classId, date, markedBy, records) {
       await conn.query(
         `INSERT INTO attendance (school_id, student_id, class_id, date, status, marked_by)
          VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE status = VALUES(status), class_id = VALUES(class_id), marked_by = VALUES(marked_by)`,
+         ON CONFLICT ON CONSTRAINT uq_attendance_day
+         DO UPDATE SET status = EXCLUDED.status, class_id = EXCLUDED.class_id, marked_by = EXCLUDED.marked_by`,
         [schoolId, studentId, classId, date, status, markedBy]
       );
     }
@@ -79,7 +80,7 @@ async function notifyGuardiansOfAbsence(schoolId, date, records, sheet) {
   const nameByStudentId = Object.fromEntries(sheet.map((s) => [s.student_id, `${s.first_name} ${s.last_name}`]));
 
   const [guardianRows] = await db.query(
-    `SELECT student_id, parent_user_id FROM student_guardians WHERE school_id = ? AND student_id IN (?)`,
+    `SELECT student_id, parent_user_id FROM student_guardians WHERE school_id = ? AND student_id = ANY(?)`,
     [schoolId, absentStudentIds]
   );
 
@@ -99,7 +100,7 @@ async function notifyGuardiansOfAbsence(schoolId, date, records, sheet) {
 // so the dashboard can show "not marked yet" instead of a misleading 0%.
 async function getAttendanceSummary(schoolId, date) {
   const [[row]] = await db.query(
-    `SELECT COUNT(*) AS totalMarked, COALESCE(SUM(status = 'present'), 0) AS presentCount
+    `SELECT COUNT(*) AS "totalMarked", COUNT(*) FILTER (WHERE status = 'present') AS "presentCount"
      FROM attendance WHERE school_id = ? AND date = ?`,
     [schoolId, date]
   );

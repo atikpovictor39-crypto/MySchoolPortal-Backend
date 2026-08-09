@@ -86,10 +86,10 @@ async function createExam(schoolId, { academicYearId, classId, name, term }) {
   }
 
   const [result] = await db.query(
-    'INSERT INTO exams (school_id, academic_year_id, class_id, name, term) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO exams (school_id, academic_year_id, class_id, name, term) VALUES (?, ?, ?, ?, ?) RETURNING id',
     [schoolId, academicYearId, classId, name, term || null]
   );
-  return getExamById(schoolId, result.insertId);
+  return getExamById(schoolId, result[0].id);
 }
 
 // Upsert one or more subjects onto an exam (via the UNIQUE(exam_id, subject_id)
@@ -111,7 +111,8 @@ async function addExamSubjects(schoolId, examId, subjects) {
     await db.query(
       `INSERT INTO exam_subjects (school_id, exam_id, subject_id, max_marks, passing_marks)
        VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE max_marks = VALUES(max_marks), passing_marks = VALUES(passing_marks)`,
+       ON CONFLICT ON CONSTRAINT uq_exam_subject
+       DO UPDATE SET max_marks = EXCLUDED.max_marks, passing_marks = EXCLUDED.passing_marks`,
       [schoolId, examId, subjectId, maxMarks || 100, passingMarks || 40]
     );
   }
@@ -190,8 +191,9 @@ async function saveResults(schoolId, examSubjectId, enteredBy, records) {
       await conn.query(
         `INSERT INTO results (school_id, exam_subject_id, student_id, marks_obtained, grade, remarks, entered_by)
          VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE marks_obtained = VALUES(marks_obtained), grade = VALUES(grade),
-           remarks = VALUES(remarks), entered_by = VALUES(entered_by)`,
+         ON CONFLICT ON CONSTRAINT uq_result
+         DO UPDATE SET marks_obtained = EXCLUDED.marks_obtained, grade = EXCLUDED.grade,
+           remarks = EXCLUDED.remarks, entered_by = EXCLUDED.entered_by`,
         [schoolId, examSubjectId, studentId, marksObtained, grade, remarks || null, enteredBy]
       );
     }
@@ -234,7 +236,7 @@ async function computeClassRanking(schoolId, examId) {
      LEFT JOIN results r ON r.exam_subject_id = es.id AND r.student_id = s.id
      WHERE s.school_id = ? AND s.class_id = ? AND s.status = 'active'
      GROUP BY s.id, s.first_name, s.last_name, s.admission_no
-     HAVING subjects_entered > 0
+     HAVING COUNT(r.id) > 0
      ORDER BY total_obtained DESC`,
     [examId, schoolId, exam.class_id]
   );

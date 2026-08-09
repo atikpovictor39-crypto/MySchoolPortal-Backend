@@ -29,7 +29,7 @@ describe('SuperAdmin manages subscription plans', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.name).toBe('Enterprise');
     expect(res.body.data.max_students).toBeNull();
-    expect(res.body.data.is_active).toBe(1);
+    expect(res.body.data.is_active).toBe(true);
   });
 
   it('rejects a negative price', async () => {
@@ -61,7 +61,7 @@ describe('SuperAdmin manages subscription plans', () => {
       .send({ isActive: false });
 
     expect(updateRes.status).toBe(200);
-    expect(updateRes.body.data.is_active).toBe(0);
+    expect(updateRes.body.data.is_active).toBe(false);
     expect(updateRes.body.data.name).toBe('Trial Plan');
   });
 

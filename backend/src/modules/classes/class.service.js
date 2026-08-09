@@ -54,10 +54,10 @@ async function createClass(schoolId, { academicYearId, name, section, classTeach
   }
 
   const [result] = await db.query(
-    'INSERT INTO classes (school_id, academic_year_id, name, section, class_teacher_id) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO classes (school_id, academic_year_id, name, section, class_teacher_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
     [schoolId, academicYearId, name, section || null, classTeacherId || null]
   );
-  return getClassById(schoolId, result.insertId);
+  return getClassById(schoolId, result[0].id);
 }
 
 async function updateClass(schoolId, id, { academicYearId, name, section, classTeacherId }) {

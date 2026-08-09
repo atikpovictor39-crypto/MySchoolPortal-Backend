@@ -32,18 +32,18 @@ async function createTeacher(schoolId, { name, email, password, employeeNo }) {
 
     const passwordHash = await hashPassword(password);
     const [userResult] = await conn.query(
-      'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
       [schoolId, 'TEACHER', name, email, passwordHash, 'active']
     );
+    const userId = userResult[0].id;
 
-    const [teacherResult] = await conn.query('INSERT INTO teachers (school_id, user_id, employee_no) VALUES (?, ?, ?)', [
-      schoolId,
-      userResult.insertId,
-      employeeNo || null,
-    ]);
+    const [teacherResult] = await conn.query(
+      'INSERT INTO teachers (school_id, user_id, employee_no) VALUES (?, ?, ?) RETURNING id',
+      [schoolId, userId, employeeNo || null]
+    );
 
     await conn.commit();
-    return { id: teacherResult.insertId, user_id: userResult.insertId, name, email, employee_no: employeeNo || null };
+    return { id: teacherResult[0].id, user_id: userId, name, email, employee_no: employeeNo || null };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -96,10 +96,10 @@ async function clockIn(schoolId, userId) {
   }
 
   const [result] = await db.query(
-    'INSERT INTO teacher_clock_ins (school_id, teacher_id, clock_in_at) VALUES (?, ?, NOW())',
+    'INSERT INTO teacher_clock_ins (school_id, teacher_id, clock_in_at) VALUES (?, ?, NOW()) RETURNING id',
     [schoolId, teacherId]
   );
-  return getClockInById(schoolId, result.insertId);
+  return getClockInById(schoolId, result[0].id);
 }
 
 async function clockOut(schoolId, userId) {
@@ -183,10 +183,10 @@ async function createLeaveRequest(schoolId, userId, { startDate, endDate, reason
   }
 
   const [result] = await db.query(
-    'INSERT INTO leave_requests (school_id, teacher_id, start_date, end_date, reason) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO leave_requests (school_id, teacher_id, start_date, end_date, reason) VALUES (?, ?, ?, ?, ?) RETURNING id',
     [schoolId, teacherId, startDate, endDate, reason || null]
   );
-  return getLeaveRequestById(schoolId, result.insertId);
+  return getLeaveRequestById(schoolId, result[0].id);
 }
 
 async function listLeaveRequests(schoolId, { teacherId, status } = {}) {

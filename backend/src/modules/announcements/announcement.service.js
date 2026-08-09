@@ -56,10 +56,10 @@ async function createAnnouncement(schoolId, createdBy, { title, content, targetR
 
   const [result] = await db.query(
     `INSERT INTO announcements (school_id, title, content, target_role, class_id, created_by, published_at)
-     VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+     VALUES (?, ?, ?, ?, ?, ?, NOW()) RETURNING id`,
     [schoolId, title, content, targetRole || 'all', classId || null, createdBy]
   );
-  return getAnnouncementById(schoolId, result.insertId);
+  return getAnnouncementById(schoolId, result[0].id);
 }
 
 async function updateAnnouncement(schoolId, id, { title, content, targetRole, classId }) {

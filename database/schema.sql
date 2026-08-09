@@ -1,11 +1,27 @@
 -- ============================================================================
--- Multi-Tenant School Management SaaS — MySQL Schema (MVP)
+-- Multi-Tenant School Management SaaS — PostgreSQL Schema
 -- Tenancy model: shared database, shared tables, row-level isolation via
 -- school_id on every tenant-owned table. See README notes at bottom.
+--
+-- Migrated from MySQL. Notable dialect changes from the original:
+--   - AUTO_INCREMENT            -> GENERATED ALWAYS AS IDENTITY
+--   - ENUM('a','b')             -> VARCHAR + CHECK (col IN (...))
+--   - TINYINT(1)                -> BOOLEAN
+--   - DATETIME                  -> TIMESTAMP
+--   - ON UPDATE CURRENT_TIMESTAMP -> BEFORE UPDATE trigger (see bottom)
+--   - inline INDEX/UNIQUE KEY   -> separate CREATE INDEX / CONSTRAINT ... UNIQUE
 -- ============================================================================
 
-SET FOREIGN_KEY_CHECKS = 0;
-SET NAMES utf8mb4;
+-- Reusable trigger function for every updated_at column that used to rely on
+-- MySQL's "ON UPDATE CURRENT_TIMESTAMP" — Postgres has no column-level
+-- equivalent, so a BEFORE UPDATE trigger does the same job per table.
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- 1. PLATFORM LEVEL (no school_id — these are cross-tenant / global)
@@ -13,234 +29,221 @@ SET NAMES utf8mb4;
 
 -- Tenants themselves
 CREATE TABLE schools (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name          VARCHAR(150) NOT NULL,
   slug          VARCHAR(150) NOT NULL UNIQUE,        -- used in subdomain/URL, e.g. greenwood.yourapp.com
   email         VARCHAR(150) NOT NULL,
   phone         VARCHAR(30),
   address       VARCHAR(255),
+  momo_provider       VARCHAR(30),
+  momo_number         VARCHAR(20),
+  momo_account_name   VARCHAR(150),
+  bank_name           VARCHAR(150),
+  bank_account_number VARCHAR(50),
+  bank_account_name   VARCHAR(150),
   logo_url      VARCHAR(500),
-  status        ENUM('active','suspended','archived') NOT NULL DEFAULT 'active',
+  status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','archived')),
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TRIGGER trg_schools_updated_at BEFORE UPDATE ON schools
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Plans SuperAdmin defines (Free/Basic/Pro etc.) — global, not per-school
 CREATE TABLE subscription_plans (
-  id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name            VARCHAR(100) NOT NULL,
-  price_cents     INT UNSIGNED NOT NULL,
-  billing_cycle   ENUM('monthly','yearly') NOT NULL DEFAULT 'monthly',
-  max_students    INT UNSIGNED,                      -- NULL = unlimited
-  features        JSON,                               -- {"attendance": true, "results": true, ...}
-  is_active       TINYINT(1) NOT NULL DEFAULT 1,
+  price_cents     INT NOT NULL,
+  billing_cycle   VARCHAR(10) NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly')),
+  max_students    INT,                                -- NULL = unlimited
+  features        JSONB,                               -- {"attendance": true, "results": true, ...}
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+);
 
 -- One active/inactive subscription record per school
 CREATE TABLE subscriptions (
-  id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id           BIGINT UNSIGNED NOT NULL,
-  plan_id             BIGINT UNSIGNED NOT NULL,
-  status              ENUM('trialing','active','past_due','cancelled','expired') NOT NULL DEFAULT 'trialing',
-  trial_ends_at       DATETIME,
-  current_period_start DATETIME,
-  current_period_end  DATETIME,
-  cancel_at_period_end TINYINT(1) NOT NULL DEFAULT 0,
+  id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id           BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  plan_id             BIGINT NOT NULL REFERENCES subscription_plans(id),
+  status              VARCHAR(20) NOT NULL DEFAULT 'trialing' CHECK (status IN ('trialing','active','past_due','cancelled','expired')),
+  trial_ends_at       TIMESTAMP,
+  current_period_start TIMESTAMP,
+  current_period_end  TIMESTAMP,
+  cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
   payment_provider    VARCHAR(50),                   -- 'stripe', 'paystack', 'flutterwave' ...
   payment_customer_ref VARCHAR(150),                 -- provider's customer id
   payment_sub_ref      VARCHAR(150),                 -- provider's subscription id
   created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (plan_id) REFERENCES subscription_plans(id),
-  INDEX idx_sub_school (school_id),
-  INDEX idx_sub_status (status)
-) ENGINE=InnoDB;
+  updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_sub_school ON subscriptions(school_id);
+CREATE INDEX idx_sub_status ON subscriptions(status);
+CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON subscriptions
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Optional but recommended: raw log of billing events (webhooks) for audit/debug
 CREATE TABLE billing_events (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  subscription_id BIGINT UNSIGNED,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  subscription_id BIGINT REFERENCES subscriptions(id) ON DELETE SET NULL,
   event_type    VARCHAR(100) NOT NULL,               -- 'invoice.paid', 'subscription.cancelled' ...
-  payload       JSON,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE SET NULL,
-  INDEX idx_billing_school (school_id)
-) ENGINE=InnoDB;
+  payload       JSONB,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_billing_school ON billing_events(school_id);
 
 -- ============================================================================
 -- 2. USERS & AUTH (school_id NULLABLE — NULL only for SUPERADMIN)
 -- ============================================================================
 
 CREATE TABLE users (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NULL,                -- NULL = platform SuperAdmin
-  role          ENUM('SUPERADMIN','SCHOOL_ADMIN','TEACHER','PARENT','STUDENT') NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NULL REFERENCES schools(id) ON DELETE CASCADE, -- NULL = platform SuperAdmin
+  role          VARCHAR(20) NOT NULL CHECK (role IN ('SUPERADMIN','SCHOOL_ADMIN','TEACHER','PARENT','STUDENT')),
   name          VARCHAR(150) NOT NULL,
   email         VARCHAR(150) NOT NULL UNIQUE,         -- global unique -> simple login (no school picker needed)
   password_hash VARCHAR(255) NOT NULL,
   phone         VARCHAR(30),
-  status        ENUM('active','invited','suspended') NOT NULL DEFAULT 'invited',
-  last_login_at DATETIME,
+  status        VARCHAR(20) NOT NULL DEFAULT 'invited' CHECK (status IN ('active','invited','suspended')),
+  last_login_at TIMESTAMP,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  INDEX idx_users_school (school_id),
-  INDEX idx_users_school_role (school_id, role)
-) ENGINE=InnoDB;
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_users_school ON users(school_id);
+CREATE INDEX idx_users_school_role ON users(school_id, role);
+CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Refresh tokens (JWT access tokens stay stateless/short-lived; refresh tokens are stored so they can be revoked)
 CREATE TABLE refresh_tokens (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id       BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash    VARCHAR(255) NOT NULL,
-  expires_at    DATETIME NOT NULL,
-  revoked_at    DATETIME NULL,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_refresh_user (user_id)
-) ENGINE=InnoDB;
+  expires_at    TIMESTAMP NOT NULL,
+  revoked_at    TIMESTAMP NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_refresh_user ON refresh_tokens(user_id);
 
 CREATE TABLE password_reset_tokens (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id       BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash    VARCHAR(255) NOT NULL,
-  expires_at    DATETIME NOT NULL,
-  used_at       DATETIME NULL,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+  expires_at    TIMESTAMP NOT NULL,
+  used_at       TIMESTAMP NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- ============================================================================
 -- 3. ACADEMIC STRUCTURE (all tenant-scoped -> school_id NOT NULL)
 -- ============================================================================
 
 CREATE TABLE academic_years (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name          VARCHAR(50) NOT NULL,                -- '2025/2026'
   start_date    DATE NOT NULL,
   end_date      DATE NOT NULL,
-  is_current    TINYINT(1) NOT NULL DEFAULT 0,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  INDEX idx_ay_school (school_id)
-) ENGINE=InnoDB;
+  is_current    BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_ay_school ON academic_years(school_id);
 
 CREATE TABLE classes (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  academic_year_id BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  academic_year_id BIGINT NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
   name          VARCHAR(50) NOT NULL,                -- 'Grade 5'
   section       VARCHAR(20),                          -- 'A'
-  class_teacher_id BIGINT UNSIGNED NULL,              -- FK -> teachers.id, set after teachers table exists
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE CASCADE,
-  INDEX idx_classes_school (school_id)
-) ENGINE=InnoDB;
+  class_teacher_id BIGINT NULL                        -- FK -> teachers.id, added after teachers table exists
+);
+CREATE INDEX idx_classes_school ON classes(school_id);
 
 CREATE TABLE subjects (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name          VARCHAR(100) NOT NULL,
-  code          VARCHAR(20),
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  INDEX idx_subjects_school (school_id)
-) ENGINE=InnoDB;
+  code          VARCHAR(20)
+);
+CREATE INDEX idx_subjects_school ON subjects(school_id);
 
 CREATE TABLE teachers (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  user_id       BIGINT UNSIGNED NOT NULL UNIQUE,      -- 1:1 with users (role=TEACHER)
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  user_id       BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, -- 1:1 with users (role=TEACHER)
   employee_no   VARCHAR(50),
-  hire_date     DATE,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_teachers_school (school_id)
-) ENGINE=InnoDB;
+  hire_date     DATE
+);
+CREATE INDEX idx_teachers_school ON teachers(school_id);
 
 ALTER TABLE classes
   ADD CONSTRAINT fk_classes_teacher FOREIGN KEY (class_teacher_id) REFERENCES teachers(id) ON DELETE SET NULL;
 
 -- Which teacher teaches which subject in which class
 CREATE TABLE class_subjects (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  class_id      BIGINT UNSIGNED NOT NULL,
-  subject_id    BIGINT UNSIGNED NOT NULL,
-  teacher_id    BIGINT UNSIGNED NULL,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-  FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL,
-  UNIQUE KEY uq_class_subject (class_id, subject_id),
-  INDEX idx_cs_school (school_id)
-) ENGINE=InnoDB;
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  subject_id    BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  teacher_id    BIGINT NULL REFERENCES teachers(id) ON DELETE SET NULL,
+  CONSTRAINT uq_class_subject UNIQUE (class_id, subject_id)
+);
+CREATE INDEX idx_cs_school ON class_subjects(school_id);
 
 -- Weekly schedule: which subject/teacher a class has, on which day/time.
 CREATE TABLE timetable_slots (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  class_id      BIGINT UNSIGNED NOT NULL,
-  day_of_week   TINYINT UNSIGNED NOT NULL,           -- 1=Monday ... 7=Sunday
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  day_of_week   SMALLINT NOT NULL,                   -- 1=Monday ... 7=Sunday
   start_time    TIME NOT NULL,
   end_time      TIME NOT NULL,
-  subject_id    BIGINT UNSIGNED NOT NULL,
-  teacher_id    BIGINT UNSIGNED NULL,
+  subject_id    BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  teacher_id    BIGINT NULL REFERENCES teachers(id) ON DELETE SET NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-  FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL,
-  UNIQUE KEY uq_class_day_start (class_id, day_of_week, start_time),
-  INDEX idx_tt_school (school_id),
-  INDEX idx_tt_class_day (class_id, day_of_week),
-  INDEX idx_tt_teacher (teacher_id)
-) ENGINE=InnoDB;
+  CONSTRAINT uq_class_day_start UNIQUE (class_id, day_of_week, start_time)
+);
+CREATE INDEX idx_tt_school ON timetable_slots(school_id);
+CREATE INDEX idx_tt_class_day ON timetable_slots(class_id, day_of_week);
+CREATE INDEX idx_tt_teacher ON timetable_slots(teacher_id);
 
 -- ============================================================================
 -- 4. STUDENTS & PARENTS
 -- ============================================================================
 
 CREATE TABLE students (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  user_id       BIGINT UNSIGNED NULL UNIQUE,          -- nullable: young students may not need login
-  class_id      BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  user_id       BIGINT NULL UNIQUE REFERENCES users(id) ON DELETE SET NULL, -- nullable: young students may not need login
+  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE RESTRICT,
   admission_no  VARCHAR(50) NOT NULL,
   first_name    VARCHAR(100) NOT NULL,
   last_name     VARCHAR(100) NOT NULL,
   date_of_birth DATE,
-  gender        ENUM('male','female','other'),
-  status        ENUM('active','graduated','transferred','withdrawn') NOT NULL DEFAULT 'active',
+  gender        VARCHAR(10) CHECK (gender IN ('male','female','other')),
+  status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','graduated','transferred','withdrawn')),
   enrolled_at   DATE,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE RESTRICT,
-  UNIQUE KEY uq_student_admission (school_id, admission_no),
-  INDEX idx_students_school (school_id),
-  INDEX idx_students_class (class_id)
-) ENGINE=InnoDB;
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_student_admission UNIQUE (school_id, admission_no)
+);
+CREATE INDEX idx_students_school ON students(school_id);
+CREATE INDEX idx_students_class ON students(class_id);
+CREATE TRIGGER trg_students_updated_at BEFORE UPDATE ON students
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- A student can have multiple guardians, a parent can have multiple children -> join table
 CREATE TABLE student_guardians (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  student_id    BIGINT UNSIGNED NOT NULL,
-  parent_user_id BIGINT UNSIGNED NOT NULL,            -- FK -> users (role=PARENT)
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  student_id    BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  parent_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- FK -> users (role=PARENT)
   relationship  VARCHAR(50),                           -- 'Father', 'Mother', 'Guardian'
-  is_primary    TINYINT(1) NOT NULL DEFAULT 0,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  FOREIGN KEY (parent_user_id) REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE KEY uq_student_parent (student_id, parent_user_id),
-  INDEX idx_sg_school (school_id),
-  INDEX idx_sg_parent (parent_user_id)
-) ENGINE=InnoDB;
+  is_primary    BOOLEAN NOT NULL DEFAULT FALSE,
+  CONSTRAINT uq_student_parent UNIQUE (student_id, parent_user_id)
+);
+CREATE INDEX idx_sg_school ON student_guardians(school_id);
+CREATE INDEX idx_sg_parent ON student_guardians(parent_user_id);
 
 -- ============================================================================
 -- 5. FEE MANAGEMENT
@@ -248,155 +251,152 @@ CREATE TABLE student_guardians (
 
 -- Template a school defines, e.g. "Term 1 Tuition - Grade 5"
 CREATE TABLE fee_structures (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  academic_year_id BIGINT UNSIGNED NOT NULL,
-  class_id      BIGINT UNSIGNED NULL,                 -- NULL = applies to every class
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  academic_year_id BIGINT NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+  class_id      BIGINT NULL REFERENCES classes(id) ON DELETE CASCADE, -- NULL = applies to every class
   name          VARCHAR(150) NOT NULL,
-  amount_cents  BIGINT UNSIGNED NOT NULL,
+  amount_cents  BIGINT NOT NULL,
   due_date      DATE,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  INDEX idx_fs_school (school_id)
-) ENGINE=InnoDB;
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_fs_school ON fee_structures(school_id);
 
 -- One invoice per student per fee_structure (generated when structure is applied)
 CREATE TABLE fee_invoices (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  student_id    BIGINT UNSIGNED NOT NULL,
-  fee_structure_id BIGINT UNSIGNED NOT NULL,
-  amount_due_cents  BIGINT UNSIGNED NOT NULL,
-  amount_paid_cents BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  status        ENUM('unpaid','partial','paid','overdue','waived') NOT NULL DEFAULT 'unpaid',
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  student_id    BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  fee_structure_id BIGINT NOT NULL REFERENCES fee_structures(id) ON DELETE RESTRICT,
+  amount_due_cents  BIGINT NOT NULL,
+  amount_paid_cents BIGINT NOT NULL DEFAULT 0,
+  status        VARCHAR(20) NOT NULL DEFAULT 'unpaid' CHECK (status IN ('unpaid','partial','paid','overdue','waived')),
   due_date      DATE,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  FOREIGN KEY (fee_structure_id) REFERENCES fee_structures(id) ON DELETE RESTRICT,
-  INDEX idx_fi_school (school_id),
-  INDEX idx_fi_student (student_id),
-  INDEX idx_fi_status (status)
-) ENGINE=InnoDB;
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_fi_school ON fee_invoices(school_id);
+CREATE INDEX idx_fi_student ON fee_invoices(student_id);
+CREATE INDEX idx_fi_status ON fee_invoices(status);
 
 -- Actual payment records (an invoice can be paid in installments -> many payments per invoice)
 CREATE TABLE fee_payments (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  invoice_id    BIGINT UNSIGNED NOT NULL,
-  student_id    BIGINT UNSIGNED NOT NULL,
-  amount_cents  BIGINT UNSIGNED NOT NULL,
-  payment_method ENUM('cash','bank_transfer','card','mobile_money','other') NOT NULL DEFAULT 'cash',
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  invoice_id    BIGINT NOT NULL REFERENCES fee_invoices(id) ON DELETE CASCADE,
+  student_id    BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  amount_cents  BIGINT NOT NULL,
+  payment_method VARCHAR(20) NOT NULL DEFAULT 'cash' CHECK (payment_method IN ('cash','bank_transfer','card','mobile_money','other')),
   payment_ref   VARCHAR(150),
-  paid_at       DATETIME NOT NULL,
-  recorded_by   BIGINT UNSIGNED NOT NULL,             -- FK -> users.id (who recorded it, e.g. SchoolAdmin)
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (invoice_id) REFERENCES fee_invoices(id) ON DELETE CASCADE,
-  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  FOREIGN KEY (recorded_by) REFERENCES users(id),
-  INDEX idx_fp_school (school_id),
-  INDEX idx_fp_invoice (invoice_id)
-) ENGINE=InnoDB;
+  paid_at       TIMESTAMP NOT NULL,
+  recorded_by   BIGINT NOT NULL REFERENCES users(id), -- who recorded it, e.g. SchoolAdmin
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_fp_school ON fee_payments(school_id);
+CREATE INDEX idx_fp_invoice ON fee_payments(invoice_id);
+
+-- Parent-submitted "I paid this" claims for a fee invoice, awaiting admin
+-- confirmation against their real MoMo/bank statement. No payment gateway --
+-- this just tells the admin who to expect money from and for what.
+CREATE TABLE fee_payment_claims (
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id       BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  invoice_id      BIGINT NOT NULL REFERENCES fee_invoices(id) ON DELETE CASCADE,
+  student_id      BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  parent_user_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount_cents    BIGINT NOT NULL,
+  payment_method  VARCHAR(20) NOT NULL CHECK (payment_method IN ('mobile_money','bank_transfer')),
+  paid_at         DATE NOT NULL,
+  reference       VARCHAR(150),
+  status          VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','rejected')),
+  reviewed_by     BIGINT NULL REFERENCES users(id),
+  reviewed_at     TIMESTAMP NULL,
+  review_note     VARCHAR(255) NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_claims_school_status ON fee_payment_claims(school_id, status);
+CREATE INDEX idx_claims_invoice ON fee_payment_claims(invoice_id);
 
 -- ============================================================================
 -- 6. RESULTS / GRADES
 -- ============================================================================
 
 CREATE TABLE exams (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  academic_year_id BIGINT UNSIGNED NOT NULL,
-  class_id      BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  academic_year_id BIGINT NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   name          VARCHAR(150) NOT NULL,                -- 'Term 1 Exam'
   term          VARCHAR(50),
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  INDEX idx_exams_school (school_id)
-) ENGINE=InnoDB;
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_exams_school ON exams(school_id);
 
 -- Per-subject config for an exam (max marks, pass mark)
 CREATE TABLE exam_subjects (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  exam_id       BIGINT UNSIGNED NOT NULL,
-  subject_id    BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  exam_id       BIGINT NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  subject_id    BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
   max_marks     DECIMAL(6,2) NOT NULL DEFAULT 100,
   passing_marks DECIMAL(6,2) NOT NULL DEFAULT 40,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
-  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-  UNIQUE KEY uq_exam_subject (exam_id, subject_id),
-  INDEX idx_es_school (school_id)
-) ENGINE=InnoDB;
+  CONSTRAINT uq_exam_subject UNIQUE (exam_id, subject_id)
+);
+CREATE INDEX idx_es_school ON exam_subjects(school_id);
 
 -- The actual score a student got for one exam_subject
 CREATE TABLE results (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  exam_subject_id BIGINT UNSIGNED NOT NULL,
-  student_id    BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  exam_subject_id BIGINT NOT NULL REFERENCES exam_subjects(id) ON DELETE CASCADE,
+  student_id    BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   marks_obtained DECIMAL(6,2) NOT NULL,
   grade         VARCHAR(5),                            -- 'A', 'B+' (computed on save)
   remarks       VARCHAR(255),
-  entered_by    BIGINT UNSIGNED NOT NULL,               -- FK -> users.id (Teacher)
+  entered_by    BIGINT NOT NULL REFERENCES users(id),  -- Teacher
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (exam_subject_id) REFERENCES exam_subjects(id) ON DELETE CASCADE,
-  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  FOREIGN KEY (entered_by) REFERENCES users(id),
-  UNIQUE KEY uq_result (exam_subject_id, student_id),
-  INDEX idx_results_school (school_id),
-  INDEX idx_results_student (student_id)
-) ENGINE=InnoDB;
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_result UNIQUE (exam_subject_id, student_id)
+);
+CREATE INDEX idx_results_school ON results(school_id);
+CREATE INDEX idx_results_student ON results(student_id);
+CREATE TRIGGER trg_results_updated_at BEFORE UPDATE ON results
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================================
 -- 7. ATTENDANCE
 -- ============================================================================
 
 CREATE TABLE attendance (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  student_id    BIGINT UNSIGNED NOT NULL,
-  class_id      BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  student_id    BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   date          DATE NOT NULL,
-  status        ENUM('present','absent','late','excused') NOT NULL,
-  marked_by     BIGINT UNSIGNED NOT NULL,               -- FK -> users.id (Teacher)
+  status        VARCHAR(10) NOT NULL CHECK (status IN ('present','absent','late','excused')),
+  marked_by     BIGINT NOT NULL REFERENCES users(id), -- Teacher
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  FOREIGN KEY (marked_by) REFERENCES users(id),
-  UNIQUE KEY uq_attendance_day (student_id, date),
-  INDEX idx_attendance_school (school_id),
-  INDEX idx_attendance_class_date (class_id, date)
-) ENGINE=InnoDB;
+  CONSTRAINT uq_attendance_day UNIQUE (student_id, date)
+);
+CREATE INDEX idx_attendance_school ON attendance(school_id);
+CREATE INDEX idx_attendance_class_date ON attendance(class_id, date);
 
 -- ============================================================================
 -- 8. ANNOUNCEMENTS
 -- ============================================================================
 
 CREATE TABLE announcements (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   title         VARCHAR(200) NOT NULL,
   content       TEXT NOT NULL,
-  target_role   ENUM('all','teachers','parents','students') NOT NULL DEFAULT 'all',
-  class_id      BIGINT UNSIGNED NULL,                   -- NULL = whole school, else one class
-  created_by    BIGINT UNSIGNED NOT NULL,
-  published_at  DATETIME,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  INDEX idx_announcements_school (school_id),
-  INDEX idx_announcements_school_target (school_id, target_role)
-) ENGINE=InnoDB;
+  target_role   VARCHAR(20) NOT NULL DEFAULT 'all' CHECK (target_role IN ('all','teachers','parents','students')),
+  class_id      BIGINT NULL REFERENCES classes(id) ON DELETE CASCADE, -- NULL = whole school, else one class
+  created_by    BIGINT NOT NULL REFERENCES users(id),
+  published_at  TIMESTAMP,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_announcements_school ON announcements(school_id);
+CREATE INDEX idx_announcements_school_target ON announcements(school_id, target_role);
 
 -- ============================================================================
 -- 9. PUSH NOTIFICATIONS (Web Push — replaces SMS as the "notify parents" channel)
@@ -404,18 +404,16 @@ CREATE TABLE announcements (
 
 -- One row per browser/device a user has opted into notifications on.
 CREATE TABLE push_subscriptions (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  user_id       BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   endpoint      VARCHAR(500) NOT NULL,
   p256dh        VARCHAR(255) NOT NULL,
   auth          VARCHAR(255) NOT NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE KEY uq_user_endpoint (user_id, endpoint(255)),
-  INDEX idx_push_user (user_id)
-) ENGINE=InnoDB;
+  CONSTRAINT uq_user_endpoint UNIQUE (user_id, endpoint)
+);
+CREATE INDEX idx_push_user ON push_subscriptions(user_id);
 
 -- ============================================================================
 -- 10. TEACHER CLOCK-IN
@@ -423,17 +421,15 @@ CREATE TABLE push_subscriptions (
 
 -- One row per shift: clock_out_at NULL means the teacher is currently clocked in.
 CREATE TABLE teacher_clock_ins (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  teacher_id    BIGINT UNSIGNED NOT NULL,
-  clock_in_at   DATETIME NOT NULL,
-  clock_out_at  DATETIME NULL,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
-  INDEX idx_clock_school (school_id),
-  INDEX idx_clock_teacher (teacher_id)
-) ENGINE=InnoDB;
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  teacher_id    BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  clock_in_at   TIMESTAMP NOT NULL,
+  clock_out_at  TIMESTAMP NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_clock_school ON teacher_clock_ins(school_id);
+CREATE INDEX idx_clock_teacher ON teacher_clock_ins(teacher_id);
 
 -- ============================================================================
 -- 11. HOMEWORK
@@ -442,44 +438,35 @@ CREATE TABLE teacher_clock_ins (
 -- Per class+subject. No submission/grading workflow yet (would need file
 -- upload infra) — this is "post it, parents see it."
 CREATE TABLE homework (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  class_id      BIGINT UNSIGNED NOT NULL,
-  subject_id    BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  subject_id    BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
   title         VARCHAR(200) NOT NULL,
   description   TEXT,
   due_date      DATE NOT NULL,
-  created_by    BIGINT UNSIGNED NOT NULL,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  INDEX idx_hw_school (school_id),
-  INDEX idx_hw_class_due (class_id, due_date)
-) ENGINE=InnoDB;
+  created_by    BIGINT NOT NULL REFERENCES users(id),
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_hw_school ON homework(school_id);
+CREATE INDEX idx_hw_class_due ON homework(class_id, due_date);
 
 -- ============================================================================
 -- 12. STAFF LEAVE REQUESTS
 -- ============================================================================
 
 CREATE TABLE leave_requests (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  school_id     BIGINT UNSIGNED NOT NULL,
-  teacher_id    BIGINT UNSIGNED NOT NULL,
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  teacher_id    BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   start_date    DATE NOT NULL,
   end_date      DATE NOT NULL,
   reason        VARCHAR(500),
-  status        ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-  reviewed_by   BIGINT UNSIGNED NULL,
-  reviewed_at   DATETIME NULL,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
-  FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
-  FOREIGN KEY (reviewed_by) REFERENCES users(id),
-  INDEX idx_leave_school (school_id),
-  INDEX idx_leave_teacher (teacher_id),
-  INDEX idx_leave_status (school_id, status)
-) ENGINE=InnoDB;
-
-SET FOREIGN_KEY_CHECKS = 1;
+  status        VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewed_by   BIGINT NULL REFERENCES users(id),
+  reviewed_at   TIMESTAMP NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_leave_school ON leave_requests(school_id);
+CREATE INDEX idx_leave_teacher ON leave_requests(teacher_id);
+CREATE INDEX idx_leave_status ON leave_requests(school_id, status);

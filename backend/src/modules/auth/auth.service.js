@@ -86,7 +86,7 @@ async function registerSchoolWithAdmin({ schoolName, adminName, adminEmail, admi
     let resolvedPlanId = planId;
     if (!resolvedPlanId) {
       const [plans] = await conn.query(
-        'SELECT id FROM subscription_plans WHERE is_active = 1 ORDER BY price_cents ASC LIMIT 1'
+        'SELECT id FROM subscription_plans WHERE is_active = TRUE ORDER BY price_cents ASC LIMIT 1'
       );
       if (plans.length === 0) {
         const err = new Error('No subscription plan is configured yet — ask the SuperAdmin to create one');
@@ -97,17 +97,17 @@ async function registerSchoolWithAdmin({ schoolName, adminName, adminEmail, admi
     }
 
     const [schoolResult] = await conn.query(
-      'INSERT INTO schools (name, slug, email, status) VALUES (?, ?, ?, ?)',
+      'INSERT INTO schools (name, slug, email, status) VALUES (?, ?, ?, ?) RETURNING id',
       [schoolName, slugify(schoolName), adminEmail, 'active']
     );
-    const schoolId = schoolResult.insertId;
+    const schoolId = schoolResult[0].id;
 
     const passwordHash = await hashPassword(adminPassword);
     const [userResult] = await conn.query(
-      'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
       [schoolId, 'SCHOOL_ADMIN', adminName, adminEmail, passwordHash, 'active']
     );
-    const userId = userResult.insertId;
+    const userId = userResult[0].id;
 
     const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14-day trial
     await conn.query(

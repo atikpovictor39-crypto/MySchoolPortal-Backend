@@ -138,12 +138,12 @@ async function createSlot(schoolId, { classId, dayOfWeek, startTime, endTime, su
   try {
     const [result] = await db.query(
       `INSERT INTO timetable_slots (school_id, class_id, day_of_week, start_time, end_time, subject_id, teacher_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       [schoolId, classId, dayOfWeek, startTime, endTime, subjectId, teacherId || null]
     );
-    return getSlotById(schoolId, result.insertId);
+    return getSlotById(schoolId, result[0].id);
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (err.code === '23505') {
       const dupErr = new Error('This class already has a period starting at that day and time');
       dupErr.status = 409;
       throw dupErr;
@@ -207,7 +207,7 @@ async function updateSlot(schoolId, id, input) {
   try {
     await db.query(`UPDATE timetable_slots SET ${fields.join(', ')} WHERE id = ? AND school_id = ?`, params);
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (err.code === '23505') {
       const dupErr = new Error('This class already has a period starting at that day and time');
       dupErr.status = 409;
       throw dupErr;

@@ -71,11 +71,11 @@ async function createStudent(schoolId, input) {
 
   const [result] = await db.query(
     `INSERT INTO students (school_id, class_id, admission_no, first_name, last_name, date_of_birth, gender, enrolled_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     [schoolId, classId, admissionNo, firstName, lastName, dateOfBirth || null, gender || null, enrolledAt || new Date()]
   );
 
-  return getStudentById(schoolId, result.insertId);
+  return getStudentById(schoolId, result[0].id);
 }
 
 async function updateStudent(schoolId, id, input) {
@@ -170,10 +170,10 @@ async function addGuardian(schoolId, studentId, { name, email, password, relatio
       }
       const passwordHash = await hashPassword(password);
       const [result] = await conn.query(
-        'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
         [schoolId, 'PARENT', name, email, passwordHash, 'active']
       );
-      parentUserId = result.insertId;
+      parentUserId = result[0].id;
     }
 
     const [existingLink] = await conn.query(
@@ -183,7 +183,7 @@ async function addGuardian(schoolId, studentId, { name, email, password, relatio
     if (existingLink.length === 0) {
       await conn.query(
         'INSERT INTO student_guardians (school_id, student_id, parent_user_id, relationship, is_primary) VALUES (?, ?, ?, ?, ?)',
-        [schoolId, studentId, parentUserId, relationship || null, isPrimary ? 1 : 0]
+        [schoolId, studentId, parentUserId, relationship || null, Boolean(isPrimary)]
       );
     }
 
