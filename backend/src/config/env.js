@@ -49,4 +49,16 @@ module.exports = {
     privateKey: process.env.VAPID_PRIVATE_KEY || null,
     subject: process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
   },
+
+  // Not required() either — same reasoning as VAPID above. Unset in dev is
+  // fine (email.service.js just logs instead of sending); the daily
+  // subscription-lifecycle cron and signup welcome email both go through it.
+  email: {
+    apiKey: process.env.RESEND_API_KEY || null,
+    from: process.env.EMAIL_FROM || 'MySchoolPortal <onboarding@resend.dev>',
+  },
+
+  // Shared secret the subscription-lifecycle cron endpoint checks for, so it
+  // can't be triggered by anyone who isn't Vercel's own cron caller.
+  cronSecret: process.env.CRON_SECRET || null,
 };

@@ -56,3 +56,22 @@ exports.getMine = asyncHandler(async (req, res) => {
   const subscription = await subscriptionService.getMySubscription(req.schoolId);
   return ok(res, subscription);
 });
+
+// SuperAdmin action once they've confirmed a school actually paid (same
+// manual-confirm idea as fee payment claims, just for platform billing).
+exports.renew = asyncHandler(async (req, res) => {
+  const months = req.body.months ? Number(req.body.months) : 1;
+  if (!Number.isInteger(months) || months <= 0) {
+    return fail(res, 'months must be a positive integer', 400);
+  }
+  const subscription = await subscriptionService.renewSubscription(req.params.schoolId, months);
+  return ok(res, subscription);
+});
+
+// GET /internal/cron/subscriptions — invoked once a day by Vercel Cron (see
+// vercel.json). Auth is a shared secret header instead of a user JWT since
+// there's no logged-in user behind a cron trigger.
+exports.runLifecycleCron = asyncHandler(async (req, res) => {
+  const results = await subscriptionService.processSubscriptionLifecycle();
+  return ok(res, results);
+});

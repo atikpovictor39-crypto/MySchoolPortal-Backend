@@ -74,6 +74,7 @@ CREATE TABLE subscriptions (
   payment_provider    VARCHAR(50),                   -- 'stripe', 'paystack', 'flutterwave' ...
   payment_customer_ref VARCHAR(150),                 -- provider's customer id
   payment_sub_ref      VARCHAR(150),                 -- provider's subscription id
+  reminder_sent_at    TIMESTAMP NULL,                -- set once the "renews soon" email goes out, so the daily cron doesn't resend it every day before expiry
   created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

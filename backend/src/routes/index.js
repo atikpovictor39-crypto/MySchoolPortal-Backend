@@ -18,6 +18,7 @@ const parentRoutes = require('../modules/parent/parent.routes');
 const timetableRoutes = require('../modules/timetable/timetable.routes');
 const pushRoutes = require('../modules/push/push.routes');
 const homeworkRoutes = require('../modules/homework/homework.routes');
+const cronRoutes = require('../modules/subscriptions/cron.routes');
 
 // Public: no school_id scoping needed (login itself establishes identity)
 router.use('/auth', authRoutes);
@@ -44,5 +45,9 @@ router.use('/homework', homeworkRoutes);
 // Parent-only, ownership-scoped: every handler re-verifies the caller is
 // actually linked to the requested student before returning anything.
 router.use('/parent', parentRoutes);
+
+// Not user-facing at all — see cronAuth.middleware.js. Triggered by Vercel
+// Cron (vercel.json), authenticated via CRON_SECRET instead of a JWT.
+router.use('/internal/cron', cronRoutes);
 
 module.exports = router;

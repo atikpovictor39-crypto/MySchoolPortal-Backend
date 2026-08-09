@@ -12,4 +12,8 @@ router.put('/plans/:id', requireAuth, requireRole('SUPERADMIN'), controller.upda
 
 router.get('/mine', requireAuth, tenantScope, requireRole('SCHOOL_ADMIN'), controller.getMine);
 
+// SuperAdmin confirms a school paid and renews their period — not tenant-
+// scoped, since SuperAdmin acts across every school, not just their own.
+router.post('/:schoolId/renew', requireAuth, requireRole('SUPERADMIN'), controller.renew);
+
 module.exports = router;

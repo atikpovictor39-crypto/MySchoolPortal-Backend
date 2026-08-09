@@ -3,14 +3,18 @@ const db = require('../../config/db');
 const env = require('../../config/env');
 const { hashPassword } = require('../../utils/password');
 const { msFromDuration } = require('../../utils/time');
+const emailService = require('../email/email.service');
 
 // LEFT JOIN, not JOIN — SuperAdmin has no school_id, and must still be able to log in.
-// school_status travels along so login/refresh can reject a suspended school's
-// users without a second query.
+// school_status and subscription_status travel along so login/refresh can
+// reject a suspended school or one whose billing has lapsed without a second query.
 async function findUserByEmail(email) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, s.name AS school_name, s.status AS school_status
-     FROM users u LEFT JOIN schools s ON s.id = u.school_id
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status,
+       s.name AS school_name, s.status AS school_status, sub.status AS subscription_status
+     FROM users u
+     LEFT JOIN schools s ON s.id = u.school_id
+     LEFT JOIN subscriptions sub ON sub.school_id = s.id
      WHERE u.email = ? LIMIT 1`,
     [email]
   );
@@ -19,8 +23,11 @@ async function findUserByEmail(email) {
 
 async function findUserById(id) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, s.name AS school_name, s.status AS school_status
-     FROM users u LEFT JOIN schools s ON s.id = u.school_id
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status,
+       s.name AS school_name, s.status AS school_status, sub.status AS subscription_status
+     FROM users u
+     LEFT JOIN schools s ON s.id = u.school_id
+     LEFT JOIN subscriptions sub ON sub.school_id = s.id
      WHERE u.id = ? LIMIT 1`,
     [id]
   );
@@ -117,6 +124,13 @@ async function registerSchoolWithAdmin({ schoolName, adminName, adminEmail, admi
     );
 
     await conn.commit();
+
+    // Best-effort, outside the transaction — a flaky email provider must
+    // never turn a successful signup into a failed one.
+    emailService.sendWelcomeEmail(adminEmail, adminName, schoolName).catch((err) => {
+      console.error('Failed to send welcome email:', err.message);
+    });
+
     return {
       id: userId,
       school_id: schoolId,

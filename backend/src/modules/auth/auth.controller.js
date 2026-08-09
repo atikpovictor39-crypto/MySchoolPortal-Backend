@@ -24,6 +24,20 @@ function refreshCookieOptions() {
   };
 }
 
+// Shared by login and refresh: a school-scoped user is blocked if either the
+// school itself was suspended by SuperAdmin, or its subscription lapsed past
+// the grace period (see subscription.service.js's processSubscriptionLifecycle).
+function schoolAccessError(user) {
+  if (!user.school_id) return null;
+  if (user.school_status !== 'active') {
+    return { status: 403, message: "This school's account is currently suspended. Contact your platform administrator." };
+  }
+  if (user.subscription_status === 'expired') {
+    return { status: 403, message: 'This school\'s subscription has expired. Contact your platform administrator to renew.' };
+  }
+  return null;
+}
+
 function publicUser(user) {
   return {
     id: user.id,
@@ -87,10 +101,9 @@ exports.login = asyncHandler(async (req, res) => {
 
   // Checked after the password so a suspended school doesn't double as a way
   // to probe whether an email/password combo is otherwise valid.
-  if (user.school_id && user.school_status !== 'active') {
-    return res
-      .status(403)
-      .json({ success: false, message: "This school's account is currently suspended. Contact your platform administrator." });
+  const accessError = schoolAccessError(user);
+  if (accessError) {
+    return res.status(accessError.status).json({ success: false, message: accessError.message });
   }
 
   const accessToken = signAccessToken(user);
@@ -128,10 +141,9 @@ exports.refresh = asyncHandler(async (req, res) => {
   if (!user || user.status !== 'active') {
     return res.status(401).json({ success: false, message: 'Account is no longer active' });
   }
-  if (user.school_id && user.school_status !== 'active') {
-    return res
-      .status(403)
-      .json({ success: false, message: "This school's account is currently suspended. Contact your platform administrator." });
+  const accessError = schoolAccessError(user);
+  if (accessError) {
+    return res.status(accessError.status).json({ success: false, message: accessError.message });
   }
 
   const accessToken = signAccessToken(user);
