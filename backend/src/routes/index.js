@@ -21,6 +21,7 @@ const homeworkRoutes = require('../modules/homework/homework.routes');
 const cronRoutes = require('../modules/subscriptions/cron.routes');
 const auditRoutes = require('../modules/audit/audit.routes');
 const notificationRoutes = require('../modules/notifications/notification.routes');
+const exportRoutes = require('../modules/export/export.routes');
 
 // Public: no school_id scoping needed (login itself establishes identity)
 router.use('/auth', authRoutes);
@@ -45,6 +46,7 @@ router.use('/push', pushRoutes);
 router.use('/homework', homeworkRoutes);
 router.use('/audit-logs', auditRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/export', exportRoutes);
 
 // Parent-only, ownership-scoped: every handler re-verifies the caller is
 // actually linked to the requested student before returning anything.

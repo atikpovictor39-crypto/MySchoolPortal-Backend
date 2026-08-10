@@ -29,6 +29,7 @@ const ADMIN_LINKS = [
   { to: '/admin/school-details', label: 'School Details' },
   { to: '/admin/notifications', label: 'Notifications' },
   { to: '/admin/audit-log', label: 'Audit Log' },
+  { to: '/admin/export', label: 'Export Data' },
 ];
 
 // The backend only lets a Parent read their own linked children (see
