@@ -11,6 +11,7 @@ router.use(requireAuth, tenantScope, requirePasswordChange, blockDemoWrites);
 
 router.get('/', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.list);
 router.post('/', requireRole('SCHOOL_ADMIN'), controller.create);
+router.get('/me', requireRole('TEACHER'), controller.getMyTeacherProfile);
 
 router.post('/clock-in', requireRole('TEACHER'), controller.clockIn);
 router.post('/clock-out', requireRole('TEACHER'), controller.clockOut);

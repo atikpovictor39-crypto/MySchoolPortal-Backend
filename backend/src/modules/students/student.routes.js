@@ -21,8 +21,10 @@ router.get('/:id', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getById);
 router.post('/', requireRole('SCHOOL_ADMIN'), controller.create);
 router.put('/:id', requireRole('SCHOOL_ADMIN'), controller.update);
 
-// Guardian info (parent name/email) is sensitive contact data — admin-only.
-router.get('/:id/guardians', requireRole('SCHOOL_ADMIN'), controller.listGuardians);
-router.post('/:id/guardians', requireRole('SCHOOL_ADMIN'), controller.addGuardian);
+// Guardian info (parent name/email) is sensitive contact data — SCHOOL_ADMIN
+// always allowed, TEACHER only for students in their own class (enforced in
+// the controller, not just here — see student.controller.js).
+router.get('/:id/guardians', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.listGuardians);
+router.post('/:id/guardians', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.addGuardian);
 
 module.exports = router;

@@ -32,6 +32,14 @@ exports.create = asyncHandler(async (req, res) => {
   return ok(res, teacher, 201);
 });
 
+// Lets a Teacher resolve their own teachers.id client-side — needed to
+// figure out "am I the class teacher for this student" without exposing
+// every teacher's user_id (listTeachers deliberately doesn't return that).
+exports.getMyTeacherProfile = asyncHandler(async (req, res) => {
+  const teacherId = await teacherService.getTeacherIdForUser(req.schoolId, req.user.id);
+  return ok(res, { teacherId });
+});
+
 exports.clockIn = asyncHandler(async (req, res) => {
   const record = await teacherService.clockIn(req.schoolId, req.user.id);
   return ok(res, record, 201);

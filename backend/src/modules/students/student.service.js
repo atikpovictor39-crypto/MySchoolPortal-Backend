@@ -121,6 +121,22 @@ async function updateStudent(schoolId, id, input) {
 
 // ---- Guardians (parent accounts linked to a student) ----
 
+// A Teacher can manage guardians only for students in a class they're the
+// assigned class_teacher of — SCHOOL_ADMIN bypasses this entirely (checked
+// by the caller). One query: does this student's class have a class
+// teacher whose own user_id matches the requester?
+async function isClassTeacherOfStudent(schoolId, studentId, userId) {
+  const [rows] = await db.query(
+    `SELECT 1 FROM students s
+     JOIN classes c ON c.id = s.class_id
+     JOIN teachers t ON t.id = c.class_teacher_id
+     WHERE s.id = ? AND s.school_id = ? AND t.user_id = ?
+     LIMIT 1`,
+    [studentId, schoolId, userId]
+  );
+  return rows.length > 0;
+}
+
 async function listGuardians(schoolId, studentId) {
   const [rows] = await db.query(
     `SELECT u.id AS parent_user_id, u.name, u.email, sg.relationship, sg.is_primary
@@ -206,6 +222,7 @@ module.exports = {
   updateStudent,
   listGuardians,
   addGuardian,
+  isClassTeacherOfStudent,
   ALLOWED_GENDERS,
   ALLOWED_STATUSES,
 };

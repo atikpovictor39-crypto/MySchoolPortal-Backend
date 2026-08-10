@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { listStudents, createStudent, updateStudent, listGuardians, addGuardian } from '../../features/students/api';
 import { listClasses } from '../../features/classes/api';
+import { getMyTeacherProfile } from '../../features/teachers/api';
 import PasswordInput from '../../components/common/PasswordInput';
 
 const emptyForm = { classId: '', admissionNo: '', firstName: '', lastName: '', gender: '' };
@@ -11,9 +12,11 @@ const STATUSES = ['active', 'graduated', 'transferred', 'withdrawn'];
 export default function StudentsPage() {
   const { user } = useAuth();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
+  const isTeacher = user.role === 'TEACHER';
 
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [myTeacherId, setMyTeacherId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
@@ -31,6 +34,9 @@ export default function StudentsPage() {
       const [studentResult, classList] = await Promise.all([listStudents(), listClasses()]);
       setStudents(studentResult.items);
       setClasses(classList);
+      if (isTeacher) {
+        setMyTeacherId((await getMyTeacherProfile()).teacherId);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load students');
     } finally {
@@ -40,7 +46,19 @@ export default function StudentsPage() {
 
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A Teacher can manage guardians only for students in a class they're the
+  // assigned class teacher of — mirrors the ownership check the backend
+  // enforces regardless (see student.controller.js), this just decides
+  // whether to show the button at all.
+  function canManageGuardians(student) {
+    if (isAdmin) return true;
+    if (!isTeacher || !myTeacherId) return false;
+    const studentClass = classes.find((c) => c.id === student.class_id);
+    return studentClass?.class_teacher_id === myTeacherId;
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -207,7 +225,7 @@ export default function StudentsPage() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Class</th>
               <th className="px-4 py-2">Status</th>
-              {isAdmin && <th className="px-4 py-2" />}
+              {(isAdmin || isTeacher) && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
@@ -275,15 +293,19 @@ export default function StudentsPage() {
                   </td>
                   <td className="px-4 py-2">{classNameById[s.class_id] || s.class_id}</td>
                   <td className="px-4 py-2">{s.status}</td>
-                  {isAdmin && (
+                  {(isAdmin || isTeacher) && (
                     <td className="px-4 py-2">
                       <div className="flex gap-3">
-                        <button onClick={() => startEdit(s)} className="text-blue-600 text-xs font-medium">
-                          Edit
-                        </button>
-                        <button onClick={() => openGuardians(s)} className="text-blue-600 text-xs font-medium">
-                          Guardians
-                        </button>
+                        {isAdmin && (
+                          <button onClick={() => startEdit(s)} className="text-blue-600 text-xs font-medium">
+                            Edit
+                          </button>
+                        )}
+                        {canManageGuardians(s) && (
+                          <button onClick={() => openGuardians(s)} className="text-blue-600 text-xs font-medium">
+                            Guardians
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}
