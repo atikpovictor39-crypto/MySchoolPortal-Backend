@@ -52,6 +52,7 @@ const SUPERADMIN_LINKS = [
   { to: '/platform', label: 'Platform' },
   { to: '/tickets', label: 'Support Tickets' },
   { to: '/activity-log', label: 'Activity Log' },
+  { to: '/broadcasts', label: 'Announcements' },
 ];
 
 function initials(name) {

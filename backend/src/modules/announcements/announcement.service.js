@@ -10,11 +10,13 @@ async function classBelongsToSchool(schoolId, classId) {
   return rows.length > 0;
 }
 
-const COLUMNS = `a.id, a.title, a.content, a.target_role, a.class_id, a.created_by, u.name AS created_by_name,
+const COLUMNS = `a.id, a.school_id, a.title, a.content, a.target_role, a.class_id, a.created_by, u.name AS created_by_name,
   a.published_at, a.created_at`;
 
+// Every school's own announcements plus every platform-wide broadcast
+// (school_id IS NULL, posted by a SuperAdmin) — the latter shown to all schools.
 async function listAnnouncements(schoolId, { targetRole, classId } = {}) {
-  const conditions = ['a.school_id = ?'];
+  const conditions = ['(a.school_id = ? OR a.school_id IS NULL)'];
   const params = [schoolId];
   if (targetRole) {
     conditions.push('a.target_role = ?');
@@ -104,7 +106,7 @@ async function listForParent(schoolId, parentUserId) {
   const [rows] = await db.query(
     `SELECT ${COLUMNS} FROM announcements a
      JOIN users u ON u.id = a.created_by
-     WHERE a.school_id = ?
+     WHERE (a.school_id = ? OR a.school_id IS NULL)
        AND a.target_role IN ('all', 'parents')
        AND (
          a.class_id IS NULL
@@ -120,6 +122,37 @@ async function listForParent(schoolId, parentUserId) {
   return rows;
 }
 
+// SuperAdmin side — platform-wide broadcasts only (school_id IS NULL),
+// always whole-audience (no per-class targeting; that only makes sense
+// within a single school).
+async function listPlatformAnnouncements() {
+  const [rows] = await db.query(
+    `SELECT ${COLUMNS} FROM announcements a
+     JOIN users u ON u.id = a.created_by
+     WHERE a.school_id IS NULL
+     ORDER BY a.published_at DESC`
+  );
+  return rows;
+}
+
+async function createPlatformAnnouncement(createdBy, { title, content, targetRole }) {
+  const [result] = await db.query(
+    `INSERT INTO announcements (school_id, title, content, target_role, class_id, created_by, published_at)
+     VALUES (NULL, ?, ?, ?, NULL, ?, NOW()) RETURNING id`,
+    [title, content, targetRole || 'all', createdBy]
+  );
+  const [rows] = await db.query(
+    `SELECT ${COLUMNS} FROM announcements a JOIN users u ON u.id = a.created_by WHERE a.id = ?`,
+    [result[0].id]
+  );
+  return rows[0];
+}
+
+async function deletePlatformAnnouncement(id) {
+  const [result] = await db.query('DELETE FROM announcements WHERE id = ? AND school_id IS NULL', [id]);
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   TARGET_ROLES,
   listAnnouncements,
@@ -128,4 +161,7 @@ module.exports = {
   updateAnnouncement,
   deleteAnnouncement,
   listForParent,
+  listPlatformAnnouncements,
+  createPlatformAnnouncement,
+  deletePlatformAnnouncement,
 };

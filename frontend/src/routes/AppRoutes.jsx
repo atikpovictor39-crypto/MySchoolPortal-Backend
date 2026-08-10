@@ -29,6 +29,7 @@ import DataExportPage from '../pages/schooladmin/DataExportPage';
 import SupportTicketsPage from '../pages/schooladmin/SupportTicketsPage';
 import TicketsPage from '../pages/superadmin/TicketsPage';
 import ActivityLogPage from '../pages/superadmin/ActivityLogPage';
+import PlatformAnnouncementsPage from '../pages/superadmin/AnnouncementsPage';
 import OverviewPage from '../pages/parent/OverviewPage';
 import ParentResultsPage from '../pages/parent/ParentResultsPage';
 import ParentAttendancePage from '../pages/parent/ParentAttendancePage';
@@ -80,6 +81,7 @@ export default function AppRoutes() {
           <Route path="/platform" element={<PlatformPage />} />
           <Route path="/tickets" element={<TicketsPage />} />
           <Route path="/activity-log" element={<ActivityLogPage />} />
+          <Route path="/broadcasts" element={<PlatformAnnouncementsPage />} />
         </Route>
       </Route>
 

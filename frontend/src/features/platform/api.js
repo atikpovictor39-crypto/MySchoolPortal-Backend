@@ -29,3 +29,17 @@ export async function listPlatformAuditLogs(schoolId) {
   });
   return data.data;
 }
+
+export async function listPlatformAnnouncements() {
+  const { data } = await axiosClient.get('/platform/announcements');
+  return data.data;
+}
+
+export async function createPlatformAnnouncement(payload) {
+  const { data } = await axiosClient.post('/platform/announcements', payload);
+  return data.data;
+}
+
+export async function deletePlatformAnnouncement(id) {
+  await axiosClient.delete(`/platform/announcements/${id}`);
+}

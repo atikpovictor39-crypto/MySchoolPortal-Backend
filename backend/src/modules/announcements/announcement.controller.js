@@ -66,3 +66,33 @@ exports.remove = asyncHandler(async (req, res) => {
   if (!deleted) return fail(res, 'Announcement not found', 404);
   return ok(res, null);
 });
+
+// ---- SuperAdmin platform-wide broadcasts ----
+
+exports.listPlatform = asyncHandler(async (req, res) => {
+  const announcements = await announcementService.listPlatformAnnouncements();
+  return ok(res, announcements);
+});
+
+exports.createPlatform = asyncHandler(async (req, res) => {
+  const { title, content, targetRole } = req.body;
+  if (!title || !content) {
+    return fail(res, 'title and content are required', 400);
+  }
+  if (targetRole && !announcementService.TARGET_ROLES.includes(targetRole)) {
+    return fail(res, `targetRole must be one of: ${announcementService.TARGET_ROLES.join(', ')}`, 400);
+  }
+
+  const announcement = await announcementService.createPlatformAnnouncement(req.user.id, {
+    title,
+    content,
+    targetRole,
+  });
+  return ok(res, announcement, 201);
+});
+
+exports.removePlatform = asyncHandler(async (req, res) => {
+  const deleted = await announcementService.deletePlatformAnnouncement(req.params.id);
+  if (!deleted) return fail(res, 'Announcement not found', 404);
+  return ok(res, null);
+});

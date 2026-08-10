@@ -31,7 +31,14 @@ export default function ParentAnnouncementsPage() {
         <div className="space-y-3">
           {announcements.map((a) => (
             <div key={a.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
-              <h3 className="text-sm font-semibold text-slate-900">{a.title}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-900">{a.title}</h3>
+                {!a.school_id && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    MySchoolPortal
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.content}</p>
               <p className="text-xs text-slate-400 mt-2">
                 by {a.created_by_name} · {a.published_at.slice(0, 10)}

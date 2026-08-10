@@ -3,6 +3,7 @@ const router = express.Router();
 const controller = require('./platform.controller');
 const ticketController = require('../tickets/ticket.controller');
 const auditController = require('../audit/audit.controller');
+const announcementController = require('../announcements/announcement.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
@@ -27,5 +28,11 @@ router.patch('/tickets/:id/status', ticketController.updateStatus);
 // Activity across every school, newest first (same audit_logs table each
 // school's own Audit Log page reads from, just without the school_id filter).
 router.get('/audit-logs', auditController.listPlatform);
+
+// Broadcasts to every school at once (school_id IS NULL) — shown alongside
+// each school's own announcements on their existing Announcements pages.
+router.get('/announcements', announcementController.listPlatform);
+router.post('/announcements', announcementController.createPlatform);
+router.delete('/announcements/:id', announcementController.removePlatform);
 
 module.exports = router;
