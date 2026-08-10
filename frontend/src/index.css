@@ -25,4 +25,18 @@
   body {
     overflow-x: hidden;
   }
+
+  /* iOS Safari auto-zooms the whole page on focus of any input/select/
+     textarea rendered below 16px — most fields here use text-sm (14px),
+     which is what made every tap feel like it "zoomed in". Forcing 16px
+     on mobile widths only (desktop keeps the smaller, denser text-sm)
+     stops the zoom; !important is needed since the text-sm utility class
+     otherwise outranks a plain element selector like `input`. */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
 }
