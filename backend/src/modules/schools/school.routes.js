@@ -4,13 +4,22 @@ const controller = require('./school.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
 const requireRole = require('../../middleware/role.middleware');
+const requireScope = require('../../middleware/requireScope.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const blockDuringMaintenance = require('../../middleware/maintenanceMode.middleware');
 
-// SuperAdmin-only: create a new school + its first SchoolAdmin login (onboarding)
-router.post('/', requireAuth, requireRole('SUPERADMIN'), controller.createSchool);
-router.get('/', requireAuth, requireRole('SUPERADMIN'), controller.listSchools);
-router.patch('/:id/status', requireAuth, requireRole('SUPERADMIN'), controller.updateStatus);
+// SuperAdmin-only: create a new school + its first SchoolAdmin login (onboarding).
+// Onboarding/suspension is treated as developer-or-billing territory — the
+// support scope doesn't get to create or suspend schools.
+router.post('/', requireAuth, requireRole('SUPERADMIN'), requireScope('developer', 'billing'), controller.createSchool);
+router.get('/', requireAuth, requireRole('SUPERADMIN'), requireScope('developer', 'billing'), controller.listSchools);
+router.patch(
+  '/:id/status',
+  requireAuth,
+  requireRole('SUPERADMIN'),
+  requireScope('developer', 'billing'),
+  controller.updateStatus
+);
 
 // SchoolAdmin self-service: the school's own profile (name/contact/logo).
 router.get('/me', requireAuth, tenantScope, blockDuringMaintenance, requireRole('SCHOOL_ADMIN'), controller.getMyProfile);

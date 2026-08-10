@@ -7,15 +7,22 @@ import PasswordInput from '../../components/common/PasswordInput';
 import Tabs from '../../components/common/Tabs';
 import { formatMoney as money } from '../../utils/money';
 
-const TABS = [
-  { key: 'schools', label: 'Schools' },
-  { key: 'plans', label: 'Plans' },
-  { key: 'accounts', label: 'Accounts' },
+const ALL_TABS = [
+  { key: 'schools', label: 'Schools', scopes: ['developer', 'billing'] },
+  { key: 'plans', label: 'Plans', scopes: ['billing'] },
+  { key: 'accounts', label: 'Accounts', scopes: [] }, // full-scope only
+];
+
+const SCOPES = [
+  { value: 'full', label: 'Full access' },
+  { value: 'support', label: 'Support' },
+  { value: 'billing', label: 'Billing' },
+  { value: 'developer', label: 'Developer' },
 ];
 
 const emptySchoolForm = { name: '', adminName: '', adminEmail: '', adminPassword: '', planId: '' };
 const emptyPlanForm = { name: '', price: '', billingCycle: 'monthly', maxStudents: '' };
-const emptyAdminForm = { name: '', email: '', password: '' };
+const emptyAdminForm = { name: '', email: '', password: '', scope: 'full' };
 
 const STATUS_STYLE = {
   active: 'bg-green-50 text-green-700 border-green-200',
@@ -33,7 +40,9 @@ function toCents(amountString) {
 
 export default function SchoolsPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('schools');
+  const isFull = !user.superadmin_scope || user.superadmin_scope === 'full';
+  const TABS = isFull ? ALL_TABS : ALL_TABS.filter((t) => t.scopes.includes(user.superadmin_scope));
+  const [tab, setTab] = useState(TABS[0]?.key || 'schools');
   const [error, setError] = useState('');
 
   const [schools, setSchools] = useState([]);
@@ -88,10 +97,14 @@ export default function SchoolsPage() {
     }
   }
 
+  // Only fetch what this scope is actually allowed to see — a billing or
+  // developer sub-admin would otherwise get a 403 from GET /superadmins
+  // (full-scope only) the moment this page mounts.
   useEffect(() => {
-    refreshSchools();
-    refreshPlans();
-    refreshAdmins();
+    if (isFull || user.superadmin_scope === 'developer' || user.superadmin_scope === 'billing') refreshSchools();
+    if (isFull || user.superadmin_scope === 'billing') refreshPlans();
+    if (isFull) refreshAdmins();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreateAdmin(e) {
@@ -486,8 +499,9 @@ export default function SchoolsPage() {
       {tab === 'accounts' && (
         <div>
           <p className="text-sm text-slate-500 mb-4">
-            Everyone listed here has full platform access — the same as your own account. Only add people you'd
-            trust with that.
+            Give your own staff their own login — Support, Billing, and Developer each only see the parts of the
+            platform their job needs. "Full access" is the same unrestricted access as your own account, so only
+            add people you'd trust with that.
           </p>
           <form
             onSubmit={handleCreateAdmin}
@@ -521,6 +535,20 @@ export default function SchoolsPage() {
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               />
             </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Access</label>
+              <select
+                value={adminForm.scope}
+                onChange={(e) => setAdminForm({ ...adminForm, scope: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                {SCOPES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="submit"
               disabled={isSubmittingAdmin}
@@ -542,6 +570,7 @@ export default function SchoolsPage() {
                   <tr>
                     <th className="px-4 py-2">Name</th>
                     <th className="px-4 py-2">Email</th>
+                    <th className="px-4 py-2">Access</th>
                     <th className="px-4 py-2">Status</th>
                     <th className="px-4 py-2">Created</th>
                     <th className="px-4 py-2" />
@@ -555,6 +584,7 @@ export default function SchoolsPage() {
                         {a.id === user.id && <span className="text-slate-400"> (you)</span>}
                       </td>
                       <td className="px-4 py-2">{a.email}</td>
+                      <td className="px-4 py-2 capitalize">{a.superadmin_scope || 'Full access'}</td>
                       <td className="px-4 py-2">
                         <span
                           className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${STATUS_STYLE[a.status] || ''}`}

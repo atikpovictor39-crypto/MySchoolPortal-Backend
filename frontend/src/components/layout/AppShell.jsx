@@ -46,13 +46,16 @@ const PARENT_LINKS = [
 ];
 
 // SuperAdmin operates at the platform level, not inside one school — it
-// only ever gets the Schools onboarding page, not the tenant-scoped staff nav.
+// only ever gets platform-wide pages, not the tenant-scoped staff nav.
+// Each link is tagged with the sub-admin scopes that can see it (see
+// requireScope.middleware.js on the backend for the matching gate); a
+// NULL/'full' scope always gets every link regardless of this list.
 const SUPERADMIN_LINKS = [
-  { to: '/schools', label: 'Schools' },
-  { to: '/platform', label: 'Platform' },
-  { to: '/tickets', label: 'Support Tickets' },
-  { to: '/activity-log', label: 'Activity Log' },
-  { to: '/broadcasts', label: 'Announcements' },
+  { to: '/schools', label: 'Schools', scopes: ['developer', 'billing'] },
+  { to: '/platform', label: 'Platform', scopes: ['developer'] },
+  { to: '/tickets', label: 'Support Tickets', scopes: ['support'] },
+  { to: '/activity-log', label: 'Activity Log', scopes: ['support', 'developer'] },
+  { to: '/broadcasts', label: 'Announcements', scopes: ['support'] },
 ];
 
 function initials(name) {
@@ -78,7 +81,11 @@ export default function AppShell() {
     return <ForcedPasswordChangePage />;
   }
 
-  const links = user.role === 'PARENT' ? PARENT_LINKS : user.role === 'SUPERADMIN' ? SUPERADMIN_LINKS : STAFF_LINKS;
+  const isFullSuperAdmin = user.role === 'SUPERADMIN' && (!user.superadmin_scope || user.superadmin_scope === 'full');
+  const superadminLinks = isFullSuperAdmin
+    ? SUPERADMIN_LINKS
+    : SUPERADMIN_LINKS.filter((link) => link.scopes.includes(user.superadmin_scope));
+  const links = user.role === 'PARENT' ? PARENT_LINKS : user.role === 'SUPERADMIN' ? superadminLinks : STAFF_LINKS;
   const roleLabel = user.role.replace('_', ' ');
   const brandName = user.role === 'SUPERADMIN' ? 'Platform Admin' : user.school_name || 'School SaaS';
 

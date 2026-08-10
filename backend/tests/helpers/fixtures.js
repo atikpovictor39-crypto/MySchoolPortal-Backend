@@ -66,8 +66,8 @@ async function createSuperAdmin(overrides = {}) {
   const password = overrides.password || 'superadminpass123';
   const passwordHash = await hashPassword(password);
   await db.query(
-    "INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (NULL, 'SUPERADMIN', ?, ?, ?, 'active')",
-    [overrides.name || 'Platform Admin', email, passwordHash]
+    "INSERT INTO users (school_id, role, name, email, password_hash, status, superadmin_scope) VALUES (NULL, 'SUPERADMIN', ?, ?, ?, 'active', ?)",
+    [overrides.name || 'Platform Admin', email, passwordHash, overrides.scope || null]
   );
   return login(email, password);
 }

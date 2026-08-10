@@ -3,9 +3,15 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PasswordInput from '../../components/common/PasswordInput';
 
-function defaultRedirectFor(role) {
-  if (role === 'PARENT') return '/overview';
-  if (role === 'SUPERADMIN') return '/schools';
+// A support-scoped sub-admin has no access to /schools (see AppShell's
+// SUPERADMIN_LINKS scoping) — landing them there would just 403. Send each
+// scope to the first page it's actually allowed to see.
+function defaultRedirectFor(user) {
+  if (user.role === 'PARENT') return '/overview';
+  if (user.role === 'SUPERADMIN') {
+    if (user.superadmin_scope === 'support') return '/tickets';
+    return '/schools';
+  }
   return '/dashboard';
 }
 
@@ -45,7 +51,7 @@ export default function LoginPage() {
       const loggedInUser = await login(email, password);
       // Each role has a different natural landing page — send them straight
       // there unless they were bounced here from somewhere specific.
-      navigate(explicitRedirect || defaultRedirectFor(loggedInUser.role), { replace: true });
+      navigate(explicitRedirect || defaultRedirectFor(loggedInUser), { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Please try again.');
     } finally {

@@ -12,13 +12,14 @@ module.exports = function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = verifyAccessToken(token); // { id, role, school_id, is_demo, must_change_password, iat, exp }
+    const payload = verifyAccessToken(token); // { id, role, school_id, is_demo, must_change_password, superadmin_scope, iat, exp }
     req.user = {
       id: payload.id,
       role: payload.role,
       school_id: payload.school_id,
       is_demo: Boolean(payload.is_demo),
       must_change_password: Boolean(payload.must_change_password),
+      superadmin_scope: payload.superadmin_scope || null,
     };
     return next();
   } catch (err) {

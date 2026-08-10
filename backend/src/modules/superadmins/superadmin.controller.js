@@ -8,15 +8,19 @@ exports.list = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, scope } = req.body;
   if (!name || !email || !password) {
     return fail(res, 'name, email and password are required', 400);
+  }
+  if (scope && !superadminService.SCOPES.includes(scope)) {
+    return fail(res, `scope must be one of: ${superadminService.SCOPES.join(', ')}`, 400);
   }
 
   const admin = await superadminService.createSuperAdmin({
     name,
     email: email.toLowerCase().trim(),
     password,
+    scope,
   });
   return ok(res, admin, 201);
 });

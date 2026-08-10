@@ -49,6 +49,7 @@ function publicUser(user) {
     school_name: user.school_name || null,
     email_verified: Boolean(user.email_verified_at),
     must_change_password: Boolean(user.must_change_password),
+    superadmin_scope: user.superadmin_scope || null,
   };
 }
 

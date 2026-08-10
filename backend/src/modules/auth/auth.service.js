@@ -11,7 +11,7 @@ const emailService = require('../email/email.service');
 async function findUserByEmail(email) {
   const [rows] = await db.query(
     `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, u.email_verified_at, u.must_change_password,
-       s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
+       u.superadmin_scope, s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
      LEFT JOIN subscriptions sub ON sub.school_id = s.id
@@ -24,7 +24,7 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   const [rows] = await db.query(
     `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, u.email_verified_at, u.must_change_password,
-       s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
+       u.superadmin_scope, s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
      LEFT JOIN subscriptions sub ON sub.school_id = s.id
