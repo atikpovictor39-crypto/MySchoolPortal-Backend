@@ -16,6 +16,7 @@ const ADMIN_LINKS = [
   { to: '/classes', label: 'Classes' },
   { to: '/fees', label: 'Fees & Accounts' },
   { to: '/announcements', label: 'Announcements' },
+  { to: '/academic-years', label: 'Create Academic Year' },
 ];
 
 const TEACHER_LINKS = [
