@@ -59,16 +59,16 @@ export default function AppShell() {
     <div className="min-h-screen flex bg-[#F5F8FF]">
       {/* Mobile-only top bar: the sidebar below is an off-canvas drawer on
           small screens (hidden unless isMenuOpen), always visible on md+. */}
-      <div className="md:hidden fixed inset-x-0 top-0 h-14 bg-slate-900 flex items-center justify-between px-4 z-30 print:hidden">
+      <div className="md:hidden fixed inset-x-0 top-0 h-14 bg-slate-900 flex items-center gap-3 px-4 z-30 print:hidden">
+        <button onClick={() => setIsMenuOpen(true)} className="text-slate-300 hover:text-white p-1 shrink-0" aria-label="Open menu">
+          <MenuIcon />
+        </button>
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
             {initials(brandName) || 'S'}
           </div>
           <p className="text-sm font-semibold text-white truncate">{brandName}</p>
         </div>
-        <button onClick={() => setIsMenuOpen(true)} className="text-slate-300 hover:text-white p-1" aria-label="Open menu">
-          <MenuIcon />
-        </button>
       </div>
 
       {isMenuOpen && (
