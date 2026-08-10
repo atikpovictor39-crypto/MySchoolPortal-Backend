@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const controller = require('./platform.controller');
 const ticketController = require('../tickets/ticket.controller');
+const auditController = require('../audit/audit.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
@@ -22,5 +23,9 @@ router.get('/tickets', ticketController.listAll);
 router.get('/tickets/:id', ticketController.getOne);
 router.post('/tickets/:id/replies', ticketController.replyAsSuperAdmin);
 router.patch('/tickets/:id/status', ticketController.updateStatus);
+
+// Activity across every school, newest first (same audit_logs table each
+// school's own Audit Log page reads from, just without the school_id filter).
+router.get('/audit-logs', auditController.listPlatform);
 
 module.exports = router;

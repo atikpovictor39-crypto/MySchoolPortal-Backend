@@ -34,4 +34,25 @@ async function listAuditLogs(schoolId, { limit = 100 } = {}) {
   return rows;
 }
 
-module.exports = { record, listAuditLogs };
+// SuperAdmin-only, cross-school view — same table, no school_id filter
+// unless one is explicitly requested to narrow down to a single school.
+async function listAllAuditLogs({ limit = 200, schoolId } = {}) {
+  if (schoolId) {
+    const [rows] = await db.query(
+      `SELECT a.id, a.school_id, s.name AS school_name, a.user_name, a.action, a.description, a.created_at
+       FROM audit_logs a JOIN schools s ON s.id = a.school_id
+       WHERE a.school_id = ? ORDER BY a.created_at DESC LIMIT ?`,
+      [schoolId, limit]
+    );
+    return rows;
+  }
+  const [rows] = await db.query(
+    `SELECT a.id, a.school_id, s.name AS school_name, a.user_name, a.action, a.description, a.created_at
+     FROM audit_logs a JOIN schools s ON s.id = a.school_id
+     ORDER BY a.created_at DESC LIMIT ?`,
+    [limit]
+  );
+  return rows;
+}
+
+module.exports = { record, listAuditLogs, listAllAuditLogs };

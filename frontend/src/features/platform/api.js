@@ -22,3 +22,10 @@ export async function downloadBackup() {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+export async function listPlatformAuditLogs(schoolId) {
+  const { data } = await axiosClient.get('/platform/audit-logs', {
+    params: schoolId ? { school_id: schoolId } : {},
+  });
+  return data.data;
+}

@@ -51,6 +51,7 @@ const SUPERADMIN_LINKS = [
   { to: '/schools', label: 'Schools' },
   { to: '/platform', label: 'Platform' },
   { to: '/tickets', label: 'Support Tickets' },
+  { to: '/activity-log', label: 'Activity Log' },
 ];
 
 function initials(name) {
