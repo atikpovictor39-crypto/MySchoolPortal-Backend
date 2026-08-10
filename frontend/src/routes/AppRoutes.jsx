@@ -26,6 +26,8 @@ import SchoolDetailsPage from '../pages/schooladmin/SchoolDetailsPage';
 import NotificationsPage from '../pages/schooladmin/NotificationsPage';
 import AuditLogPage from '../pages/schooladmin/AuditLogPage';
 import DataExportPage from '../pages/schooladmin/DataExportPage';
+import SupportTicketsPage from '../pages/schooladmin/SupportTicketsPage';
+import TicketsPage from '../pages/superadmin/TicketsPage';
 import OverviewPage from '../pages/parent/OverviewPage';
 import ParentResultsPage from '../pages/parent/ParentResultsPage';
 import ParentAttendancePage from '../pages/parent/ParentAttendancePage';
@@ -66,6 +68,7 @@ export default function AppRoutes() {
           <Route path="/admin/notifications" element={<NotificationsPage />} />
           <Route path="/admin/audit-log" element={<AuditLogPage />} />
           <Route path="/admin/export" element={<DataExportPage />} />
+          <Route path="/admin/support" element={<SupportTicketsPage />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/parent-results" element={<ParentResultsPage />} />
           <Route path="/parent-attendance" element={<ParentAttendancePage />} />
@@ -74,6 +77,7 @@ export default function AppRoutes() {
           <Route path="/parent-announcements" element={<ParentAnnouncementsPage />} />
           <Route path="/schools" element={<SchoolsPage />} />
           <Route path="/platform" element={<PlatformPage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
         </Route>
       </Route>
 

@@ -30,6 +30,7 @@ const ADMIN_LINKS = [
   { to: '/admin/notifications', label: 'Notifications' },
   { to: '/admin/audit-log', label: 'Audit Log' },
   { to: '/admin/export', label: 'Export Data' },
+  { to: '/admin/support', label: 'Support' },
 ];
 
 // The backend only lets a Parent read their own linked children (see
@@ -49,6 +50,7 @@ const PARENT_LINKS = [
 const SUPERADMIN_LINKS = [
   { to: '/schools', label: 'Schools' },
   { to: '/platform', label: 'Platform' },
+  { to: '/tickets', label: 'Support Tickets' },
 ];
 
 function initials(name) {

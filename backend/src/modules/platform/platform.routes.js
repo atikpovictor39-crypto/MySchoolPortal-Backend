@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('./platform.controller');
+const ticketController = require('../tickets/ticket.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
@@ -14,5 +15,12 @@ router.use(requireAuth, requireRole('SUPERADMIN'));
 
 router.get('/backup', controller.downloadBackup);
 router.patch('/maintenance', controller.updateMaintenance);
+
+// Support tickets, seen across every school (the school-side equivalents
+// live at /tickets, tenant-scoped, SCHOOL_ADMIN only).
+router.get('/tickets', ticketController.listAll);
+router.get('/tickets/:id', ticketController.getOne);
+router.post('/tickets/:id/replies', ticketController.replyAsSuperAdmin);
+router.patch('/tickets/:id/status', ticketController.updateStatus);
 
 module.exports = router;
