@@ -69,4 +69,9 @@ module.exports = {
   // Shared secret the subscription-lifecycle cron endpoint checks for, so it
   // can't be triggered by anyone who isn't Vercel's own cron caller.
   cronSecret: process.env.CRON_SECRET || null,
+
+  // Not required() — same reasoning as email/VAPID above. Unset locally is
+  // fine (sentry.js just no-ops); this is what makes production crashes
+  // visible without waiting for a user to report them.
+  sentryDsn: process.env.SENTRY_DSN || null,
 };

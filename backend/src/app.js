@@ -1,3 +1,6 @@
+// Must be required first — see sentry.js for why.
+const { Sentry, isConfigured: sentryConfigured } = require('./sentry');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -40,6 +43,18 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/v1', routes);
 
 app.use(notFound);
+
+// Must be registered after routes but before the app's own error handler —
+// Sentry's own docs are explicit about this ordering. Only reports 5xx:
+// expected 4xx (bad password, duplicate email, etc.) already flow through
+// asyncHandler -> errorHandler same as real crashes, and flooding Sentry
+// with "wrong password" would bury the errors actually worth seeing.
+if (sentryConfigured) {
+  Sentry.setupExpressErrorHandler(app, {
+    shouldHandleError: (err) => !err.status || err.status >= 500,
+  });
+}
+
 app.use(errorHandler);
 
 module.exports = app;
