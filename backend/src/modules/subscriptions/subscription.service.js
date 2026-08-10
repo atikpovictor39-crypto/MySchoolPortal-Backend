@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const emailService = require('../email/email.service');
+const notificationService = require('../notifications/notification.service');
 
 const BILLING_CYCLES = ['monthly', 'yearly'];
 
@@ -133,6 +134,11 @@ async function processSubscriptionLifecycle() {
         new Date(row.current_period_end).toISOString().slice(0, 10)
       );
       await db.query('UPDATE subscriptions SET reminder_sent_at = NOW() WHERE id = ?', [row.id]);
+      await notificationService.create(row.school_id, {
+        type: 'billing',
+        title: 'Subscription renews soon',
+        message: `Your billing period ends on ${new Date(row.current_period_end).toISOString().slice(0, 10)}.`,
+      });
       results.remindersSent++;
     } catch (err) {
       results.errors.push(`reminder for school ${row.school_id}: ${err.message}`);
@@ -150,6 +156,11 @@ async function processSubscriptionLifecycle() {
     try {
       await db.query("UPDATE subscriptions SET status = 'past_due' WHERE id = ?", [row.id]);
       await emailService.sendOverdueEmail(row.admin_email, row.admin_name, row.school_name);
+      await notificationService.create(row.school_id, {
+        type: 'billing',
+        title: 'Payment is now overdue',
+        message: 'Your subscription period ended without payment. You have 7 days before the account is locked.',
+      });
       results.markedPastDue++;
     } catch (err) {
       results.errors.push(`past_due for school ${row.school_id}: ${err.message}`);
@@ -168,6 +179,11 @@ async function processSubscriptionLifecycle() {
     try {
       await db.query("UPDATE subscriptions SET status = 'expired' WHERE id = ?", [row.id]);
       await emailService.sendExpiredEmail(row.admin_email, row.admin_name, row.school_name);
+      await notificationService.create(row.school_id, {
+        type: 'billing',
+        title: 'Account locked — payment overdue',
+        message: 'Sign-in is disabled until payment is made. Contact your platform administrator to restore access.',
+      });
       results.markedExpired++;
     } catch (err) {
       results.errors.push(`expired for school ${row.school_id}: ${err.message}`);

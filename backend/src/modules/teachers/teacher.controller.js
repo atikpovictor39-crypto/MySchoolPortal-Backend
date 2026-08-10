@@ -1,6 +1,8 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/apiResponse');
 const teacherService = require('./teacher.service');
+const auditService = require('../audit/audit.service');
+const notificationService = require('../notifications/notification.service');
 
 exports.list = asyncHandler(async (req, res) => {
   const teachers = await teacherService.listTeachers(req.schoolId);
@@ -19,6 +21,14 @@ exports.create = asyncHandler(async (req, res) => {
     password,
     employeeNo,
   });
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'teacher.created',
+    description: `Added teacher ${name}`,
+  });
+
   return ok(res, teacher, 201);
 });
 
@@ -57,6 +67,13 @@ exports.createLeaveRequest = asyncHandler(async (req, res) => {
   }
 
   const request = await teacherService.createLeaveRequest(req.schoolId, req.user.id, { startDate, endDate, reason });
+
+  await notificationService.create(req.schoolId, {
+    type: 'leave_request',
+    title: 'New leave request',
+    message: `${startDate} to ${endDate}${reason ? ` — ${reason}` : ''}`,
+  });
+
   return ok(res, request, 201);
 });
 
@@ -74,11 +91,27 @@ exports.listLeaveRequests = asyncHandler(async (req, res) => {
 exports.approveLeaveRequest = asyncHandler(async (req, res) => {
   const request = await teacherService.reviewLeaveRequest(req.schoolId, req.params.id, req.user.id, 'approved');
   if (!request) return fail(res, 'Leave request not found', 404);
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'leave_request.approved',
+    description: `Approved leave request for ${request.teacher_name} (${request.start_date} to ${request.end_date})`,
+  });
+
   return ok(res, request);
 });
 
 exports.rejectLeaveRequest = asyncHandler(async (req, res) => {
   const request = await teacherService.reviewLeaveRequest(req.schoolId, req.params.id, req.user.id, 'rejected');
   if (!request) return fail(res, 'Leave request not found', 404);
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'leave_request.rejected',
+    description: `Rejected leave request for ${request.teacher_name} (${request.start_date} to ${request.end_date})`,
+  });
+
   return ok(res, request);
 });

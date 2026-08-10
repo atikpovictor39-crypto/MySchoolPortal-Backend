@@ -487,3 +487,36 @@ CREATE TABLE leave_requests (
 CREATE INDEX idx_leave_school ON leave_requests(school_id);
 CREATE INDEX idx_leave_teacher ON leave_requests(teacher_id);
 CREATE INDEX idx_leave_status ON leave_requests(school_id, status);
+
+-- ============================================================================
+-- 13. ADMIN: AUDIT LOG & NOTIFICATIONS
+-- ============================================================================
+
+-- A curated trail of admin/staff actions worth reviewing later — not every
+-- read/write in the app, just the ones an admin would plausibly want to
+-- look back on (who added this student, who approved that leave request).
+CREATE TABLE audit_logs (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  user_id       BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
+  user_name     VARCHAR(150), -- denormalized so the log still reads fine if the user is later deleted
+  action        VARCHAR(100) NOT NULL,   -- e.g. 'student.created'
+  description   VARCHAR(255) NOT NULL,   -- human-readable, e.g. 'Added student Kojo Mensah'
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_audit_school_created ON audit_logs(school_id, created_at DESC);
+
+-- Things the SchoolAdmin should know about: a parent's payment claim, a
+-- teacher's leave request, a billing lifecycle event. School-wide read
+-- state (not per-user) — this app is built around one admin per school.
+CREATE TABLE notifications (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  type          VARCHAR(50) NOT NULL,    -- 'payment_claim' | 'leave_request' | 'billing'
+  title         VARCHAR(200) NOT NULL,
+  message       VARCHAR(500),
+  is_read       BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_notif_school_created ON notifications(school_id, created_at DESC);
+CREATE INDEX idx_notif_school_unread ON notifications(school_id, is_read);

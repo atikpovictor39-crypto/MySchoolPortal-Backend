@@ -22,6 +22,14 @@ const STAFF_LINKS = [
   { to: '/announcements', label: 'Announcements' },
 ];
 
+// SCHOOL_ADMIN only — Teachers share the staff nav above but these
+// endpoints are all requireRole('SCHOOL_ADMIN') on the backend too.
+const ADMIN_LINKS = [
+  { to: '/admin/school-details', label: 'School Details' },
+  { to: '/admin/notifications', label: 'Notifications' },
+  { to: '/admin/audit-log', label: 'Audit Log' },
+];
+
 // The backend only lets a Parent read their own linked children (see
 // parent.routes.js) — showing them links to the staff pages above would
 // just dead-end in a 403, so the nav itself must be role-aware too.
@@ -114,6 +122,26 @@ export default function AppShell() {
               {link.label}
             </NavLink>
           ))}
+
+          {user.role === 'SCHOOL_ADMIN' && (
+            <>
+              <p className="px-3 pt-4 pb-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Admin</p>
+              {ADMIN_LINKS.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                    }`
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-white/10 space-y-3">

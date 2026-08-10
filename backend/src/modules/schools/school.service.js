@@ -118,6 +118,32 @@ async function createSchool({ name, adminName, adminEmail, adminPassword, planId
   return getSchoolById(schoolId);
 }
 
+// Full profile a SchoolAdmin can view/edit about their own school — wider
+// than getSchoolById (which is the SuperAdmin listing shape) since this
+// also exposes phone/address/logo for the School Details admin page.
+async function getSchoolProfile(schoolId) {
+  const [rows] = await db.query(
+    `SELECT id, name, slug, email, phone, address, logo_url, status, created_at
+     FROM schools WHERE id = ? LIMIT 1`,
+    [schoolId]
+  );
+  return rows[0] || null;
+}
+
+async function updateSchoolProfile(schoolId, { name, email, phone, address, logoUrl }) {
+  await db.query(
+    `UPDATE schools SET
+       name = COALESCE(?, name),
+       email = COALESCE(?, email),
+       phone = ?,
+       address = ?,
+       logo_url = ?
+     WHERE id = ?`,
+    [name || null, email || null, phone || null, address || null, logoUrl || null, schoolId]
+  );
+  return getSchoolProfile(schoolId);
+}
+
 // Manual fee-payment channels (Mobile Money + bank account) that a school
 // shows parents so they know where to send money. No payment gateway yet —
 // this is purely informational, the SchoolAdmin still records payments by
@@ -157,6 +183,8 @@ module.exports = {
   getSchoolById,
   createSchool,
   updateSchoolStatus,
+  getSchoolProfile,
+  updateSchoolProfile,
   getPaymentDetails,
   updatePaymentDetails,
 };

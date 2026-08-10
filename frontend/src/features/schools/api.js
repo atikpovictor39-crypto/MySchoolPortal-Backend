@@ -15,6 +15,16 @@ export async function updateSchoolStatus(id, status) {
   return data.data;
 }
 
+export async function getMyProfile() {
+  const { data } = await axiosClient.get('/schools/me');
+  return data.data;
+}
+
+export async function updateMyProfile(payload) {
+  const { data } = await axiosClient.put('/schools/me', payload);
+  return data.data;
+}
+
 export async function getPaymentDetails() {
   const { data } = await axiosClient.get('/schools/me/payment-details');
   return data.data;

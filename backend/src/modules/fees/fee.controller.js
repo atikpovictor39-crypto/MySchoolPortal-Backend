@@ -1,6 +1,11 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/apiResponse');
 const feeService = require('./fee.service');
+const auditService = require('../audit/audit.service');
+
+function formatMoney(cents) {
+  return (cents / 100).toFixed(2);
+}
 
 // ---- Fee Structures ----
 
@@ -68,6 +73,14 @@ exports.recordPayment = asyncHandler(async (req, res) => {
     paidAt,
     recordedBy: req.user.id,
   });
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'fee_payment.recorded',
+    description: `Recorded a payment of GHS ${formatMoney(amountCents)} on invoice #${req.params.id}`,
+  });
+
   return ok(res, invoice, 201);
 });
 
@@ -98,10 +111,26 @@ exports.listClaims = asyncHandler(async (req, res) => {
 
 exports.confirmClaim = asyncHandler(async (req, res) => {
   const claim = await feeService.confirmPaymentClaim(req.schoolId, req.params.id, req.user.id);
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'payment_claim.confirmed',
+    description: `Confirmed a GHS ${formatMoney(claim.amount_cents)} payment claim for ${claim.first_name} ${claim.last_name}`,
+  });
+
   return ok(res, claim);
 });
 
 exports.rejectClaim = asyncHandler(async (req, res) => {
   const claim = await feeService.rejectPaymentClaim(req.schoolId, req.params.id, req.user.id, req.body.reason);
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'payment_claim.rejected',
+    description: `Rejected a GHS ${formatMoney(claim.amount_cents)} payment claim for ${claim.first_name} ${claim.last_name}`,
+  });
+
   return ok(res, claim);
 });

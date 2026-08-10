@@ -7,6 +7,7 @@ const homeworkService = require('../homework/homework.service');
 const timetableService = require('../timetable/timetable.service');
 const schoolService = require('../schools/school.service');
 const feeService = require('../fees/fee.service');
+const notificationService = require('../notifications/notification.service');
 
 exports.listChildren = asyncHandler(async (req, res) => {
   const children = await parentService.listChildren(req.schoolId, req.user.id);
@@ -89,6 +90,13 @@ exports.submitPaymentClaim = asyncHandler(async (req, res) => {
     paidAt,
     reference,
   });
+
+  await notificationService.create(req.schoolId, {
+    type: 'payment_claim',
+    title: 'New payment claim submitted',
+    message: `${claim.parent_name} claims to have paid GHS ${(amountCents / 100).toFixed(2)} for ${claim.first_name} ${claim.last_name}`,
+  });
+
   return ok(res, claim, 201);
 });
 

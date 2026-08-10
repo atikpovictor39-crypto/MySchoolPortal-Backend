@@ -1,6 +1,7 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/apiResponse');
 const announcementService = require('./announcement.service');
+const auditService = require('../audit/audit.service');
 
 exports.list = asyncHandler(async (req, res) => {
   const { targetRole, classId } = req.query;
@@ -33,6 +34,14 @@ exports.create = asyncHandler(async (req, res) => {
     targetRole,
     classId,
   });
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'announcement.created',
+    description: `Posted announcement "${title}"`,
+  });
+
   return ok(res, announcement, 201);
 });
 

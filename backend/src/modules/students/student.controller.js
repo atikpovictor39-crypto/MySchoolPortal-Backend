@@ -1,6 +1,7 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/apiResponse');
 const studentService = require('./student.service');
+const auditService = require('../audit/audit.service');
 
 exports.list = asyncHandler(async (req, res) => {
   const { classId, page, pageSize } = req.query;
@@ -54,6 +55,14 @@ exports.create = asyncHandler(async (req, res) => {
     gender,
     enrolledAt,
   });
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'student.created',
+    description: `Added student ${firstName} ${lastName}`,
+  });
+
   return ok(res, student, 201);
 });
 
@@ -78,5 +87,13 @@ exports.update = asyncHandler(async (req, res) => {
     enrolledAt,
   });
   if (!student) return fail(res, 'Student not found', 404);
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'student.updated',
+    description: `Updated student ${student.first_name} ${student.last_name}`,
+  });
+
   return ok(res, student);
 });
