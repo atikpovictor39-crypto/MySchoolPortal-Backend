@@ -72,7 +72,9 @@ export default function ActivityLogPage() {
               {logs.map((log) => (
                 <tr key={log.id} className="border-t border-slate-100">
                   <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatWhen(log.created_at)}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{log.school_name}</td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    {log.school_name || <span className="text-slate-400 italic">Platform</span>}
+                  </td>
                   <td className="px-4 py-2 whitespace-nowrap">{log.user_name || '—'}</td>
                   <td className="px-4 py-2">{log.description}</td>
                 </tr>

@@ -497,9 +497,12 @@ CREATE INDEX idx_leave_status ON leave_requests(school_id, status);
 -- A curated trail of admin/staff actions worth reviewing later — not every
 -- read/write in the app, just the ones an admin would plausibly want to
 -- look back on (who added this student, who approved that leave request).
+-- school_id is NULL for platform-level events with no single school to
+-- attach to (a SuperAdmin logging in) — surfaced only on the SuperAdmin's
+-- cross-school Activity Log, never on any school's own scoped view.
 CREATE TABLE audit_logs (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  school_id     BIGINT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id       BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
   user_name     VARCHAR(150), -- denormalized so the log still reads fine if the user is later deleted
   action        VARCHAR(100) NOT NULL,   -- e.g. 'student.created'

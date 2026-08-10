@@ -21,6 +21,18 @@ exports.createSchool = asyncHandler(async (req, res) => {
     adminPassword,
     planId,
   });
+
+  // Logged against the new school's own id (not NULL) — it's the one
+  // school-scoped event that happens before the school has any admin of
+  // its own around to see it, so it only ever shows up on the SuperAdmin's
+  // cross-school Activity Log, same place as a SuperAdmin login.
+  await auditService.record({
+    schoolId: school.id,
+    userId: req.user.id,
+    action: 'school.created',
+    description: `Onboarded school "${name}"`,
+  });
+
   return ok(res, school, 201);
 });
 
@@ -30,6 +42,14 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     return fail(res, 'status is required', 400);
   }
   const school = await schoolService.updateSchoolStatus(req.params.id, status);
+
+  await auditService.record({
+    schoolId: school.id,
+    userId: req.user.id,
+    action: 'school.status_changed',
+    description: `Set "${school.name}" status to ${status}`,
+  });
+
   return ok(res, school);
 });
 

@@ -1,5 +1,6 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const authService = require('./auth.service');
+const auditService = require('../audit/audit.service');
 const emailService = require('../email/email.service');
 const { comparePassword } = require('../../utils/password');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../../utils/jwt');
@@ -124,6 +125,19 @@ exports.login = asyncHandler(async (req, res) => {
   const refreshToken = signRefreshToken(user);
   await authService.storeRefreshToken(user.id, refreshToken);
   await authService.touchLastLogin(user.id);
+
+  // Every other role logging in is routine and would just be noise on the
+  // platform-wide Activity Log — a SuperAdmin (or a Support/Billing/Developer
+  // sub-admin) signing in is the one login worth another SuperAdmin knowing
+  // about, since that account can see or change things across every school.
+  if (user.role === 'SUPERADMIN') {
+    await auditService.record({
+      schoolId: null,
+      userId: user.id,
+      action: 'superadmin.login',
+      description: 'Logged in',
+    });
+  }
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(req));
   return res.json({ success: true, data: { accessToken, user: publicUser(user) } });

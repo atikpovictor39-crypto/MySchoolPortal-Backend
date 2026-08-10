@@ -36,11 +36,14 @@ async function listAuditLogs(schoolId, { limit = 100 } = {}) {
 
 // SuperAdmin-only, cross-school view — same table, no school_id filter
 // unless one is explicitly requested to narrow down to a single school.
+// LEFT JOIN (not JOIN) because platform-level events — a SuperAdmin
+// logging in, for instance — have school_id NULL and no school row to
+// join to; school_name just comes back NULL for those.
 async function listAllAuditLogs({ limit = 200, schoolId } = {}) {
   if (schoolId) {
     const [rows] = await db.query(
       `SELECT a.id, a.school_id, s.name AS school_name, a.user_name, a.action, a.description, a.created_at
-       FROM audit_logs a JOIN schools s ON s.id = a.school_id
+       FROM audit_logs a LEFT JOIN schools s ON s.id = a.school_id
        WHERE a.school_id = ? ORDER BY a.created_at DESC LIMIT ?`,
       [schoolId, limit]
     );
@@ -48,7 +51,7 @@ async function listAllAuditLogs({ limit = 200, schoolId } = {}) {
   }
   const [rows] = await db.query(
     `SELECT a.id, a.school_id, s.name AS school_name, a.user_name, a.action, a.description, a.created_at
-     FROM audit_logs a JOIN schools s ON s.id = a.school_id
+     FROM audit_logs a LEFT JOIN schools s ON s.id = a.school_id
      ORDER BY a.created_at DESC LIMIT ?`,
     [limit]
   );
