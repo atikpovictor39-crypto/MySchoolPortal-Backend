@@ -19,6 +19,7 @@ router.post('/plans', requireAuth, requireRole('SUPERADMIN'), requireScope('bill
 router.put('/plans/:id', requireAuth, requireRole('SUPERADMIN'), requireScope('billing'), controller.updatePlan);
 
 router.get('/mine', requireAuth, tenantScope, requireRole('SCHOOL_ADMIN'), controller.getMine);
+router.get('/plans/active', requireAuth, tenantScope, requireRole('SCHOOL_ADMIN'), controller.listActivePlans);
 
 // A school paying its own subscription via MoolRe.
 router.post(

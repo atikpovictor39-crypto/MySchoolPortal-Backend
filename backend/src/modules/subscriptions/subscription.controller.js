@@ -20,6 +20,13 @@ exports.listPlans = asyncHandler(async (req, res) => {
   return ok(res, plans);
 });
 
+// GET /subscriptions/plans/active — school-facing list of what's actually
+// available to pay for (see subscription.service.js's listActivePlans).
+exports.listActivePlans = asyncHandler(async (req, res) => {
+  const plans = await subscriptionService.listActivePlans();
+  return ok(res, plans);
+});
+
 exports.createPlan = asyncHandler(async (req, res) => {
   const { name, priceCents, billingCycle, maxStudents, features, isActive } = req.body;
   if (!name || priceCents === undefined || priceCents === null) {

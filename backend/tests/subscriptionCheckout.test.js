@@ -189,3 +189,42 @@ describe('School subscription checkout via MoolRe', () => {
     expect(moolreClient.checkPaymentStatus).not.toHaveBeenCalled();
   });
 });
+
+describe('School-facing list of plans to pay for', () => {
+  // Regression test: the Subscription page originally called the
+  // SuperAdmin-only GET /subscriptions/plans and 403'd for every real
+  // school admin — GET /subscriptions/plans/active is the fix.
+  it('a SCHOOL_ADMIN can list active plans but is blocked from the SuperAdmin plans endpoint', async () => {
+    const tenant = await setupTenant();
+
+    const activeRes = await request(app)
+      .get('/api/v1/subscriptions/plans/active')
+      .set('Authorization', auth(tenant.accessToken));
+    expect(activeRes.status).toBe(200);
+    expect(activeRes.body.data.length).toBeGreaterThan(0);
+    expect(activeRes.body.data.every((p) => p.is_active === undefined)).toBe(true); // trimmed response shape
+
+    const superadminOnlyRes = await request(app)
+      .get('/api/v1/subscriptions/plans')
+      .set('Authorization', auth(tenant.accessToken));
+    expect(superadminOnlyRes.status).toBe(403);
+  });
+
+  it('excludes inactive plans from the active list', async () => {
+    const superadmin = await createSuperAdmin();
+    const tenant = await setupTenant();
+
+    const inactivePlan = await createActivePlan(superadmin.accessToken, { name: 'Retired Plan' });
+    await request(app)
+      .put(`/api/v1/subscriptions/plans/${inactivePlan.id}`)
+      .set('Authorization', auth(superadmin.accessToken))
+      .send({ isActive: false });
+
+    const res = await request(app)
+      .get('/api/v1/subscriptions/plans/active')
+      .set('Authorization', auth(tenant.accessToken));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((p) => p.name === 'Retired Plan')).toBe(false);
+  });
+});

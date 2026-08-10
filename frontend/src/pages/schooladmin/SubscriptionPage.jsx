@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { listPlans, getMySubscription, startCheckout, getCheckoutStatus } from '../../features/subscriptions/api';
+import { listActivePlans, getMySubscription, startCheckout, getCheckoutStatus } from '../../features/subscriptions/api';
 import { formatMoney as money } from '../../utils/money';
 
 const STATUS_STYLE = {
@@ -29,9 +29,9 @@ export default function SubscriptionPage() {
   async function refresh() {
     setIsLoading(true);
     try {
-      const [sub, planList] = await Promise.all([getMySubscription(), listPlans()]);
+      const [sub, planList] = await Promise.all([getMySubscription(), listActivePlans()]);
       setSubscription(sub);
-      setPlans(planList.filter((p) => p.is_active));
+      setPlans(planList);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load subscription');
     } finally {

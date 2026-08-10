@@ -22,6 +22,11 @@ export async function getMySubscription() {
   return data.data;
 }
 
+export async function listActivePlans() {
+  const { data } = await axiosClient.get('/subscriptions/plans/active');
+  return data.data;
+}
+
 export async function startCheckout(planId) {
   const { data } = await axiosClient.post('/subscriptions/checkout', { planId });
   return data.data;

@@ -31,6 +31,17 @@ async function listPlans() {
   return rows;
 }
 
+// School-facing: only what a school is actually allowed to pay for. Kept
+// separate from listPlans (SuperAdmin-only, sees inactive plans too) rather
+// than reusing that endpoint with a role check, since a SCHOOL_ADMIN
+// browsing plans to subscribe to has no business seeing retired ones.
+async function listActivePlans() {
+  const [rows] = await db.query(
+    "SELECT id, name, price_cents, billing_cycle, max_students, features FROM subscription_plans WHERE is_active = TRUE ORDER BY price_cents ASC"
+  );
+  return rows;
+}
+
 async function createPlan({ name, priceCents, billingCycle, maxStudents, features, isActive }) {
   const [result] = await db.query(
     `INSERT INTO subscription_plans (name, price_cents, billing_cycle, max_students, features, is_active)
@@ -408,6 +419,7 @@ module.exports = {
   REMINDER_DAYS_BEFORE,
   GRACE_PERIOD_DAYS,
   listPlans,
+  listActivePlans,
   getPlanById,
   createPlan,
   updatePlan,
