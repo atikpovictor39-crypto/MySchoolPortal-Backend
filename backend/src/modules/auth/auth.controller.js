@@ -9,17 +9,27 @@ const env = require('../../config/env');
 const REFRESH_COOKIE_NAME = 'refresh_token';
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
-function refreshCookieOptions() {
-  // Frontend and backend live on separate domains in production (e.g. two
-  // Vercel projects), so the refresh cookie has to be sent cross-site —
-  // SameSite=Lax is dropped by the browser on cross-origin XHR/fetch and
-  // would silently break session refresh. None requires Secure, which is
-  // only valid over HTTPS, hence both being tied to the same condition.
-  const isProd = env.nodeEnv === 'production';
+// Frontend and backend live on separate domains in production (e.g. two
+// Vercel projects), so the refresh cookie has to be sent cross-site —
+// SameSite=Lax is dropped by the browser on cross-origin XHR/fetch and
+// silently breaks session refresh (every page reload calls POST
+// /auth/refresh, the cookie never arrives, and the user gets logged out).
+// None requires Secure, which is only valid over HTTPS, hence both being
+// tied to the same condition.
+//
+// Deliberately keyed off req.secure (the actual scheme this request came in
+// on, correctly reflecting X-Forwarded-Proto since app.set('trust proxy', 1)
+// is configured) rather than env.nodeEnv === 'production' — NODE_ENV isn't
+// guaranteed to be 'production' inside a Vercel serverless function unless
+// explicitly set in the project's env vars, and got this wrong in
+// production for a while, silently downgrading the cookie to SameSite=Lax
+// and logging every user out on refresh.
+function refreshCookieOptions(req) {
+  const isHttps = req.secure;
   return {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
+    secure: isHttps,
+    sameSite: isHttps ? 'none' : 'lax',
     maxAge: msFromDuration(env.jwt.refreshExpiresIn),
     path: REFRESH_COOKIE_PATH,
   };
@@ -80,7 +90,7 @@ exports.register = asyncHandler(async (req, res) => {
   const refreshToken = signRefreshToken(admin);
   await authService.storeRefreshToken(admin.id, refreshToken);
 
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions());
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(req));
   return res.status(201).json({ success: true, data: { accessToken, user: publicUser(admin) } });
 });
 
@@ -115,7 +125,7 @@ exports.login = asyncHandler(async (req, res) => {
   await authService.storeRefreshToken(user.id, refreshToken);
   await authService.touchLastLogin(user.id);
 
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions());
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(req));
   return res.json({ success: true, data: { accessToken, user: publicUser(user) } });
 });
 
@@ -162,7 +172,7 @@ exports.logout = asyncHandler(async (req, res) => {
   if (rawToken) {
     await authService.revokeRefreshToken(rawToken);
   }
-  const { maxAge, ...clearOptions } = refreshCookieOptions();
+  const { maxAge, ...clearOptions } = refreshCookieOptions(req);
   res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
   return res.json({ success: true, data: null });
 });
