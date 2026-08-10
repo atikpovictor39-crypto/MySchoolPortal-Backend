@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { listSchools, createSchool, updateSchoolStatus } from '../../features/schools/api';
 import { listPlans, createPlan, updatePlan } from '../../features/subscriptions/api';
+import { listSuperAdmins, createSuperAdmin, updateSuperAdminStatus } from '../../features/superadmins/api';
 import PasswordInput from '../../components/common/PasswordInput';
 import Tabs from '../../components/common/Tabs';
 import { formatMoney as money } from '../../utils/money';
@@ -8,10 +10,12 @@ import { formatMoney as money } from '../../utils/money';
 const TABS = [
   { key: 'schools', label: 'Schools' },
   { key: 'plans', label: 'Plans' },
+  { key: 'accounts', label: 'Accounts' },
 ];
 
 const emptySchoolForm = { name: '', adminName: '', adminEmail: '', adminPassword: '', planId: '' };
 const emptyPlanForm = { name: '', price: '', billingCycle: 'monthly', maxStudents: '' };
+const emptyAdminForm = { name: '', email: '', password: '' };
 
 const STATUS_STYLE = {
   active: 'bg-green-50 text-green-700 border-green-200',
@@ -28,6 +32,7 @@ function toCents(amountString) {
 }
 
 export default function SchoolsPage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState('schools');
   const [error, setError] = useState('');
 
@@ -43,6 +48,12 @@ export default function SchoolsPage() {
   const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [planToggleId, setPlanToggleId] = useState(null);
+
+  const [admins, setAdmins] = useState([]);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(true);
+  const [adminForm, setAdminForm] = useState(emptyAdminForm);
+  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+  const [adminToggleId, setAdminToggleId] = useState(null);
 
   async function refreshSchools() {
     setIsLoadingSchools(true);
@@ -66,10 +77,54 @@ export default function SchoolsPage() {
     }
   }
 
+  async function refreshAdmins() {
+    setIsLoadingAdmins(true);
+    try {
+      setAdmins(await listSuperAdmins());
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load accounts');
+    } finally {
+      setIsLoadingAdmins(false);
+    }
+  }
+
   useEffect(() => {
     refreshSchools();
     refreshPlans();
+    refreshAdmins();
   }, []);
+
+  async function handleCreateAdmin(e) {
+    e.preventDefault();
+    setError('');
+    setIsSubmittingAdmin(true);
+    try {
+      await createSuperAdmin(adminForm);
+      setAdminForm(emptyAdminForm);
+      await refreshAdmins();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create account');
+    } finally {
+      setIsSubmittingAdmin(false);
+    }
+  }
+
+  async function handleToggleAdminStatus(admin) {
+    const nextStatus = admin.status === 'suspended' ? 'active' : 'suspended';
+    if (nextStatus === 'suspended' && !window.confirm(`Suspend ${admin.name}? They won't be able to log in until reactivated.`)) {
+      return;
+    }
+    setError('');
+    setAdminToggleId(admin.id);
+    try {
+      await updateSuperAdminStatus(admin.id, nextStatus);
+      await refreshAdmins();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update account status');
+    } finally {
+      setAdminToggleId(null);
+    }
+  }
 
   const activePlans = plans.filter((p) => p.is_active);
 
@@ -423,6 +478,108 @@ export default function SchoolsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'accounts' && (
+        <div>
+          <p className="text-sm text-slate-500 mb-4">
+            Everyone listed here has full platform access — the same as your own account. Only add people you'd
+            trust with that.
+          </p>
+          <form
+            onSubmit={handleCreateAdmin}
+            className="mb-8 bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-end"
+          >
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Name</label>
+              <input
+                required
+                value={adminForm.name}
+                onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+              <input
+                required
+                type="email"
+                value={adminForm.email}
+                onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Temporary password</label>
+              <PasswordInput
+                required
+                value={adminForm.password}
+                onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isSubmittingAdmin}
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSubmittingAdmin ? 'Creating…' : 'Create account'}
+            </button>
+          </form>
+          <p className="text-xs text-slate-400 mb-6 -mt-4">
+            They'll be forced to set their own password the first time they log in.
+          </p>
+
+          {isLoadingAdmins ? (
+            <p className="text-sm text-slate-500">Loading…</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <thead className="bg-slate-50 text-left text-slate-600">
+                  <tr>
+                    <th className="px-4 py-2">Name</th>
+                    <th className="px-4 py-2">Email</th>
+                    <th className="px-4 py-2">Status</th>
+                    <th className="px-4 py-2">Created</th>
+                    <th className="px-4 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {admins.map((a) => (
+                    <tr key={a.id} className="border-t border-slate-100">
+                      <td className="px-4 py-2">
+                        {a.name}
+                        {a.id === user.id && <span className="text-slate-400"> (you)</span>}
+                      </td>
+                      <td className="px-4 py-2">{a.email}</td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${STATUS_STYLE[a.status] || ''}`}
+                        >
+                          {a.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">{a.created_at.slice(0, 10)}</td>
+                      <td className="px-4 py-2">
+                        {a.id !== user.id && (
+                          <button
+                            onClick={() => handleToggleAdminStatus(a)}
+                            disabled={adminToggleId === a.id}
+                            className={`text-xs font-medium disabled:opacity-50 ${
+                              a.status === 'suspended' ? 'text-green-700' : 'text-red-600'
+                            }`}
+                          >
+                            {adminToggleId === a.id ? 'Saving…' : a.status === 'suspended' ? 'Reactivate' : 'Suspend'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
