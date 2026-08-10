@@ -15,6 +15,25 @@ function defaultRedirectFor(user) {
   return '/dashboard';
 }
 
+// location.state.from (set by ProtectedRoute when it bounces a logged-out
+// visitor to /login) can be left over from a PREVIOUS session on this same
+// browser tab — e.g. logging out from a SuperAdmin-only page like /schools,
+// then logging back in as a SCHOOL_ADMIN, would otherwise redirect straight
+// into a page built for a different role. AppShell catches this as a hard
+// safety net regardless, but skipping an obviously-wrong redirect here
+// avoids a visible flash of the wrong page first.
+const OTHER_ROLE_ONLY_PREFIXES = {
+  SUPERADMIN: ['/schools', '/platform', '/tickets', '/activity-log', '/broadcasts'],
+  PARENT: ['/overview', '/parent-'],
+};
+
+function isSafeRedirect(path, role) {
+  if (!path) return false;
+  return Object.entries(OTHER_ROLE_ONLY_PREFIXES).every(
+    ([otherRole, prefixes]) => otherRole === role || !prefixes.some((prefix) => path.startsWith(prefix))
+  );
+}
+
 // Public, read-only accounts seeded for the "view a live demo" links on the
 // landing page (writes are blocked server-side — see demoReadOnly.middleware.js).
 const DEMO_CREDENTIALS = {
@@ -50,8 +69,12 @@ export default function LoginPage() {
     try {
       const loggedInUser = await login(email, password);
       // Each role has a different natural landing page — send them straight
-      // there unless they were bounced here from somewhere specific.
-      navigate(explicitRedirect || defaultRedirectFor(loggedInUser), { replace: true });
+      // there unless they were bounced here from somewhere specific (and
+      // that somewhere is actually valid for the role that just logged in).
+      const redirectTarget = isSafeRedirect(explicitRedirect, loggedInUser.role)
+        ? explicitRedirect
+        : defaultRedirectFor(loggedInUser);
+      navigate(redirectTarget, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Please try again.');
     } finally {

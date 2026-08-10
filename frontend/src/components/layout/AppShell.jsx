@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ParentProvider } from '../../context/ParentContext';
 import PushNotificationButton from '../common/PushNotificationButton';
@@ -71,6 +71,7 @@ function initials(name) {
 
 export default function AppShell() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Accounts an admin set a temp password for (teachers, guardians) are
@@ -89,6 +90,21 @@ export default function AppShell() {
   const links = user.role === 'PARENT' ? PARENT_LINKS : user.role === 'SUPERADMIN' ? superadminLinks : STAFF_LINKS;
   const roleLabel = user.role.replace('_', ' ');
   const brandName = user.role === 'SUPERADMIN' ? 'Platform Admin' : user.school_name || 'School SaaS';
+
+  // ProtectedRoute only checks "is someone logged in", not "is this route
+  // right for THEIR role" — so logging out from a SuperAdmin-only page (say
+  // /schools) and back in as a SCHOOL_ADMIN would otherwise carry the old
+  // "redirect back to /schools" location state from that logout straight
+  // into the new session (LoginPage's explicitRedirect), landing a school
+  // admin on a page built for SuperAdmin. This catches that mismatch on
+  // every render, not just right after login, so a stale bookmark or typed
+  // URL gets bounced the same way.
+  const allowedPaths = new Set(
+    user.role === 'SCHOOL_ADMIN' ? [...STAFF_LINKS, ...ADMIN_LINKS].map((l) => l.to) : links.map((l) => l.to)
+  );
+  if (!allowedPaths.has(location.pathname)) {
+    return <Navigate to={links[0]?.to || '/login'} replace />;
+  }
 
   return (
     <div className="min-h-screen flex bg-[#F5F8FF]">
