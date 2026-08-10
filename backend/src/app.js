@@ -40,12 +40,6 @@ if (env.nodeEnv !== 'test') {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Temporary — verifying Sentry actually captures a real error in
-// production. Removed again once confirmed in the Sentry dashboard.
-app.get('/health/sentry-test', () => {
-  throw new Error('Sentry backend verification test — safe to ignore');
-});
-
 app.use('/api/v1', routes);
 
 app.use(notFound);
