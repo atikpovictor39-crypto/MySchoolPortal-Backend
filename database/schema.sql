@@ -110,6 +110,7 @@ CREATE TABLE users (
   status        VARCHAR(20) NOT NULL DEFAULT 'invited' CHECK (status IN ('active','invited','suspended')),
   email_verified_at TIMESTAMP NULL, -- NULL = not yet verified; set by POST /auth/verify-email
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE for accounts an admin set a temp password for (teachers, guardians) until they change it
+  superadmin_scope VARCHAR(20) NULL CHECK (superadmin_scope IN ('full','support','billing','developer')), -- only meaningful when role='SUPERADMIN'; NULL/'full' = unrestricted
   last_login_at TIMESTAMP,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -404,7 +405,7 @@ CREATE INDEX idx_attendance_class_date ON attendance(class_id, date);
 
 CREATE TABLE announcements (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  school_id     BIGINT NULL REFERENCES schools(id) ON DELETE CASCADE, -- NULL = platform-wide, posted by a SuperAdmin, shown to every school
   title         VARCHAR(200) NOT NULL,
   content       TEXT NOT NULL,
   target_role   VARCHAR(20) NOT NULL DEFAULT 'all' CHECK (target_role IN ('all','teachers','parents','students')),
@@ -521,3 +522,44 @@ CREATE TABLE notifications (
 );
 CREATE INDEX idx_notif_school_created ON notifications(school_id, created_at DESC);
 CREATE INDEX idx_notif_school_unread ON notifications(school_id, is_read);
+
+-- ============================================================================
+-- 14. PLATFORM-LEVEL OPERATIONS (SuperAdmin only, not tied to one school)
+-- ============================================================================
+
+-- Single-row settings table (id is always 1) — simplest way to store a
+-- handful of platform-wide toggles without inventing a generic key/value store.
+CREATE TABLE platform_settings (
+  id                   BIGINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  maintenance_mode     BOOLEAN NOT NULL DEFAULT FALSE,
+  maintenance_message  VARCHAR(500),
+  updated_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO platform_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- A school raises an issue; a SuperAdmin (or scoped support sub-admin, see
+-- users.superadmin_scope below) sees and responds to it.
+CREATE TABLE support_tickets (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  created_by    BIGINT NOT NULL REFERENCES users(id),
+  subject       VARCHAR(200) NOT NULL,
+  message       TEXT NOT NULL,
+  status        VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_progress','resolved','closed')),
+  priority      VARCHAR(10) NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','urgent')),
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_tickets_school ON support_tickets(school_id);
+CREATE INDEX idx_tickets_status ON support_tickets(status);
+CREATE TRIGGER trg_tickets_updated_at BEFORE UPDATE ON support_tickets
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE support_ticket_replies (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  ticket_id     BIGINT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+  author_id     BIGINT NOT NULL REFERENCES users(id),
+  message       TEXT NOT NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_ticket_replies_ticket ON support_ticket_replies(ticket_id);

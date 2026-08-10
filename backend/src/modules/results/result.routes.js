@@ -5,9 +5,10 @@ const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const requirePasswordChange = require('../../middleware/requirePasswordChange.middleware');
+const blockDuringMaintenance = require('../../middleware/maintenanceMode.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope, requirePasswordChange, blockDemoWrites);
+router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenance, blockDemoWrites);
 
 // Staff-only for viewing too — a results sheet or a specific student's
 // report card is personal academic data. Parents use /api/v1/parent/*,

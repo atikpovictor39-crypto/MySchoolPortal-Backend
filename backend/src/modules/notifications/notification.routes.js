@@ -5,9 +5,10 @@ const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const requirePasswordChange = require('../../middleware/requirePasswordChange.middleware');
+const blockDuringMaintenance = require('../../middleware/maintenanceMode.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope, requirePasswordChange, blockDemoWrites, requireRole('SCHOOL_ADMIN'));
+router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenance, blockDemoWrites, requireRole('SCHOOL_ADMIN'));
 
 router.get('/', controller.list);
 router.get('/unread-count', controller.unreadCount);

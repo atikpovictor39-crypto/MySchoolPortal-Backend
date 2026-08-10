@@ -46,7 +46,10 @@ const PARENT_LINKS = [
 
 // SuperAdmin operates at the platform level, not inside one school — it
 // only ever gets the Schools onboarding page, not the tenant-scoped staff nav.
-const SUPERADMIN_LINKS = [{ to: '/schools', label: 'Schools' }];
+const SUPERADMIN_LINKS = [
+  { to: '/schools', label: 'Schools' },
+  { to: '/platform', label: 'Platform' },
+];
 
 function initials(name) {
   return (name || '')

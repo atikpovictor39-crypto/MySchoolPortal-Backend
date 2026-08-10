@@ -5,9 +5,10 @@ const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const requirePasswordChange = require('../../middleware/requirePasswordChange.middleware');
+const blockDuringMaintenance = require('../../middleware/maintenanceMode.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope, requirePasswordChange, blockDemoWrites);
+router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenance, blockDemoWrites);
 
 // Every query in student.service.js filters by req.schoolId — a Teacher or
 // SchoolAdmin from School A can never read or write School B's students,

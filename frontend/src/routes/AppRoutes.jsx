@@ -7,6 +7,7 @@ import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../features/auth/ResetPasswordPage';
 import AppShell from '../components/layout/AppShell';
 import SchoolsPage from '../pages/superadmin/SchoolsPage';
+import PlatformPage from '../pages/superadmin/PlatformPage';
 import DashboardPage from '../pages/schooladmin/DashboardPage';
 import AcademicYearsPage from '../pages/schooladmin/AcademicYearsPage';
 import ClassesPage from '../pages/schooladmin/ClassesPage';
@@ -72,6 +73,7 @@ export default function AppRoutes() {
           <Route path="/parent-timetable" element={<ParentTimetablePage />} />
           <Route path="/parent-announcements" element={<ParentAnnouncementsPage />} />
           <Route path="/schools" element={<SchoolsPage />} />
+          <Route path="/platform" element={<PlatformPage />} />
         </Route>
       </Route>
 

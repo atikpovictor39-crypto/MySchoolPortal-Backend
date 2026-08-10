@@ -4,6 +4,7 @@ const router = express.Router();
 const authRoutes = require('../modules/auth/auth.routes');
 const schoolRoutes = require('../modules/schools/school.routes');
 const superadminRoutes = require('../modules/superadmins/superadmin.routes');
+const platformRoutes = require('../modules/platform/platform.routes');
 const userRoutes = require('../modules/users/user.routes');
 const subscriptionRoutes = require('../modules/subscriptions/subscription.routes');
 const academicYearRoutes = require('../modules/academicYears/academicYear.routes');
@@ -31,6 +32,7 @@ router.use('/auth', authRoutes);
 router.use('/schools', schoolRoutes);
 router.use('/subscriptions', subscriptionRoutes);
 router.use('/superadmins', superadminRoutes);
+router.use('/platform', platformRoutes);
 
 // Tenant-scoped: every route below expects requireAuth + tenantScope middleware
 router.use('/users', userRoutes);

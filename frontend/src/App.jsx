@@ -1,5 +1,10 @@
 import AppRoutes from './routes/AppRoutes';
+import MaintenanceGate from './features/platform/MaintenanceGate';
 
 export default function App() {
-  return <AppRoutes />;
+  return (
+    <MaintenanceGate>
+      <AppRoutes />
+    </MaintenanceGate>
+  );
 }

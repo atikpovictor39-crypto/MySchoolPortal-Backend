@@ -6,8 +6,9 @@ const tenantScope = require('../../middleware/tenant.middleware');
 const requireRole = require('../../middleware/role.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
 const requirePasswordChange = require('../../middleware/requirePasswordChange.middleware');
+const blockDuringMaintenance = require('../../middleware/maintenanceMode.middleware');
 
-router.use(requireAuth, tenantScope, requireRole('PARENT'), requirePasswordChange, blockDemoWrites);
+router.use(requireAuth, tenantScope, requireRole('PARENT'), requirePasswordChange, blockDuringMaintenance, blockDemoWrites);
 
 router.get('/children', controller.listChildren);
 router.get('/children/:studentId/attendance', controller.getChildAttendance);
