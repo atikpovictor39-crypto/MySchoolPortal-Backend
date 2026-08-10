@@ -10,7 +10,7 @@ const emailService = require('../email/email.service');
 // reject a suspended school or one whose billing has lapsed without a second query.
 async function findUserByEmail(email) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status,
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, u.email_verified_at,
        s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
@@ -23,7 +23,7 @@ async function findUserByEmail(email) {
 
 async function findUserById(id) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status,
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, u.email_verified_at,
        s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
@@ -63,6 +63,72 @@ async function findValidRefreshToken(rawToken) {
 
 async function revokeRefreshToken(rawToken) {
   await db.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ?', [hashToken(rawToken)]);
+}
+
+const VERIFICATION_CODE_TTL_MS = 15 * 60 * 1000;
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const VERIFICATION_MAX_ATTEMPTS = 5;
+
+function generateVerificationCode() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+// Issues a fresh 6-digit code, superseding whatever code (if any) came
+// before it for this user — verifyEmailCode only ever looks at the most
+// recently created row. Returns the plain code so the caller can email it;
+// only its hash is ever persisted, same principle as refresh tokens above.
+async function createVerificationCode(userId) {
+  const code = generateVerificationCode();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+  await db.query('INSERT INTO email_verification_codes (user_id, code_hash, expires_at) VALUES (?, ?, ?)', [
+    userId,
+    hashToken(code),
+    expiresAt,
+  ]);
+  return code;
+}
+
+async function getLatestVerificationCode(userId) {
+  const [rows] = await db.query(
+    'SELECT id, code_hash, attempts, expires_at, used_at, created_at FROM email_verification_codes WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+// Throws a { status, message } error the controller passes straight
+// through, same pattern registerSchoolWithAdmin uses below.
+async function verifyEmailCode(userId, code) {
+  const latest = await getLatestVerificationCode(userId);
+  if (!latest || latest.used_at || new Date(latest.expires_at) < new Date()) {
+    const err = new Error('That code has expired or is invalid — request a new one');
+    err.status = 400;
+    throw err;
+  }
+  if (latest.attempts >= VERIFICATION_MAX_ATTEMPTS) {
+    const err = new Error('Too many incorrect attempts — request a new code');
+    err.status = 400;
+    throw err;
+  }
+  if (hashToken(String(code)) !== latest.code_hash) {
+    await db.query('UPDATE email_verification_codes SET attempts = attempts + 1 WHERE id = ?', [latest.id]);
+    const err = new Error('Incorrect code');
+    err.status = 400;
+    throw err;
+  }
+  await db.query('UPDATE email_verification_codes SET used_at = NOW() WHERE id = ?', [latest.id]);
+  await db.query('UPDATE users SET email_verified_at = NOW() WHERE id = ?', [userId]);
+}
+
+async function assertCanResendVerificationCode(userId) {
+  const latest = await getLatestVerificationCode(userId);
+  if (!latest) return;
+  const elapsedMs = Date.now() - new Date(latest.created_at).getTime();
+  if (elapsedMs < VERIFICATION_RESEND_COOLDOWN_MS) {
+    const err = new Error('Please wait a moment before requesting another code');
+    err.status = 429;
+    throw err;
+  }
 }
 
 function slugify(name) {
@@ -125,10 +191,18 @@ async function registerSchoolWithAdmin({ schoolName, adminName, adminEmail, admi
 
     await conn.commit();
 
+    // Awaited (unlike the emails below) — verify-email depends on this row
+    // reliably existing the moment registration responds, not on whether
+    // the email provider is up.
+    const verificationCode = await createVerificationCode(userId);
+
     // Best-effort, outside the transaction — a flaky email provider must
     // never turn a successful signup into a failed one.
     emailService.sendWelcomeEmail(adminEmail, adminName, schoolName).catch((err) => {
       console.error('Failed to send welcome email:', err.message);
+    });
+    emailService.sendVerificationEmail(adminEmail, adminName, verificationCode).catch((err) => {
+      console.error('Failed to send verification email:', err.message);
     });
 
     return {
@@ -155,4 +229,7 @@ module.exports = {
   findValidRefreshToken,
   revokeRefreshToken,
   registerSchoolWithAdmin,
+  createVerificationCode,
+  verifyEmailCode,
+  assertCanResendVerificationCode,
 };

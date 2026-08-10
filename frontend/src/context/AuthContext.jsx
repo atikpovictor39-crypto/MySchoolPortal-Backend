@@ -47,7 +47,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const value = { user, isLoading, login, register, logout };
+  async function verifyEmail(code) {
+    const { data } = await axiosClient.post('/auth/verify-email', { code });
+    setUser(data.data.user);
+    return data.data.user;
+  }
+
+  async function resendVerificationCode() {
+    await axiosClient.post('/auth/resend-verification');
+  }
+
+  const value = { user, isLoading, login, register, logout, verifyEmail, resendVerificationCode };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

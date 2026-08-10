@@ -108,6 +108,7 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   phone         VARCHAR(30),
   status        VARCHAR(20) NOT NULL DEFAULT 'invited' CHECK (status IN ('active','invited','suspended')),
+  email_verified_at TIMESTAMP NULL, -- NULL = not yet verified; set by POST /auth/verify-email
   last_login_at TIMESTAMP,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -136,6 +137,20 @@ CREATE TABLE password_reset_tokens (
   used_at       TIMESTAMP NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 6-digit codes emailed on signup. Only the most recently issued row per
+-- user is ever valid (see verifyEmailCode) — requesting a resend naturally
+-- supersedes whatever code came before it, no explicit cleanup needed.
+CREATE TABLE email_verification_codes (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash     VARCHAR(255) NOT NULL,
+  attempts      INT NOT NULL DEFAULT 0,
+  expires_at    TIMESTAMP NOT NULL,
+  used_at       TIMESTAMP NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_evc_user ON email_verification_codes(user_id);
 
 -- ============================================================================
 -- 3. ACADEMIC STRUCTURE (all tenant-scoped -> school_id NOT NULL)

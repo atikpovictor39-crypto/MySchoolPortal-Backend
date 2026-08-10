@@ -1,5 +1,6 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const authService = require('./auth.service');
+const emailService = require('../email/email.service');
 const { comparePassword } = require('../../utils/password');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../../utils/jwt');
 const { msFromDuration } = require('../../utils/time');
@@ -46,6 +47,7 @@ function publicUser(user) {
     role: user.role,
     school_id: user.school_id,
     school_name: user.school_name || null,
+    email_verified: Boolean(user.email_verified_at),
   };
 }
 
@@ -161,4 +163,48 @@ exports.logout = asyncHandler(async (req, res) => {
   const { maxAge, ...clearOptions } = refreshCookieOptions();
   res.clearCookie(REFRESH_COOKIE_NAME, clearOptions);
   return res.json({ success: true, data: null });
+});
+
+// POST /auth/verify-email — authenticated (mounted behind requireAuth), so
+// it works off req.user.id rather than a caller-supplied email/userId —
+// nothing here lets a caller probe or brute-force another account's code
+// without already holding that account's access token.
+exports.verifyEmail = asyncHandler(async (req, res) => {
+  const { code } = req.body;
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'code is required' });
+  }
+
+  const user = await authService.findUserById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'Account not found' });
+  }
+  if (user.email_verified_at) {
+    return res.json({ success: true, data: { user: publicUser(user) } });
+  }
+
+  await authService.verifyEmailCode(user.id, code);
+  const verifiedUser = await authService.findUserById(user.id);
+  return res.json({ success: true, data: { user: publicUser(verifiedUser) } });
+});
+
+// POST /auth/resend-verification — reissues a fresh code (superseding
+// whatever was sent before) and emails it again. Rate-limited to one per
+// 60 seconds via authService.assertCanResendVerificationCode.
+exports.resendVerificationCode = asyncHandler(async (req, res) => {
+  const user = await authService.findUserById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'Account not found' });
+  }
+  if (user.email_verified_at) {
+    return res.json({ success: true, data: { alreadyVerified: true } });
+  }
+
+  await authService.assertCanResendVerificationCode(user.id);
+  const code = await authService.createVerificationCode(user.id);
+  emailService.sendVerificationEmail(user.email, user.name, code).catch((err) => {
+    console.error('Failed to send verification email:', err.message);
+  });
+
+  return res.json({ success: true, data: { sent: true } });
 });

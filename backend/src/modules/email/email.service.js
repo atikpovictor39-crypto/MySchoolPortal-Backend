@@ -44,6 +44,19 @@ async function sendWelcomeEmail(adminEmail, adminName, schoolName) {
   });
 }
 
+async function sendVerificationEmail(adminEmail, adminName, code) {
+  await sendEmail({
+    to: adminEmail,
+    subject: `Your MySchoolPortal verification code: ${code}`,
+    html: layout(
+      'Verify your email',
+      `<p>Hi ${adminName}, enter this code to verify your email address:</p>
+       <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; color: #1E40AF; margin: 20px 0;">${code}</p>
+       <p>This code expires in 15 minutes. If you didn't request this, you can ignore this email.</p>`
+    ),
+  });
+}
+
 async function sendReminderEmail(adminEmail, adminName, schoolName, periodEndDate) {
   await sendEmail({
     to: adminEmail,
@@ -85,6 +98,7 @@ async function sendExpiredEmail(adminEmail, adminName, schoolName) {
 module.exports = {
   isConfigured,
   sendWelcomeEmail,
+  sendVerificationEmail,
   sendReminderEmail,
   sendOverdueEmail,
   sendExpiredEmail,
