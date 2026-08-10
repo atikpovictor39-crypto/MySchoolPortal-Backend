@@ -30,6 +30,8 @@ import ParentAttendancePage from '../pages/parent/ParentAttendancePage';
 import ParentFeesPage from '../pages/parent/ParentFeesPage';
 import ParentTimetablePage from '../pages/parent/ParentTimetablePage';
 import ParentAnnouncementsPage from '../pages/parent/ParentAnnouncementsPage';
+import PrivacyPolicyPage from '../pages/legal/PrivacyPolicyPage';
+import TermsOfServicePage from '../pages/legal/TermsOfServicePage';
 
 export default function AppRoutes() {
   return (
@@ -39,6 +41,8 @@ export default function AppRoutes() {
       <Route path="/register" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsOfServicePage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

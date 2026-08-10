@@ -224,6 +224,18 @@ export default function SignupPage() {
           >
             {isSubmitting ? 'Creating your school…' : 'Create school'}
           </button>
+
+          <p className="text-xs text-slate-400 text-center">
+            By creating a school, you agree to our{' '}
+            <Link to="/terms" className="text-blue-600 hover:underline">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" className="text-blue-600 hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="text-sm text-slate-500 text-center mt-6">

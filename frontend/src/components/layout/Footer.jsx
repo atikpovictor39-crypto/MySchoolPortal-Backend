@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Footer() {
   return (
     <footer className="border-t border-slate-200 bg-white">
@@ -29,9 +31,17 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-slate-100">
-        <p className="max-w-6xl mx-auto px-6 py-4 text-xs text-slate-400">
-          &copy; {new Date().getFullYear()} MySchoolPortal. All rights reserved.
-        </p>
+        <div className="max-w-6xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-400">&copy; {new Date().getFullYear()} MySchoolPortal. All rights reserved.</p>
+          <div className="flex gap-4 text-xs text-slate-500">
+            <Link to="/privacy" className="hover:text-blue-600 hover:underline">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-blue-600 hover:underline">
+              Terms of Service
+            </Link>
+          </div>
+        </div>
       </div>
     </footer>
   );
