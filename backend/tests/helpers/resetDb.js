@@ -4,6 +4,7 @@ const db = require('../../src/config/db');
 // registerSchool() always has a plan to attach the trial subscription to.
 const TABLES_TO_TRUNCATE = [
   'billing_events',
+  'subscription_payments',
   'subscriptions',
   'refresh_tokens',
   'password_reset_tokens',

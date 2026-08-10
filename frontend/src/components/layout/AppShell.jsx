@@ -31,6 +31,7 @@ const ADMIN_LINKS = [
   { to: '/admin/audit-log', label: 'Audit Log' },
   { to: '/admin/export', label: 'Export Data' },
   { to: '/admin/support', label: 'Support' },
+  { to: '/admin/subscription', label: 'Subscription' },
 ];
 
 // The backend only lets a Parent read their own linked children (see

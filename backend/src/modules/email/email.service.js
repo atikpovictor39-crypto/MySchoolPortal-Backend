@@ -110,6 +110,18 @@ async function sendExpiredEmail(adminEmail, adminName, schoolName) {
   });
 }
 
+async function sendPaymentConfirmedEmail(adminEmail, adminName, schoolName, periodEndDate) {
+  await sendEmail({
+    to: adminEmail,
+    subject: `Payment received for ${schoolName}`,
+    html: layout(
+      'Payment received',
+      `<p>Hi ${adminName}, thanks — we've received payment for ${schoolName}'s subscription.
+       Your account is active through <strong>${periodEndDate}</strong>.</p>`
+    ),
+  });
+}
+
 module.exports = {
   isConfigured,
   sendWelcomeEmail,
@@ -117,5 +129,6 @@ module.exports = {
   sendPasswordResetEmail,
   sendReminderEmail,
   sendOverdueEmail,
+  sendPaymentConfirmedEmail,
   sendExpiredEmail,
 };

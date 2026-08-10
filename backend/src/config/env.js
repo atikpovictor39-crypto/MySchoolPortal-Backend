@@ -31,6 +31,12 @@ module.exports = {
   // canonical URL.
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
+  // This backend's own public base URL — needed to hand MoolRe a callback
+  // URL it can reach (its webhook can't call "localhost", so this has to be
+  // the real deployed address, unlike frontendUrl which the browser already
+  // knows on its own).
+  backendUrl: process.env.BACKEND_URL || 'http://localhost:5000',
+
   db: {
     // Set DATABASE_URL (what Supabase/most hosts give you) to connect with a
     // single connection string instead of the discrete DB_* fields below —
@@ -74,4 +80,13 @@ module.exports = {
   // fine (sentry.js just no-ops); this is what makes production crashes
   // visible without waiting for a user to report them.
   sentryDsn: process.env.SENTRY_DSN || null,
+
+  // Not required() either — same no-op-when-unset pattern. Lets a school pay
+  // its own subscription via MoolRe (Ghana Mobile Money + card) instead of
+  // waiting on a SuperAdmin to manually confirm payment. See moolre.client.js.
+  moolre: {
+    apiUser: process.env.MOOLRE_API_USER || null,
+    apiPubkey: process.env.MOOLRE_API_PUBKEY || null,
+    accountNumber: process.env.MOOLRE_ACCOUNT_NUMBER || null,
+  },
 };

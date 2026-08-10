@@ -95,6 +95,28 @@ CREATE TABLE billing_events (
 );
 CREATE INDEX idx_billing_school ON billing_events(school_id);
 
+-- One row per checkout attempt a school starts against the MoolRe payment
+-- gateway for its own subscription (see moolre.client.js). external_ref is
+-- what we hand MoolRe and get back on their webhook/status lookup — it's
+-- the join key between "a school started paying" and "MoolRe says it went
+-- through", since MoolRe's webhook itself carries no verifiable signature
+-- and is only ever a hint to re-check via the status API, not trusted directly.
+CREATE TABLE subscription_payments (
+  id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id         BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  plan_id           BIGINT NOT NULL REFERENCES subscription_plans(id),
+  external_ref      VARCHAR(100) NOT NULL UNIQUE,
+  amount_cents      INT NOT NULL,
+  status            VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','success','failed')),
+  authorization_url VARCHAR(500),
+  moolre_reference  VARCHAR(150),
+  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_subpay_school ON subscription_payments(school_id);
+CREATE TRIGGER trg_subscription_payments_updated_at BEFORE UPDATE ON subscription_payments
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- ============================================================================
 -- 2. USERS & AUTH (school_id NULLABLE — NULL only for SUPERADMIN)
 -- ============================================================================

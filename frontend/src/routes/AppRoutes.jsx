@@ -27,6 +27,7 @@ import NotificationsPage from '../pages/schooladmin/NotificationsPage';
 import AuditLogPage from '../pages/schooladmin/AuditLogPage';
 import DataExportPage from '../pages/schooladmin/DataExportPage';
 import SupportTicketsPage from '../pages/schooladmin/SupportTicketsPage';
+import SubscriptionPage from '../pages/schooladmin/SubscriptionPage';
 import TicketsPage from '../pages/superadmin/TicketsPage';
 import ActivityLogPage from '../pages/superadmin/ActivityLogPage';
 import PlatformAnnouncementsPage from '../pages/superadmin/AnnouncementsPage';
@@ -71,6 +72,7 @@ export default function AppRoutes() {
           <Route path="/admin/audit-log" element={<AuditLogPage />} />
           <Route path="/admin/export" element={<DataExportPage />} />
           <Route path="/admin/support" element={<SupportTicketsPage />} />
+          <Route path="/admin/subscription" element={<SubscriptionPage />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/parent-results" element={<ParentResultsPage />} />
           <Route path="/parent-attendance" element={<ParentAttendancePage />} />
