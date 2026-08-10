@@ -64,7 +64,27 @@ export function AuthProvider({ children }) {
     return data.data.user;
   }
 
-  const value = { user, isLoading, login, register, logout, verifyEmail, resendVerificationCode, changePassword };
+  // Both public — no session exists yet for someone locked out of their account.
+  async function forgotPassword(email) {
+    await axiosClient.post('/auth/forgot-password', { email });
+  }
+
+  async function resetPassword(token, newPassword) {
+    await axiosClient.post('/auth/reset-password', { token, newPassword });
+  }
+
+  const value = {
+    user,
+    isLoading,
+    login,
+    register,
+    logout,
+    verifyEmail,
+    resendVerificationCode,
+    changePassword,
+    forgotPassword,
+    resetPassword,
+  };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

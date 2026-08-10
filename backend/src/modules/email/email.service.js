@@ -57,6 +57,21 @@ async function sendVerificationEmail(adminEmail, adminName, code) {
   });
 }
 
+async function sendPasswordResetEmail(email, name, resetLink) {
+  await sendEmail({
+    to: email,
+    subject: 'Reset your MySchoolPortal password',
+    html: layout(
+      'Reset your password',
+      `<p>Hi ${name}, we got a request to reset your password. Click below to choose a new one:</p>
+       <p style="margin: 20px 0;">
+         <a href="${resetLink}" style="background: #2563EB; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">Reset password</a>
+       </p>
+       <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.</p>`
+    ),
+  });
+}
+
 async function sendReminderEmail(adminEmail, adminName, schoolName, periodEndDate) {
   await sendEmail({
     to: adminEmail,
@@ -99,6 +114,7 @@ module.exports = {
   isConfigured,
   sendWelcomeEmail,
   sendVerificationEmail,
+  sendPasswordResetEmail,
   sendReminderEmail,
   sendOverdueEmail,
   sendExpiredEmail,

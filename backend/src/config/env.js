@@ -26,6 +26,10 @@ module.exports = {
   // requests from "www.myschoolportalgh.com" to be silently blocked by the
   // browser when CORS_ORIGIN was set to the bare apex domain.
   corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((origin) => origin.trim()),
+  // Used to build links that go out in emails (password reset) — kept
+  // separate from corsOrigins since that's a list and this needs to be one
+  // canonical URL.
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
   db: {
     // Set DATABASE_URL (what Supabase/most hosts give you) to connect with a

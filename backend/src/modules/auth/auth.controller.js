@@ -230,3 +230,43 @@ exports.changePassword = asyncHandler(async (req, res) => {
   const accessToken = signAccessToken(user);
   return res.json({ success: true, data: { accessToken, user: publicUser(user) } });
 });
+
+// POST /auth/forgot-password — public (that's the point: this is for
+// someone who's locked out). Always responds the same way regardless of
+// whether the email is registered, so this can't be used to enumerate
+// accounts by email address.
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'email is required' });
+  }
+
+  const result = await authService.createPasswordResetToken(email.toLowerCase().trim());
+  if (result) {
+    const resetLink = `${env.frontendUrl}/reset-password?token=${result.rawToken}`;
+    emailService.sendPasswordResetEmail(result.user.email, result.user.name, resetLink).catch((err) => {
+      console.error('Failed to send password reset email:', err.message);
+    });
+  }
+
+  return res.json({
+    success: true,
+    data: { message: 'If that email is registered, a reset link is on its way.' },
+  });
+});
+
+// POST /auth/reset-password — the link from the email above. Deliberately
+// takes no auth header at all (the token itself is the credential proving
+// email ownership) and revokes every other session on success.
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ success: false, message: 'token and newPassword are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, message: 'newPassword must be at least 8 characters' });
+  }
+
+  await authService.resetPassword(token, newPassword);
+  return res.json({ success: true, data: { message: 'Password updated. You can now sign in.' } });
+});

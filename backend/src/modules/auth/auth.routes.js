@@ -7,6 +7,8 @@ router.post('/register', controller.register); // self-service: creates School +
 router.post('/login', controller.login);
 router.post('/refresh', controller.refresh);
 router.post('/logout', controller.logout);
+router.post('/forgot-password', controller.forgotPassword);
+router.post('/reset-password', controller.resetPassword);
 
 router.post('/verify-email', requireAuth, controller.verifyEmail);
 router.post('/resend-verification', requireAuth, controller.resendVerificationCode);

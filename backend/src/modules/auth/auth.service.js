@@ -68,6 +68,54 @@ function hashToken(rawToken) {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
 }
 
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour — a link, not a typed code, so longer-lived than the 6-digit verification code is fine
+
+// Returns null if there's no active account for that email — the caller
+// (auth.controller.js) responds with the same generic "check your email"
+// message either way, so this endpoint can never be used to discover
+// which addresses are registered.
+async function createPasswordResetToken(email) {
+  const user = await findUserByEmail(email);
+  if (!user || user.status !== 'active') return null;
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await db.query('INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)', [
+    user.id,
+    hashToken(rawToken),
+    expiresAt,
+  ]);
+  return { rawToken, user };
+}
+
+// Successfully resetting a password also clears must_change_password (proving
+// email ownership plus setting a real password supersedes that requirement)
+// and revokes every other active session, in case the account was compromised.
+async function resetPassword(rawToken, newPassword) {
+  const [rows] = await db.query(
+    'SELECT id, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ? LIMIT 1',
+    [hashToken(rawToken)]
+  );
+  const record = rows[0];
+  if (!record || record.used_at || new Date(record.expires_at) < new Date()) {
+    const err = new Error('This reset link is invalid or has expired — request a new one');
+    err.status = 400;
+    throw err;
+  }
+
+  const newHash = await hashPassword(newPassword);
+  await db.query('UPDATE users SET password_hash = ?, must_change_password = FALSE WHERE id = ?', [
+    newHash,
+    record.user_id,
+  ]);
+  await db.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?', [record.id]);
+  await db.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL', [
+    record.user_id,
+  ]);
+
+  return record.user_id;
+}
+
 async function storeRefreshToken(userId, rawToken) {
   const expiresAt = new Date(Date.now() + msFromDuration(env.jwt.refreshExpiresIn));
   await db.query('INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)', [
@@ -257,4 +305,6 @@ module.exports = {
   verifyEmailCode,
   assertCanResendVerificationCode,
   changePassword,
+  createPasswordResetToken,
+  resetPassword,
 };
