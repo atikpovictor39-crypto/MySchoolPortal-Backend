@@ -10,5 +10,6 @@ router.post('/logout', controller.logout);
 
 router.post('/verify-email', requireAuth, controller.verifyEmail);
 router.post('/resend-verification', requireAuth, controller.resendVerificationCode);
+router.post('/change-password', requireAuth, controller.changePassword);
 
 module.exports = router;

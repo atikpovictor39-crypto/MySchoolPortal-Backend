@@ -32,7 +32,8 @@ async function createTeacher(schoolId, { name, email, password, employeeNo }) {
 
     const passwordHash = await hashPassword(password);
     const [userResult] = await conn.query(
-      'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+      `INSERT INTO users (school_id, role, name, email, password_hash, status, must_change_password)
+       VALUES (?, ?, ?, ?, ?, ?, TRUE) RETURNING id`,
       [schoolId, 'TEACHER', name, email, passwordHash, 'active']
     );
     const userId = userResult[0].id;

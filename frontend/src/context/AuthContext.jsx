@@ -57,7 +57,14 @@ export function AuthProvider({ children }) {
     await axiosClient.post('/auth/resend-verification');
   }
 
-  const value = { user, isLoading, login, register, logout, verifyEmail, resendVerificationCode };
+  async function changePassword(currentPassword, newPassword) {
+    const { data } = await axiosClient.post('/auth/change-password', { currentPassword, newPassword });
+    setAccessToken(data.data.accessToken);
+    setUser(data.data.user);
+    return data.data.user;
+  }
+
+  const value = { user, isLoading, login, register, logout, verifyEmail, resendVerificationCode, changePassword };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -20,6 +20,10 @@ beforeEach(async () => {
     .post(`/api/v1/students/${ownChild.id}/guardians`)
     .set('Authorization', auth(school.accessToken))
     .send({ name: 'Test Parent', email: parentEmail, password: parentPassword, relationship: 'Mother' });
+  // Admin-created accounts start must_change_password = TRUE (see
+  // requirePasswordChange.middleware.js) — cleared here since these tests
+  // are about ownership boundaries, not the forced-change flow itself.
+  await db.query('UPDATE users SET must_change_password = FALSE WHERE email = ?', [parentEmail]);
 });
 
 afterAll(async () => {

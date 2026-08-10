@@ -1,6 +1,6 @@
 const db = require('../src/config/db');
 const { resetDatabase } = require('./helpers/resetDb');
-const { app, request, auth, setupTenant, createStudent, login } = require('./helpers/fixtures');
+const { app, request, auth, setupTenant, createStudent, createGuardian } = require('./helpers/fixtures');
 
 afterAll(async () => {
   await db.end();
@@ -83,11 +83,12 @@ describe('School payment details (Mobile Money + bank)', () => {
 
   it('blocks non-SchoolAdmin roles from the settings endpoint', async () => {
     const ownChild = await createStudent(school.accessToken, school.classId, { firstName: 'Amara' });
-    await request(app)
-      .post(`/api/v1/students/${ownChild.id}/guardians`)
-      .set('Authorization', auth(school.accessToken))
-      .send({ name: 'Test Parent', email: 'payparent@example.com', password: 'parentpass123', relationship: 'Mother' });
-    const { accessToken: parentToken } = await login('payparent@example.com', 'parentpass123');
+    const { accessToken: parentToken } = await createGuardian(school.accessToken, ownChild.id, {
+      name: 'Test Parent',
+      email: 'payparent@example.com',
+      password: 'parentpass123',
+      relationship: 'Mother',
+    });
 
     const res = await request(app)
       .get('/api/v1/schools/me/payment-details')
@@ -102,11 +103,12 @@ describe('School payment details (Mobile Money + bank)', () => {
       .send({ momoProvider: 'Vodafone Cash', momoNumber: '0201234567' });
 
     const ownChild = await createStudent(school.accessToken, school.classId, { firstName: 'Kwame' });
-    await request(app)
-      .post(`/api/v1/students/${ownChild.id}/guardians`)
-      .set('Authorization', auth(school.accessToken))
-      .send({ name: 'Parent Two', email: 'payparent2@example.com', password: 'parentpass123', relationship: 'Father' });
-    const { accessToken: parentToken } = await login('payparent2@example.com', 'parentpass123');
+    const { accessToken: parentToken } = await createGuardian(school.accessToken, ownChild.id, {
+      name: 'Parent Two',
+      email: 'payparent2@example.com',
+      password: 'parentpass123',
+      relationship: 'Father',
+    });
 
     const res = await request(app)
       .get('/api/v1/parent/payment-details')

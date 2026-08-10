@@ -4,9 +4,10 @@ const controller = require('./fee.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
+const requirePasswordChange = require('../../middleware/requirePasswordChange.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope, blockDemoWrites);
+router.use(requireAuth, tenantScope, requirePasswordChange, blockDemoWrites);
 
 // Admin-only for viewing too, not just mutating — invoices/debtors expose
 // every family's financial data, not just one. Parents use /api/v1/parent/*

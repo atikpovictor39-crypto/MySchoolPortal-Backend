@@ -109,6 +109,7 @@ CREATE TABLE users (
   phone         VARCHAR(30),
   status        VARCHAR(20) NOT NULL DEFAULT 'invited' CHECK (status IN ('active','invited','suspended')),
   email_verified_at TIMESTAMP NULL, -- NULL = not yet verified; set by POST /auth/verify-email
+  must_change_password BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE for accounts an admin set a temp password for (teachers, guardians) until they change it
   last_login_at TIMESTAMP,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP

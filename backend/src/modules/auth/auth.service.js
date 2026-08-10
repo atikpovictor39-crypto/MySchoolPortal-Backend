@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const db = require('../../config/db');
 const env = require('../../config/env');
-const { hashPassword } = require('../../utils/password');
+const { hashPassword, comparePassword } = require('../../utils/password');
 const { msFromDuration } = require('../../utils/time');
 const emailService = require('../email/email.service');
 
@@ -10,7 +10,7 @@ const emailService = require('../email/email.service');
 // reject a suspended school or one whose billing has lapsed without a second query.
 async function findUserByEmail(email) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, u.email_verified_at,
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.password_hash, u.status, u.email_verified_at, u.must_change_password,
        s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
@@ -23,7 +23,7 @@ async function findUserByEmail(email) {
 
 async function findUserById(id) {
   const [rows] = await db.query(
-    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, u.email_verified_at,
+    `SELECT u.id, u.school_id, u.role, u.name, u.email, u.status, u.email_verified_at, u.must_change_password,
        s.name AS school_name, s.status AS school_status, s.is_demo AS is_demo, sub.status AS subscription_status
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
@@ -36,6 +36,30 @@ async function findUserById(id) {
 
 async function touchLastLogin(userId) {
   await db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [userId]);
+}
+
+// Used for both a voluntary password change and the mandatory one a
+// teacher/guardian faces on their first login (must_change_password) —
+// same flow either way, requiring the current password even in the forced
+// case since it's just the temp one an admin set, not something to skip.
+async function changePassword(userId, currentPassword, newPassword) {
+  const [rows] = await db.query('SELECT password_hash FROM users WHERE id = ? LIMIT 1', [userId]);
+  const user = rows[0];
+  if (!user) {
+    const err = new Error('Account not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const matches = await comparePassword(currentPassword, user.password_hash);
+  if (!matches) {
+    const err = new Error('Current password is incorrect');
+    err.status = 401;
+    throw err;
+  }
+
+  const newHash = await hashPassword(newPassword);
+  await db.query('UPDATE users SET password_hash = ?, must_change_password = FALSE WHERE id = ?', [newHash, userId]);
 }
 
 // Refresh tokens are hashed before storage — same principle as password
@@ -232,4 +256,5 @@ module.exports = {
   createVerificationCode,
   verifyEmailCode,
   assertCanResendVerificationCode,
+  changePassword,
 };

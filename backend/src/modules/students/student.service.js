@@ -170,7 +170,8 @@ async function addGuardian(schoolId, studentId, { name, email, password, relatio
       }
       const passwordHash = await hashPassword(password);
       const [result] = await conn.query(
-        'INSERT INTO users (school_id, role, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+        `INSERT INTO users (school_id, role, name, email, password_hash, status, must_change_password)
+         VALUES (?, ?, ?, ?, ?, ?, TRUE) RETURNING id`,
         [schoolId, 'PARENT', name, email, passwordHash, 'active']
       );
       parentUserId = result[0].id;

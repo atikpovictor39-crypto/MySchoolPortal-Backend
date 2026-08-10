@@ -1,6 +1,6 @@
 const db = require('../src/config/db');
 const { resetDatabase } = require('./helpers/resetDb');
-const { app, request, auth, setupTenant, createStudent, login } = require('./helpers/fixtures');
+const { app, request, auth, setupTenant, createStudent, createGuardian } = require('./helpers/fixtures');
 
 let school;
 let student;
@@ -26,11 +26,12 @@ beforeEach(async () => {
     .set('Authorization', auth(school.accessToken));
   invoiceId = invoicesRes.body.data[0].id;
 
-  await request(app)
-    .post(`/api/v1/students/${student.id}/guardians`)
-    .set('Authorization', auth(school.accessToken))
-    .send({ name: 'Victor Parent', email: 'claimparent@example.com', password: 'parentpass123', relationship: 'Father' });
-  ({ accessToken: parentToken } = await login('claimparent@example.com', 'parentpass123'));
+  ({ accessToken: parentToken } = await createGuardian(school.accessToken, student.id, {
+    name: 'Victor Parent',
+    email: 'claimparent@example.com',
+    password: 'parentpass123',
+    relationship: 'Father',
+  }));
 });
 
 afterAll(async () => {

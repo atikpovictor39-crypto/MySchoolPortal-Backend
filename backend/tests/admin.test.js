@@ -1,6 +1,6 @@
 const db = require('../src/config/db');
 const { resetDatabase } = require('./helpers/resetDb');
-const { app, request, auth, registerSchool, setupTenant, createStudent, login, uniqueEmail } = require('./helpers/fixtures');
+const { app, request, auth, registerSchool, setupTenant, createStudent, createTeacher, login } = require('./helpers/fixtures');
 
 afterAll(async () => {
   await db.end();
@@ -8,17 +8,6 @@ afterAll(async () => {
 
 async function markSchoolDemo(schoolId) {
   await db.query('UPDATE schools SET is_demo = TRUE WHERE id = ?', [schoolId]);
-}
-
-async function createTeacher(adminToken) {
-  const email = uniqueEmail('teacher');
-  const res = await request(app)
-    .post('/api/v1/teachers')
-    .set('Authorization', auth(adminToken))
-    .send({ name: 'Test Teacher', email, password: 'teacherpass123' });
-  expect(res.status).toBe(201);
-  const loggedIn = await login(email, 'teacherpass123');
-  return loggedIn;
 }
 
 describe('School profile (Admin > School Details)', () => {

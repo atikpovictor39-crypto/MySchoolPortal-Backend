@@ -88,4 +88,56 @@ async function createStudent(accessToken, classId, overrides = {}) {
   return res.body.data;
 }
 
-module.exports = { app, request, auth, uniqueEmail, registerSchool, login, setupTenant, createStudent, createSuperAdmin };
+// Teacher/guardian accounts an admin creates start with must_change_password
+// = TRUE (see requirePasswordChange.middleware.js) and are blocked from
+// every tenant route until that's cleared. These helpers create the account
+// through the real API, then clear the flag directly — tests that aren't
+// specifically about the forced-change flow shouldn't have to route around
+// it themselves (see passwordChange.test.js for that flow's own coverage).
+async function createTeacher(adminToken, overrides = {}) {
+  const email = overrides.email || uniqueEmail('teacher');
+  const password = overrides.password || 'teacherpass123';
+  const res = await request(app)
+    .post('/api/v1/teachers')
+    .set('Authorization', auth(adminToken))
+    .send({ name: overrides.name || 'Test Teacher', email, password, employeeNo: overrides.employeeNo });
+  if (res.status !== 201) {
+    throw new Error(`createTeacher failed (${res.status}): ${JSON.stringify(res.body)}`);
+  }
+  await db.query('UPDATE users SET must_change_password = FALSE WHERE email = ?', [email]);
+  return login(email, password);
+}
+
+async function createGuardian(adminToken, studentId, overrides = {}) {
+  const email = overrides.email || uniqueEmail('guardian');
+  const password = overrides.password || 'parentpass123';
+  const res = await request(app)
+    .post(`/api/v1/students/${studentId}/guardians`)
+    .set('Authorization', auth(adminToken))
+    .send({
+      name: overrides.name || 'Test Guardian',
+      email,
+      password,
+      relationship: overrides.relationship || 'Mother',
+      isPrimary: overrides.isPrimary,
+    });
+  if (res.status !== 201) {
+    throw new Error(`createGuardian failed (${res.status}): ${JSON.stringify(res.body)}`);
+  }
+  await db.query('UPDATE users SET must_change_password = FALSE WHERE email = ?', [email]);
+  return login(email, password);
+}
+
+module.exports = {
+  app,
+  request,
+  auth,
+  uniqueEmail,
+  registerSchool,
+  login,
+  setupTenant,
+  createStudent,
+  createSuperAdmin,
+  createTeacher,
+  createGuardian,
+};

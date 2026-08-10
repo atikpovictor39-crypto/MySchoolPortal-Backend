@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ParentProvider } from '../../context/ParentContext';
 import PushNotificationButton from '../common/PushNotificationButton';
 import { MenuIcon, CloseIcon } from '../common/icons';
+import ForcedPasswordChangePage from '../../features/auth/ForcedPasswordChangePage';
 
 const STAFF_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -59,6 +60,16 @@ function initials(name) {
 export default function AppShell() {
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Accounts an admin set a temp password for (teachers, guardians) are
+  // blocked from every tenant route server-side until they change it — see
+  // requirePasswordChange.middleware.js. This is the client-side mirror of
+  // that gate: skip the normal shell entirely rather than let someone land
+  // on a page that's just going to 403 on every request it makes.
+  if (user.must_change_password) {
+    return <ForcedPasswordChangePage />;
+  }
+
   const links = user.role === 'PARENT' ? PARENT_LINKS : user.role === 'SUPERADMIN' ? SUPERADMIN_LINKS : STAFF_LINKS;
   const roleLabel = user.role.replace('_', ' ');
   const brandName = user.role === 'SUPERADMIN' ? 'Platform Admin' : user.school_name || 'School SaaS';

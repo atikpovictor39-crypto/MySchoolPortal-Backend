@@ -48,6 +48,7 @@ function publicUser(user) {
     school_id: user.school_id,
     school_name: user.school_name || null,
     email_verified: Boolean(user.email_verified_at),
+    must_change_password: Boolean(user.must_change_password),
   };
 }
 
@@ -207,4 +208,25 @@ exports.resendVerificationCode = asyncHandler(async (req, res) => {
   });
 
   return res.json({ success: true, data: { sent: true } });
+});
+
+// POST /auth/change-password — used both for a voluntary change and the
+// mandatory one a teacher/guardian faces on first login (must_change_password,
+// enforced server-side by requirePasswordChange.middleware.js on every other
+// tenant route). Re-signs the access token since that flag flipping needs
+// to take effect immediately, not wait for the token to expire or refresh.
+exports.changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'currentPassword and newPassword are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, message: 'newPassword must be at least 8 characters' });
+  }
+
+  await authService.changePassword(req.user.id, currentPassword, newPassword);
+
+  const user = await authService.findUserById(req.user.id);
+  const accessToken = signAccessToken(user);
+  return res.json({ success: true, data: { accessToken, user: publicUser(user) } });
 });

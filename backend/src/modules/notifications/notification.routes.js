@@ -4,9 +4,10 @@ const controller = require('./notification.controller');
 const requireAuth = require('../../middleware/auth.middleware');
 const tenantScope = require('../../middleware/tenant.middleware');
 const blockDemoWrites = require('../../middleware/demoReadOnly.middleware');
+const requirePasswordChange = require('../../middleware/requirePasswordChange.middleware');
 const requireRole = require('../../middleware/role.middleware');
 
-router.use(requireAuth, tenantScope, blockDemoWrites, requireRole('SCHOOL_ADMIN'));
+router.use(requireAuth, tenantScope, requirePasswordChange, blockDemoWrites, requireRole('SCHOOL_ADMIN'));
 
 router.get('/', controller.list);
 router.get('/unread-count', controller.unreadCount);
