@@ -100,7 +100,7 @@ export default function SupportTicketsPage() {
                 className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
               />
             </div>
-            <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Priority</label>
                 <select

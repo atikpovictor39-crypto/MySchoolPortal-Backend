@@ -104,7 +104,7 @@ export default function AnnouncementsPage() {
               className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             />
           </div>
-          <div className="flex gap-3 items-end">
+          <div className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Audience</label>
               <select
@@ -172,7 +172,7 @@ export default function AnnouncementsPage() {
                   onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
                   className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                 />
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-wrap gap-3 items-end">
                   <select
                     value={editForm.targetRole}
                     onChange={(e) => setEditForm({ ...editForm, targetRole: e.target.value })}

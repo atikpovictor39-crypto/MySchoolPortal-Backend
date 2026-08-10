@@ -81,7 +81,7 @@ export default function AnnouncementsPage() {
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           />
         </div>
-        <div className="flex gap-3 items-end">
+        <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Audience</label>
             <select

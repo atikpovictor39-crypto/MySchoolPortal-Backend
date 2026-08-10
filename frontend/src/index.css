@@ -14,4 +14,15 @@
   [role='button'] {
     touch-action: manipulation;
   }
+
+  /* Safety net: if any element ever overflows its container width (an
+     unwrapped flex row, a long unbroken string), this stops the whole page
+     from scrolling sideways on a phone — the offending element just clips
+     instead. Vertical scrolling is untouched. Tables/tab bars that need
+     their own horizontal scroll already opt into it via overflow-x-auto,
+     which still works fine nested inside this. */
+  html,
+  body {
+    overflow-x: hidden;
+  }
 }
