@@ -10,6 +10,11 @@ const { notFound, errorHandler } = require('./middleware/error.middleware');
 
 const app = express();
 
+// Vercel sits in front of this as a reverse proxy — without trusting it,
+// every request looks like it comes from the same internal IP, which would
+// make the rate limiters below useless (one shared bucket for everyone).
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(
   cors({
