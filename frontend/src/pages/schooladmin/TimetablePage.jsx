@@ -230,6 +230,7 @@ export default function TimetablePage() {
             <input
               required
               type="time"
+              lang="en-GB"
               value={form.startTime}
               onChange={(e) => setForm({ ...form, startTime: e.target.value })}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
@@ -240,6 +241,7 @@ export default function TimetablePage() {
             <input
               required
               type="time"
+              lang="en-GB"
               value={form.endTime}
               onChange={(e) => setForm({ ...form, endTime: e.target.value })}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
@@ -368,12 +370,14 @@ export default function TimetablePage() {
                             <div className="flex gap-1 items-center">
                               <input
                                 type="time"
+                                lang="en-GB"
                                 value={editForm.startTime}
                                 onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
                                 className="rounded border border-slate-300 px-1 py-1 text-xs w-full"
                               />
                               <input
                                 type="time"
+                                lang="en-GB"
                                 value={editForm.endTime}
                                 onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
                                 className="rounded border border-slate-300 px-1 py-1 text-xs w-full"
