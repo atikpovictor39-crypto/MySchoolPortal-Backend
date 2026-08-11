@@ -11,9 +11,21 @@ async function listTeachers(schoolId) {
   return rows;
 }
 
+// "EMP-0001" style, per school — same approach as student.service.js's
+// admission numbers (see its comment for the reuse-on-max-deletion nuance).
+async function nextEmployeeNoCandidate(schoolId) {
+  const [rows] = await db.query(
+    `SELECT MAX(SUBSTRING(employee_no FROM 'EMP-(\\d+)')::int) AS max_num
+     FROM teachers WHERE school_id = ? AND employee_no ~ '^EMP-\\d+$'`,
+    [schoolId]
+  );
+  const max = rows[0]?.max_num || 0;
+  return `EMP-${String(max + 1).padStart(4, '0')}`;
+}
+
 // Creates a TEACHER user + linked teachers row in one transaction, same
 // shape as auth.service.registerSchoolWithAdmin and student.service.addGuardian.
-async function createTeacher(schoolId, { name, email, password, employeeNo }) {
+async function insertTeacher(schoolId, { name, email, password, employeeNo }) {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -50,6 +62,36 @@ async function createTeacher(schoolId, { name, email, password, employeeNo }) {
     throw err;
   } finally {
     conn.release();
+  }
+}
+
+async function createTeacher(schoolId, { name, email, password, employeeNo }) {
+  if (employeeNo) {
+    try {
+      return await insertTeacher(schoolId, { name, email, password, employeeNo });
+    } catch (err) {
+      if (err.code === '23505') {
+        const dupErr = new Error('That employee number is already in use at this school');
+        dupErr.status = 409;
+        throw dupErr;
+      }
+      throw err;
+    }
+  }
+
+  // No employeeNo given — auto-generate one. The retry loop only exists
+  // for the rare race between two simultaneous creations landing on the
+  // same candidate; uq_teacher_employee_no (school_id, employee_no) is the
+  // actual guard, this just recovers from hitting it instead of failing
+  // the request outright. A failed attempt's user row rolls back with the
+  // rest of its transaction, so retrying from scratch is safe.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = await nextEmployeeNoCandidate(schoolId);
+    try {
+      return await insertTeacher(schoolId, { name, email, password, employeeNo: candidate });
+    } catch (err) {
+      if (err.code !== '23505' || attempt === 4) throw err;
+    }
   }
 }
 
@@ -97,7 +139,16 @@ async function updateTeacher(schoolId, id, { name, email, employeeNo }) {
   }
 
   if (employeeNo !== undefined) {
-    await db.query('UPDATE teachers SET employee_no = ? WHERE id = ?', [employeeNo || null, id]);
+    try {
+      await db.query('UPDATE teachers SET employee_no = ? WHERE id = ?', [employeeNo || null, id]);
+    } catch (err) {
+      if (err.code === '23505') {
+        const dupErr = new Error('That employee number is already in use at this school');
+        dupErr.status = 409;
+        throw dupErr;
+      }
+      throw err;
+    }
   }
 
   return getTeacherById(schoolId, id);

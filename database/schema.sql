@@ -213,8 +213,9 @@ CREATE TABLE teachers (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id       BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, -- 1:1 with users (role=TEACHER)
-  employee_no   VARCHAR(50),
-  hire_date     DATE
+  employee_no   VARCHAR(50), -- system-generated ("EMP-0001") unless the admin overrides it; see teacher.service.js
+  hire_date     DATE,
+  CONSTRAINT uq_teacher_employee_no UNIQUE (school_id, employee_no)
 );
 CREATE INDEX idx_teachers_school ON teachers(school_id);
 
@@ -258,7 +259,7 @@ CREATE TABLE students (
   school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id       BIGINT NULL UNIQUE REFERENCES users(id) ON DELETE SET NULL, -- nullable: young students may not need login
   class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE RESTRICT,
-  admission_no  VARCHAR(50) NOT NULL,
+  admission_no  VARCHAR(50) NOT NULL, -- system-generated ("STU-0001") unless the admin overrides it; see student.service.js
   first_name    VARCHAR(100) NOT NULL,
   last_name     VARCHAR(100) NOT NULL,
   date_of_birth DATE,

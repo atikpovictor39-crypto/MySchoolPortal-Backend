@@ -64,8 +64,10 @@ exports.addGuardian = asyncHandler(async (req, res) => {
 exports.create = asyncHandler(async (req, res) => {
   const { classId, admissionNo, firstName, lastName, dateOfBirth, gender, enrolledAt } = req.body;
 
-  if (!classId || !admissionNo || !firstName || !lastName) {
-    return fail(res, 'classId, admissionNo, firstName and lastName are required', 400);
+  // admissionNo is optional — leaving it out has student.service.js
+  // auto-generate one ("STU-0001").
+  if (!classId || !firstName || !lastName) {
+    return fail(res, 'classId, firstName and lastName are required', 400);
   }
   if (gender && !studentService.ALLOWED_GENDERS.includes(gender)) {
     return fail(res, `gender must be one of: ${studentService.ALLOWED_GENDERS.join(', ')}`, 400);

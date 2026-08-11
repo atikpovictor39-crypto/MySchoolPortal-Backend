@@ -60,27 +60,62 @@ async function getStudentById(schoolId, id) {
   return rows[0] || null;
 }
 
+// "STU-0001" style, per school. Reads the highest existing auto-generated
+// number rather than counting rows, so a mid-sequence deletion doesn't
+// leave a gap that later gets silently reused (deleting the current
+// highest-numbered student does free that exact number, since this always
+// reflects live data — that's fine, it's uniqueness that matters, not a
+// strictly-ever-increasing display counter).
+async function nextAdmissionNoCandidate(schoolId) {
+  const [rows] = await db.query(
+    `SELECT MAX(SUBSTRING(admission_no FROM 'STU-(\\d+)')::int) AS max_num
+     FROM students WHERE school_id = ? AND admission_no ~ '^STU-\\d+$'`,
+    [schoolId]
+  );
+  const max = rows[0]?.max_num || 0;
+  return `STU-${String(max + 1).padStart(4, '0')}`;
+}
+
+async function insertStudent(schoolId, { classId, admissionNo, firstName, lastName, dateOfBirth, gender, enrolledAt }) {
+  const [result] = await db.query(
+    `INSERT INTO students (school_id, class_id, admission_no, first_name, last_name, date_of_birth, gender, enrolled_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    [schoolId, classId, admissionNo, firstName, lastName, dateOfBirth || null, gender || null, enrolledAt || new Date()]
+  );
+  return getStudentById(schoolId, result[0].id);
+}
+
 async function createStudent(schoolId, input) {
-  const { classId, admissionNo, firstName, lastName, dateOfBirth, gender, enrolledAt } = input;
+  const { classId, admissionNo } = input;
 
   if (!(await classBelongsToSchool(schoolId, classId))) {
     const err = new Error('classId does not belong to this school');
     err.status = 400;
     throw err;
   }
-  if (await admissionNoTaken(schoolId, admissionNo)) {
-    const err = new Error('admissionNo is already in use at this school');
-    err.status = 409;
-    throw err;
+
+  if (admissionNo) {
+    if (await admissionNoTaken(schoolId, admissionNo)) {
+      const err = new Error('admissionNo is already in use at this school');
+      err.status = 409;
+      throw err;
+    }
+    return insertStudent(schoolId, input);
   }
 
-  const [result] = await db.query(
-    `INSERT INTO students (school_id, class_id, admission_no, first_name, last_name, date_of_birth, gender, enrolled_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    [schoolId, classId, admissionNo, firstName, lastName, dateOfBirth || null, gender || null, enrolledAt || new Date()]
-  );
-
-  return getStudentById(schoolId, result[0].id);
+  // No admissionNo given — auto-generate one. The retry loop only exists
+  // for the rare race between two simultaneous creations landing on the
+  // same candidate; uq_student_admission (school_id, admission_no) is the
+  // actual guard, this just recovers from hitting it instead of failing
+  // the request outright.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = await nextAdmissionNoCandidate(schoolId);
+    try {
+      return await insertStudent(schoolId, { ...input, admissionNo: candidate });
+    } catch (err) {
+      if (err.code !== '23505' || attempt === 4) throw err;
+    }
+  }
 }
 
 async function updateStudent(schoolId, id, input) {

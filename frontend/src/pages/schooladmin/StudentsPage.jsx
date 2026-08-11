@@ -169,10 +169,10 @@ export default function StudentsPage() {
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Admission No.</label>
             <input
-              required
               value={form.admissionNo}
               onChange={(e) => setForm({ ...form, admissionNo: e.target.value })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-28"
+              placeholder="Auto-generated"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-32"
             />
           </div>
           <div>

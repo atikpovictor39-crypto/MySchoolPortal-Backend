@@ -128,7 +128,8 @@ export default function TeachersPage() {
             <input
               value={form.employeeNo}
               onChange={(e) => setForm({ ...form, employeeNo: e.target.value })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-28"
+              placeholder="Auto-generated"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-32"
             />
           </div>
           <button
