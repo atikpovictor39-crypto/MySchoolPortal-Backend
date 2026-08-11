@@ -21,9 +21,19 @@ exports.listForTeacher = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const { classId, dayOfWeek, startTime, endTime, subjectId, teacherId } = req.body;
-  if (!classId || !dayOfWeek || !startTime || !endTime || !subjectId) {
-    return fail(res, 'classId, dayOfWeek, startTime, endTime and subjectId are required', 400);
+  const { classId, dayOfWeek, startTime, endTime, slotType, subjectId, teacherId } = req.body;
+  const type = slotType || 'subject';
+
+  if (!timetableService.SLOT_TYPES.includes(type)) {
+    return fail(res, `slotType must be one of: ${timetableService.SLOT_TYPES.join(', ')}`, 400);
+  }
+  if (!classId || !dayOfWeek || !startTime || !endTime) {
+    return fail(res, 'classId, dayOfWeek, startTime and endTime are required', 400);
+  }
+  // subjectId only matters for an actual teaching period — assembly/break
+  // aren't tied to a subject at all.
+  if (type === 'subject' && !subjectId) {
+    return fail(res, 'subjectId is required for a subject period', 400);
   }
   if (!validDayOfWeek(dayOfWeek)) {
     return fail(res, 'dayOfWeek must be an integer between 1 (Monday) and 7 (Sunday)', 400);
@@ -34,6 +44,7 @@ exports.create = asyncHandler(async (req, res) => {
     dayOfWeek,
     startTime,
     endTime,
+    slotType: type,
     subjectId,
     teacherId,
   });
@@ -41,7 +52,10 @@ exports.create = asyncHandler(async (req, res) => {
 });
 
 exports.update = asyncHandler(async (req, res) => {
-  const { classId, dayOfWeek, startTime, endTime, subjectId, teacherId } = req.body;
+  const { classId, dayOfWeek, startTime, endTime, slotType, subjectId, teacherId } = req.body;
+  if (slotType !== undefined && !timetableService.SLOT_TYPES.includes(slotType)) {
+    return fail(res, `slotType must be one of: ${timetableService.SLOT_TYPES.join(', ')}`, 400);
+  }
   if (dayOfWeek !== undefined && !validDayOfWeek(dayOfWeek)) {
     return fail(res, 'dayOfWeek must be an integer between 1 (Monday) and 7 (Sunday)', 400);
   }
@@ -51,6 +65,7 @@ exports.update = asyncHandler(async (req, res) => {
     dayOfWeek,
     startTime,
     endTime,
+    slotType,
     subjectId,
     teacherId,
   });

@@ -6,7 +6,15 @@ import { listTeachers } from '../../features/teachers/api';
 import { listTimetable, createSlot, updateSlot, deleteSlot } from '../../features/timetable/api';
 
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const emptyForm = { dayOfWeek: '1', startTime: '', endTime: '', subjectId: '', teacherId: '' };
+const SLOT_TYPE_LABELS = { subject: 'Subject', assembly: 'Assembly', break: 'Break' };
+const emptyForm = { slotType: 'subject', dayOfWeek: '1', startTime: '', endTime: '', subjectId: '', teacherId: '' };
+
+// Assembly/break periods have no subject_id — this is what a cell/edit form
+// actually displays for them instead.
+function slotLabel(slot, subjectNameById) {
+  if (slot.slot_type === 'subject') return subjectNameById[slot.subject_id] || slot.subject_name;
+  return SLOT_TYPE_LABELS[slot.slot_type] || slot.slot_type;
+}
 
 export default function TimetablePage() {
   const { user } = useAuth();
@@ -68,6 +76,11 @@ export default function TimetablePage() {
     }
   }
   const periods = [...periodsByKey.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  // Purely a visual grouping header — periods before noon under "Morning
+  // Classes", the rest under "Evening Classes". Either group is skipped
+  // entirely if nothing falls in it.
+  const morningPeriods = periods.filter((p) => p.startTime < '12:00');
+  const eveningPeriods = periods.filter((p) => p.startTime >= '12:00');
 
   // Monday–Friday always shown (the standard school week); Saturday/Sunday
   // only appear as rows if something is actually scheduled on them.
@@ -92,7 +105,8 @@ export default function TimetablePage() {
         dayOfWeek: Number(form.dayOfWeek),
         startTime: form.startTime,
         endTime: form.endTime,
-        subjectId: form.subjectId,
+        slotType: form.slotType,
+        subjectId: form.slotType === 'subject' ? form.subjectId : undefined,
         teacherId: form.teacherId || undefined,
       });
       setForm(emptyForm);
@@ -107,10 +121,11 @@ export default function TimetablePage() {
   function startEdit(slot) {
     setEditingId(slot.id);
     setEditForm({
+      slotType: slot.slot_type,
       dayOfWeek: String(slot.day_of_week),
       startTime: slot.start_time.slice(0, 5),
       endTime: slot.end_time.slice(0, 5),
-      subjectId: String(slot.subject_id),
+      subjectId: slot.subject_id ? String(slot.subject_id) : '',
       teacherId: slot.teacher_id ? String(slot.teacher_id) : '',
     });
   }
@@ -122,7 +137,8 @@ export default function TimetablePage() {
         dayOfWeek: Number(editForm.dayOfWeek),
         startTime: editForm.startTime,
         endTime: editForm.endTime,
-        subjectId: editForm.subjectId,
+        slotType: editForm.slotType,
+        subjectId: editForm.slotType === 'subject' ? editForm.subjectId : null,
         teacherId: editForm.teacherId || null,
       });
       setEditingId(null);
@@ -146,11 +162,11 @@ export default function TimetablePage() {
   // day + time instead of making the admin retype them.
   function prefillEmptyCell(day, period) {
     setEditingId(null);
-    setForm({ dayOfWeek: String(day), startTime: period.startTime, endTime: period.endTime, subjectId: '', teacherId: '' });
+    setForm({ ...emptyForm, dayOfWeek: String(day), startTime: period.startTime, endTime: period.endTime });
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-5xl">
       <h1 className="text-xl font-semibold text-slate-900 mb-6">Timetable</h1>
 
       <div className="mb-6 bg-white border border-slate-200 rounded-xl shadow-sm p-4">
@@ -181,6 +197,20 @@ export default function TimetablePage() {
           onSubmit={handleCreate}
           className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-end"
         >
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Period type</label>
+            <select
+              value={form.slotType}
+              onChange={(e) => setForm({ ...form, slotType: e.target.value, subjectId: '' })}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            >
+              {Object.entries(SLOT_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Day</label>
             <select
@@ -215,24 +245,26 @@ export default function TimetablePage() {
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
-            <select
-              required
-              value={form.subjectId}
-              onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
+          {form.slotType === 'subject' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
+              <select
+                required
+                value={form.subjectId}
+                onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </select>
-          </div>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Teacher (optional)</label>
             <select
@@ -268,6 +300,27 @@ export default function TimetablePage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm border-separate border-spacing-0">
             <thead className="bg-slate-50 text-slate-600">
+              {(morningPeriods.length > 0 || eveningPeriods.length > 0) && (
+                <tr>
+                  <th className="sticky left-0 bg-slate-50 border-b border-r border-slate-200" />
+                  {morningPeriods.length > 0 && (
+                    <th
+                      colSpan={morningPeriods.length}
+                      className="px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-l border-slate-200"
+                    >
+                      Morning Classes
+                    </th>
+                  )}
+                  {eveningPeriods.length > 0 && (
+                    <th
+                      colSpan={eveningPeriods.length}
+                      className="px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-l border-slate-200"
+                    >
+                      Evening Classes
+                    </th>
+                  )}
+                </tr>
+              )}
               <tr>
                 <th className="px-3 py-2 text-left sticky left-0 bg-slate-50 border-b border-r border-slate-200">Day</th>
                 {periods.map((p) => (
@@ -290,6 +343,17 @@ export default function TimetablePage() {
                       return (
                         <td key={p.key} className="px-2 py-2 align-top min-w-[160px]">
                           <div className="flex flex-col gap-1">
+                            <select
+                              value={editForm.slotType}
+                              onChange={(e) => setEditForm({ ...editForm, slotType: e.target.value })}
+                              className="rounded border border-slate-300 px-1.5 py-1 text-xs"
+                            >
+                              {Object.entries(SLOT_TYPE_LABELS).map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
                             <select
                               value={editForm.dayOfWeek}
                               onChange={(e) => setEditForm({ ...editForm, dayOfWeek: e.target.value })}
@@ -315,17 +379,22 @@ export default function TimetablePage() {
                                 className="rounded border border-slate-300 px-1 py-1 text-xs w-full"
                               />
                             </div>
-                            <select
-                              value={editForm.subjectId}
-                              onChange={(e) => setEditForm({ ...editForm, subjectId: e.target.value })}
-                              className="rounded border border-slate-300 px-1.5 py-1 text-xs"
-                            >
-                              {subjects.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
+                            {editForm.slotType === 'subject' && (
+                              <select
+                                value={editForm.subjectId}
+                                onChange={(e) => setEditForm({ ...editForm, subjectId: e.target.value })}
+                                className="rounded border border-slate-300 px-1.5 py-1 text-xs"
+                              >
+                                <option value="" disabled>
+                                  Select subject…
                                 </option>
-                              ))}
-                            </select>
+                                {subjects.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                             <select
                               value={editForm.teacherId}
                               onChange={(e) => setEditForm({ ...editForm, teacherId: e.target.value })}
@@ -362,9 +431,18 @@ export default function TimetablePage() {
                     }
 
                     return (
-                      <td key={p.key} className="px-3 py-2 align-top min-w-[140px] group">
-                        <p className="font-medium text-slate-900">{subjectNameById[slot.subject_id] || slot.subject_name}</p>
-                        <p className="text-xs text-slate-500">{slot.teacher_name || teacherNameById[slot.teacher_id] || '—'}</p>
+                      <td
+                        key={p.key}
+                        className={`px-3 py-2 align-top min-w-[140px] group ${
+                          slot.slot_type !== 'subject' ? 'bg-slate-50' : ''
+                        }`}
+                      >
+                        <p className={`font-medium ${slot.slot_type === 'subject' ? 'text-slate-900' : 'text-slate-600 italic'}`}>
+                          {slotLabel(slot, subjectNameById)}
+                        </p>
+                        {(slot.teacher_name || slot.teacher_id) && (
+                          <p className="text-xs text-slate-500">{slot.teacher_name || teacherNameById[slot.teacher_id]}</p>
+                        )}
                         {isAdmin && (
                           <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => startEdit(slot)} className="text-blue-600 text-xs font-medium">

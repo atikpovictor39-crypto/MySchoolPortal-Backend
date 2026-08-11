@@ -1,6 +1,7 @@
 const db = require('../../config/db');
 
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const SLOT_TYPES = ['subject', 'assembly', 'break'];
 
 // Compares by minutes-since-midnight, not raw string comparison — a
 // freshly-submitted 'HH:MM' and a DB-stored TIME string ('HH:MM:SS') would
@@ -35,7 +36,9 @@ async function teacherBelongsToSchool(schoolId, teacherId) {
   return rows.length > 0;
 }
 
-const SLOT_COLUMNS = `ts.id, ts.class_id, ts.day_of_week, ts.start_time, ts.end_time,
+// subject_id/subject_name are only populated for slot_type = 'subject' —
+// assembly and break periods have neither (see chk_subject_required_for_subject_slot).
+const SLOT_COLUMNS = `ts.id, ts.class_id, ts.day_of_week, ts.start_time, ts.end_time, ts.slot_type,
   ts.subject_id, sub.name AS subject_name, ts.teacher_id, u.name AS teacher_name`;
 
 async function listTimetable(schoolId, { classId, dayOfWeek } = {}) {
@@ -53,7 +56,7 @@ async function listTimetable(schoolId, { classId, dayOfWeek } = {}) {
   const [rows] = await db.query(
     `SELECT ${SLOT_COLUMNS}
      FROM timetable_slots ts
-     JOIN subjects sub ON sub.id = ts.subject_id
+     LEFT JOIN subjects sub ON sub.id = ts.subject_id
      LEFT JOIN teachers t ON t.id = ts.teacher_id
      LEFT JOIN users u ON u.id = t.user_id
      WHERE ${conditions.join(' AND ')}
@@ -65,10 +68,10 @@ async function listTimetable(schoolId, { classId, dayOfWeek } = {}) {
 
 async function listTeacherTimetable(schoolId, teacherId) {
   const [rows] = await db.query(
-    `SELECT ts.id, ts.day_of_week, ts.start_time, ts.end_time, ts.subject_id, sub.name AS subject_name,
+    `SELECT ts.id, ts.day_of_week, ts.start_time, ts.end_time, ts.slot_type, ts.subject_id, sub.name AS subject_name,
        ts.class_id, c.name AS class_name, c.section
      FROM timetable_slots ts
-     JOIN subjects sub ON sub.id = ts.subject_id
+     LEFT JOIN subjects sub ON sub.id = ts.subject_id
      JOIN classes c ON c.id = ts.class_id
      WHERE ts.school_id = ? AND ts.teacher_id = ?
      ORDER BY ts.day_of_week, ts.start_time`,
@@ -81,7 +84,7 @@ async function getSlotById(schoolId, id) {
   const [rows] = await db.query(
     `SELECT ${SLOT_COLUMNS}
      FROM timetable_slots ts
-     JOIN subjects sub ON sub.id = ts.subject_id
+     LEFT JOIN subjects sub ON sub.id = ts.subject_id
      LEFT JOIN teachers t ON t.id = ts.teacher_id
      LEFT JOIN users u ON u.id = t.user_id
      WHERE ts.id = ? AND ts.school_id = ? LIMIT 1`,
@@ -111,16 +114,23 @@ async function assertNoTeacherConflict(schoolId, teacherId, dayOfWeek, startTime
   }
 }
 
-async function createSlot(schoolId, { classId, dayOfWeek, startTime, endTime, subjectId, teacherId }) {
+async function createSlot(schoolId, { classId, dayOfWeek, startTime, endTime, slotType, subjectId, teacherId }) {
+  const type = slotType || 'subject';
+
   if (!(await classBelongsToSchool(schoolId, classId))) {
     const err = new Error('classId does not belong to this school');
     err.status = 400;
     throw err;
   }
-  if (!(await subjectBelongsToSchool(schoolId, subjectId))) {
-    const err = new Error('subjectId does not belong to this school');
-    err.status = 400;
-    throw err;
+  // Assembly/break aren't academic subjects — subjectId is ignored (forced
+  // null) for them even if one was somehow sent, rather than silently
+  // storing a subject on a non-subject period.
+  if (type === 'subject') {
+    if (!(await subjectBelongsToSchool(schoolId, subjectId))) {
+      const err = new Error('subjectId does not belong to this school');
+      err.status = 400;
+      throw err;
+    }
   }
   if (teacherId && !(await teacherBelongsToSchool(schoolId, teacherId))) {
     const err = new Error('teacherId does not belong to this school');
@@ -137,9 +147,9 @@ async function createSlot(schoolId, { classId, dayOfWeek, startTime, endTime, su
 
   try {
     const [result] = await db.query(
-      `INSERT INTO timetable_slots (school_id, class_id, day_of_week, start_time, end_time, subject_id, teacher_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      [schoolId, classId, dayOfWeek, startTime, endTime, subjectId, teacherId || null]
+      `INSERT INTO timetable_slots (school_id, class_id, day_of_week, start_time, end_time, slot_type, subject_id, teacher_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      [schoolId, classId, dayOfWeek, startTime, endTime, type, type === 'subject' ? subjectId : null, teacherId || null]
     );
     return getSlotById(schoolId, result[0].id);
   } catch (err) {
@@ -156,17 +166,21 @@ async function updateSlot(schoolId, id, input) {
   const existing = await getSlotById(schoolId, id);
   if (!existing) return null;
 
-  const { classId, dayOfWeek, startTime, endTime, subjectId, teacherId } = input;
+  const { classId, dayOfWeek, startTime, endTime, slotType, subjectId, teacherId } = input;
+  const finalType = slotType !== undefined ? slotType : existing.slot_type;
 
   if (classId !== undefined && !(await classBelongsToSchool(schoolId, classId))) {
     const err = new Error('classId does not belong to this school');
     err.status = 400;
     throw err;
   }
-  if (subjectId !== undefined && !(await subjectBelongsToSchool(schoolId, subjectId))) {
-    const err = new Error('subjectId does not belong to this school');
-    err.status = 400;
-    throw err;
+  const finalSubjectId = subjectId !== undefined ? subjectId : existing.subject_id;
+  if (finalType === 'subject') {
+    if (!finalSubjectId || !(await subjectBelongsToSchool(schoolId, finalSubjectId))) {
+      const err = new Error('subjectId does not belong to this school');
+      err.status = 400;
+      throw err;
+    }
   }
   if (teacherId !== undefined && teacherId !== null && !(await teacherBelongsToSchool(schoolId, teacherId))) {
     const err = new Error('teacherId does not belong to this school');
@@ -198,8 +212,14 @@ async function updateSlot(schoolId, id, input) {
   set('day_of_week', dayOfWeek);
   set('start_time', startTime);
   set('end_time', endTime);
-  set('subject_id', subjectId);
   set('teacher_id', teacherId);
+  // slot_type and subject_id are always written together whenever either
+  // one changes, so switching e.g. Math -> Assembly clears subject_id in
+  // the same statement instead of leaving a stale reference behind.
+  if (slotType !== undefined || subjectId !== undefined) {
+    fields.push('slot_type = ?', 'subject_id = ?');
+    params.push(finalType, finalType === 'subject' ? finalSubjectId : null);
+  }
 
   if (fields.length === 0) return existing;
 
@@ -223,4 +243,13 @@ async function deleteSlot(schoolId, id) {
   return result.affectedRows > 0;
 }
 
-module.exports = { DAY_NAMES, listTimetable, listTeacherTimetable, getSlotById, createSlot, updateSlot, deleteSlot };
+module.exports = {
+  DAY_NAMES,
+  SLOT_TYPES,
+  listTimetable,
+  listTeacherTimetable,
+  getSlotById,
+  createSlot,
+  updateSlot,
+  deleteSlot,
+};

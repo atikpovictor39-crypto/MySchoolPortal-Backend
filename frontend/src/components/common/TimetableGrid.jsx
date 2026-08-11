@@ -1,9 +1,15 @@
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const SLOT_TYPE_LABELS = { subject: null, assembly: 'Assembly', break: 'Break' };
+
+function slotLabel(slot) {
+  return SLOT_TYPE_LABELS[slot.slot_type] || slot.subject_name;
+}
 
 // Read-only day × period grid — rows are days, columns are every distinct
 // period (start–end time) that appears anywhere in the week, so a period
 // that only meets on one day still gets its own column rather than being
-// squeezed into a mismatched one.
+// squeezed into a mismatched one. A "Morning Classes" / "Evening Classes"
+// header splits the columns at noon, purely as a visual grouping.
 export default function TimetableGrid({ slots }) {
   const periodKey = (start, end) => `${start.slice(0, 5)}-${end.slice(0, 5)}`;
   const periodsByKey = new Map();
@@ -14,6 +20,8 @@ export default function TimetableGrid({ slots }) {
     }
   }
   const periods = [...periodsByKey.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const morningPeriods = periods.filter((p) => p.startTime < '12:00');
+  const eveningPeriods = periods.filter((p) => p.startTime >= '12:00');
 
   const daysWithSlots = new Set(slots.map((s) => s.day_of_week));
   const daysToShow = [1, 2, 3, 4, 5, 6, 7].filter((d) => d <= 5 || daysWithSlots.has(d));
@@ -29,6 +37,27 @@ export default function TimetableGrid({ slots }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm border-separate border-spacing-0">
         <thead className="bg-slate-50 text-slate-600">
+          {(morningPeriods.length > 0 || eveningPeriods.length > 0) && (
+            <tr>
+              <th className="sticky left-0 bg-slate-50 border-b border-r border-slate-200" />
+              {morningPeriods.length > 0 && (
+                <th
+                  colSpan={morningPeriods.length}
+                  className="px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-l border-slate-200"
+                >
+                  Morning Classes
+                </th>
+              )}
+              {eveningPeriods.length > 0 && (
+                <th
+                  colSpan={eveningPeriods.length}
+                  className="px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-l border-slate-200"
+                >
+                  Evening Classes
+                </th>
+              )}
+            </tr>
+          )}
           <tr>
             <th className="px-3 py-2 text-left sticky left-0 bg-slate-50 border-b border-r border-slate-200">Day</th>
             {periods.map((p) => (
@@ -47,11 +76,13 @@ export default function TimetableGrid({ slots }) {
               {periods.map((p) => {
                 const slot = slotGrid[day]?.[p.key];
                 return (
-                  <td key={p.key} className="px-3 py-2 align-top min-w-[140px]">
+                  <td key={p.key} className={`px-3 py-2 align-top min-w-[140px] ${slot && slot.slot_type !== 'subject' ? 'bg-slate-50' : ''}`}>
                     {slot && (
                       <>
-                        <p className="font-medium text-slate-900">{slot.subject_name}</p>
-                        <p className="text-xs text-slate-500">{slot.teacher_name || '—'}</p>
+                        <p className={`font-medium ${slot.slot_type === 'subject' ? 'text-slate-900' : 'text-slate-600 italic'}`}>
+                          {slotLabel(slot)}
+                        </p>
+                        {slot.teacher_name && <p className="text-xs text-slate-500">{slot.teacher_name}</p>}
                       </>
                     )}
                   </td>

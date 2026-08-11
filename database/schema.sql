@@ -241,10 +241,12 @@ CREATE TABLE timetable_slots (
   day_of_week   SMALLINT NOT NULL,                   -- 1=Monday ... 7=Sunday
   start_time    TIME NOT NULL,
   end_time      TIME NOT NULL,
-  subject_id    BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  slot_type     VARCHAR(20) NOT NULL DEFAULT 'subject' CHECK (slot_type IN ('subject','assembly','break')),
+  subject_id    BIGINT NULL REFERENCES subjects(id) ON DELETE CASCADE, -- required only when slot_type = 'subject'
   teacher_id    BIGINT NULL REFERENCES teachers(id) ON DELETE SET NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT uq_class_day_start UNIQUE (class_id, day_of_week, start_time)
+  CONSTRAINT uq_class_day_start UNIQUE (class_id, day_of_week, start_time),
+  CONSTRAINT chk_subject_required_for_subject_slot CHECK (slot_type != 'subject' OR subject_id IS NOT NULL)
 );
 CREATE INDEX idx_tt_school ON timetable_slots(school_id);
 CREATE INDEX idx_tt_class_day ON timetable_slots(class_id, day_of_week);
