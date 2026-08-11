@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { listClasses, createClass } from '../../features/classes/api';
+import { useUndoToast } from '../../context/UndoToastContext';
+import { listClasses, createClass, updateClass, deleteClass } from '../../features/classes/api';
 import { listAcademicYears } from '../../features/academicYears/api';
 
 const emptyForm = { academicYearId: '', name: '', section: '' };
 
 export default function ClassesPage() {
   const { user } = useAuth();
+  const { deleteWithUndo } = useUndoToast();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
   const [classes, setClasses] = useState([]);
@@ -15,6 +17,8 @@ export default function ClassesPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   async function refresh() {
     setIsLoading(true);
@@ -46,6 +50,41 @@ export default function ClassesPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function startEdit(c) {
+    setEditingId(c.id);
+    setEditForm({ academicYearId: c.academic_year_id, name: c.name, section: c.section || '' });
+  }
+
+  async function saveEdit(id) {
+    setError('');
+    try {
+      await updateClass(id, editForm);
+      setEditingId(null);
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update class');
+    }
+  }
+
+  // Optimistically removes the row and only actually deletes it server-side
+  // once the undo window closes — see UndoToastContext for why.
+  function handleDelete(c) {
+    setError('');
+    setClasses((prev) => prev.filter((row) => row.id !== c.id));
+    deleteWithUndo({
+      message: `"${c.name}${c.section ? ` ${c.section}` : ''}" deleted.`,
+      onUndo: () => setClasses((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name))),
+      onCommit: async () => {
+        try {
+          await deleteClass(c.id);
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to delete class');
+          setClasses((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+      },
+    });
   }
 
   const yearNameById = Object.fromEntries(years.map((y) => [y.id, y.name]));
@@ -128,16 +167,71 @@ export default function ClassesPage() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Section</th>
               <th className="px-4 py-2">Academic year</th>
+              {isAdmin && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
-            {classes.map((c) => (
-              <tr key={c.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{c.name}</td>
-                <td className="px-4 py-2">{c.section || '—'}</td>
-                <td className="px-4 py-2">{yearNameById[c.academic_year_id] || c.academic_year_id}</td>
-              </tr>
-            ))}
+            {classes.map((c) =>
+              editingId === c.id ? (
+                <tr key={c.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm w-28"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.section}
+                      onChange={(e) => setEditForm({ ...editForm, section: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm w-16"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <select
+                      value={editForm.academicYearId}
+                      onChange={(e) => setEditForm({ ...editForm, academicYearId: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    >
+                      {years.map((y) => (
+                        <option key={y.id} value={y.id}>
+                          {y.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => saveEdit(c.id)} className="text-blue-600 text-xs font-medium">
+                        Save
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={c.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{c.name}</td>
+                  <td className="px-4 py-2">{c.section || '—'}</td>
+                  <td className="px-4 py-2">{yearNameById[c.academic_year_id] || c.academic_year_id}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-2">
+                      <div className="flex gap-3 justify-end">
+                        <button onClick={() => startEdit(c)} className="text-blue-600 text-xs font-medium">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(c)} className="text-red-600 text-xs font-medium">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              )
+            )}
           </tbody>
         </table>
         </div>

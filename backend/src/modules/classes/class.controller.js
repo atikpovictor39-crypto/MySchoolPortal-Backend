@@ -36,3 +36,9 @@ exports.update = asyncHandler(async (req, res) => {
   if (!klass) return fail(res, 'Class not found', 404);
   return ok(res, klass);
 });
+
+exports.remove = asyncHandler(async (req, res) => {
+  const deleted = await classService.deleteClass(req.schoolId, req.params.id);
+  if (!deleted) return fail(res, 'Class not found', 404);
+  return ok(res, null);
+});

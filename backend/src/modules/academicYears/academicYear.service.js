@@ -83,4 +83,34 @@ async function updateAcademicYear(schoolId, id, { name, startDate, endDate, isCu
   }
 }
 
-module.exports = { listAcademicYears, getAcademicYearById, createAcademicYear, updateAcademicYear };
+// classes.academic_year_id cascades on delete, which would silently wipe
+// every class under this year (and, transitively, their students would hit
+// the RESTRICT on students.class_id and block the whole delete anyway —
+// but a class with no students yet would just vanish along with its
+// timetable/homework/results). Checked up front so removing a year's
+// classes is a deliberate step, not a surprise side effect.
+async function deleteAcademicYear(schoolId, id) {
+  const existing = await getAcademicYearById(schoolId, id);
+  if (!existing) return null;
+
+  const [rows] = await db.query('SELECT COUNT(*) AS count FROM classes WHERE academic_year_id = ? AND school_id = ?', [
+    id,
+    schoolId,
+  ]);
+  if (Number(rows[0].count) > 0) {
+    const err = new Error('This academic year still has classes under it — delete those first');
+    err.status = 400;
+    throw err;
+  }
+
+  await db.query('DELETE FROM academic_years WHERE id = ? AND school_id = ?', [id, schoolId]);
+  return true;
+}
+
+module.exports = {
+  listAcademicYears,
+  getAcademicYearById,
+  createAcademicYear,
+  updateAcademicYear,
+  deleteAcademicYear,
+};

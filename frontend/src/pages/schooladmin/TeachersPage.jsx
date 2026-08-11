@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { listTeachers, createTeacher } from '../../features/teachers/api';
+import { useUndoToast } from '../../context/UndoToastContext';
+import { listTeachers, createTeacher, updateTeacher, deleteTeacher } from '../../features/teachers/api';
 import PasswordInput from '../../components/common/PasswordInput';
 
 const emptyForm = { name: '', email: '', password: '', employeeNo: '' };
 
 export default function TeachersPage() {
   const { user } = useAuth();
+  const { deleteWithUndo } = useUndoToast();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
   const [teachers, setTeachers] = useState([]);
@@ -14,6 +16,8 @@ export default function TeachersPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   async function refresh() {
     setIsLoading(true);
@@ -43,6 +47,43 @@ export default function TeachersPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function startEdit(t) {
+    setEditingId(t.id);
+    setEditForm({ name: t.name, email: t.email, employeeNo: t.employee_no || '' });
+  }
+
+  async function saveEdit(id) {
+    setError('');
+    try {
+      await updateTeacher(id, editForm);
+      setEditingId(null);
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update teacher');
+    }
+  }
+
+  // Deleting a teacher also removes their clock-in and leave-request
+  // history (see teacher.service.js) — the undo window is the safety net
+  // for a misclick, not a soft-delete, so this is genuinely permanent once
+  // it commits.
+  function handleDelete(t) {
+    setError('');
+    setTeachers((prev) => prev.filter((row) => row.id !== t.id));
+    deleteWithUndo({
+      message: `"${t.name}" removed.`,
+      onUndo: () => setTeachers((prev) => [...prev, t].sort((a, b) => a.name.localeCompare(b.name))),
+      onCommit: async () => {
+        try {
+          await deleteTeacher(t.id);
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to remove teacher');
+          setTeachers((prev) => [...prev, t].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+      },
+    });
   }
 
   return (
@@ -118,16 +159,66 @@ export default function TeachersPage() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Email</th>
               <th className="px-4 py-2">Employee No.</th>
+              {isAdmin && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
-            {teachers.map((t) => (
-              <tr key={t.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{t.name}</td>
-                <td className="px-4 py-2">{t.email}</td>
-                <td className="px-4 py-2">{t.employee_no || '—'}</td>
-              </tr>
-            ))}
+            {teachers.map((t) =>
+              editingId === t.id ? (
+                <tr key={t.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.employeeNo}
+                      onChange={(e) => setEditForm({ ...editForm, employeeNo: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm w-24"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => saveEdit(t.id)} className="text-blue-600 text-xs font-medium">
+                        Save
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={t.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{t.name}</td>
+                  <td className="px-4 py-2">{t.email}</td>
+                  <td className="px-4 py-2">{t.employee_no || '—'}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-2">
+                      <div className="flex gap-3 justify-end">
+                        <button onClick={() => startEdit(t)} className="text-blue-600 text-xs font-medium">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(t)} className="text-red-600 text-xs font-medium">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              )
+            )}
           </tbody>
         </table>
         </div>

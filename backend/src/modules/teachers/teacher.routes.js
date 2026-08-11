@@ -12,6 +12,8 @@ router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenan
 
 router.get('/', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.list);
 router.post('/', requireRole('SCHOOL_ADMIN'), controller.create);
+router.put('/:id', requireRole('SCHOOL_ADMIN'), controller.update);
+router.delete('/:id', requireRole('SCHOOL_ADMIN'), controller.remove);
 router.get('/me', requireRole('TEACHER'), controller.getMyTeacherProfile);
 
 router.post('/clock-in', requireRole('TEACHER'), controller.clockIn);

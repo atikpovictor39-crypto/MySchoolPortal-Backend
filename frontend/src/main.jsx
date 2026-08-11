@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { UndoToastProvider } from './context/UndoToastContext';
 import { Sentry } from './sentry';
 import './index.css';
 
@@ -22,7 +23,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <UndoToastProvider>
+            <App />
+          </UndoToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </Sentry.ErrorBoundary>

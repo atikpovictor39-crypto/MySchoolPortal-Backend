@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { listSubjects, createSubject } from '../../features/subjects/api';
+import { useUndoToast } from '../../context/UndoToastContext';
+import { listSubjects, createSubject, updateSubject, deleteSubject } from '../../features/subjects/api';
 
 const emptyForm = { name: '', code: '' };
 
 export default function SubjectsPage() {
   const { user } = useAuth();
+  const { deleteWithUndo } = useUndoToast();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
   const [subjects, setSubjects] = useState([]);
@@ -13,6 +15,8 @@ export default function SubjectsPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   async function refresh() {
     setIsLoading(true);
@@ -42,6 +46,39 @@ export default function SubjectsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function startEdit(s) {
+    setEditingId(s.id);
+    setEditForm({ name: s.name, code: s.code || '' });
+  }
+
+  async function saveEdit(id) {
+    setError('');
+    try {
+      await updateSubject(id, editForm);
+      setEditingId(null);
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update subject');
+    }
+  }
+
+  function handleDelete(s) {
+    setError('');
+    setSubjects((prev) => prev.filter((row) => row.id !== s.id));
+    deleteWithUndo({
+      message: `"${s.name}" deleted.`,
+      onUndo: () => setSubjects((prev) => [...prev, s].sort((a, b) => a.name.localeCompare(b.name))),
+      onCommit: async () => {
+        try {
+          await deleteSubject(s.id);
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to delete subject');
+          setSubjects((prev) => [...prev, s].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+      },
+    });
   }
 
   return (
@@ -99,15 +136,57 @@ export default function SubjectsPage() {
             <tr>
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Code</th>
+              {isAdmin && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
-            {subjects.map((s) => (
-              <tr key={s.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{s.name}</td>
-                <td className="px-4 py-2">{s.code || '—'}</td>
-              </tr>
-            ))}
+            {subjects.map((s) =>
+              editingId === s.id ? (
+                <tr key={s.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.code}
+                      onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm w-20"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => saveEdit(s.id)} className="text-blue-600 text-xs font-medium">
+                        Save
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={s.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{s.name}</td>
+                  <td className="px-4 py-2">{s.code || '—'}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-2">
+                      <div className="flex gap-3 justify-end">
+                        <button onClick={() => startEdit(s)} className="text-blue-600 text-xs font-medium">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(s)} className="text-red-600 text-xs font-medium">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              )
+            )}
           </tbody>
         </table>
         </div>

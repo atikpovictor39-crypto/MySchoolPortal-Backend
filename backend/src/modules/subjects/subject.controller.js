@@ -27,3 +27,9 @@ exports.update = asyncHandler(async (req, res) => {
   if (!subject) return fail(res, 'Subject not found', 404);
   return ok(res, subject);
 });
+
+exports.remove = asyncHandler(async (req, res) => {
+  const deleted = await subjectService.deleteSubject(req.schoolId, req.params.id);
+  if (!deleted) return fail(res, 'Subject not found', 404);
+  return ok(res, null);
+});

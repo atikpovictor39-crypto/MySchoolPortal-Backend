@@ -41,3 +41,9 @@ exports.update = asyncHandler(async (req, res) => {
   if (!year) return fail(res, 'Academic year not found', 404);
   return ok(res, year);
 });
+
+exports.remove = asyncHandler(async (req, res) => {
+  const deleted = await academicYearService.deleteAcademicYear(req.schoolId, req.params.id);
+  if (!deleted) return fail(res, 'Academic year not found', 404);
+  return ok(res, null);
+});

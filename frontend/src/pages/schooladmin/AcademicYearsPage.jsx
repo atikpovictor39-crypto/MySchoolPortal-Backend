@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { listAcademicYears, createAcademicYear } from '../../features/academicYears/api';
+import { useUndoToast } from '../../context/UndoToastContext';
+import { listAcademicYears, createAcademicYear, updateAcademicYear, deleteAcademicYear } from '../../features/academicYears/api';
 
 const emptyForm = { name: '', startDate: '', endDate: '', isCurrent: false };
 
@@ -14,6 +15,7 @@ function formatYearRange(value) {
 
 export default function AcademicYearsPage() {
   const { user } = useAuth();
+  const { deleteWithUndo } = useUndoToast();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
   const [years, setYears] = useState([]);
@@ -21,6 +23,8 @@ export default function AcademicYearsPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   async function refresh() {
     setIsLoading(true);
@@ -50,6 +54,44 @@ export default function AcademicYearsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function startEdit(y) {
+    setEditingId(y.id);
+    setEditForm({
+      name: y.name,
+      startDate: y.start_date?.slice(0, 10) || '',
+      endDate: y.end_date?.slice(0, 10) || '',
+      isCurrent: y.is_current,
+    });
+  }
+
+  async function saveEdit(id) {
+    setError('');
+    try {
+      await updateAcademicYear(id, editForm);
+      setEditingId(null);
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update academic year');
+    }
+  }
+
+  function handleDelete(y) {
+    setError('');
+    setYears((prev) => prev.filter((row) => row.id !== y.id));
+    deleteWithUndo({
+      message: `"${y.name}" deleted.`,
+      onUndo: () => setYears((prev) => [...prev, y].sort((a, b) => b.start_date.localeCompare(a.start_date))),
+      onCommit: async () => {
+        try {
+          await deleteAcademicYear(y.id);
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to delete academic year');
+          setYears((prev) => [...prev, y].sort((a, b) => b.start_date.localeCompare(a.start_date)));
+        }
+      },
+    });
   }
 
   return (
@@ -129,17 +171,76 @@ export default function AcademicYearsPage() {
               <th className="px-4 py-2">Start</th>
               <th className="px-4 py-2">End</th>
               <th className="px-4 py-2">Current</th>
+              {isAdmin && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
-            {years.map((y) => (
-              <tr key={y.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{y.name}</td>
-                <td className="px-4 py-2">{y.start_date?.slice(0, 10)}</td>
-                <td className="px-4 py-2">{y.end_date?.slice(0, 10)}</td>
-                <td className="px-4 py-2">{y.is_current ? 'Yes' : ''}</td>
-              </tr>
-            ))}
+            {years.map((y) =>
+              editingId === y.id ? (
+                <tr key={y.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">
+                    <input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: formatYearRange(e.target.value) })}
+                      inputMode="numeric"
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm w-28"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="date"
+                      value={editForm.startDate}
+                      onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="date"
+                      value={editForm.endDate}
+                      onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isCurrent}
+                      onChange={(e) => setEditForm({ ...editForm, isCurrent: e.target.checked })}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => saveEdit(y.id)} className="text-blue-600 text-xs font-medium">
+                        Save
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={y.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2">{y.name}</td>
+                  <td className="px-4 py-2">{y.start_date?.slice(0, 10)}</td>
+                  <td className="px-4 py-2">{y.end_date?.slice(0, 10)}</td>
+                  <td className="px-4 py-2">{y.is_current ? 'Yes' : ''}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-2">
+                      <div className="flex gap-3 justify-end">
+                        <button onClick={() => startEdit(y)} className="text-blue-600 text-xs font-medium">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(y)} className="text-red-600 text-xs font-medium">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              )
+            )}
           </tbody>
         </table>
         </div>

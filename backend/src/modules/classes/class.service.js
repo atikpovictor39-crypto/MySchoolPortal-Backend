@@ -99,4 +99,25 @@ async function updateClass(schoolId, id, { academicYearId, name, section, classT
   return getClassById(schoolId, id);
 }
 
-module.exports = { listClasses, getClassById, createClass, updateClass };
+// students.class_id is ON DELETE RESTRICT at the DB level, so an unchecked
+// delete here would just surface as a raw constraint-violation 500 — this
+// pre-check turns it into the same friendly 400 pattern used elsewhere.
+async function deleteClass(schoolId, id) {
+  const existing = await getClassById(schoolId, id);
+  if (!existing) return null;
+
+  const [rows] = await db.query('SELECT COUNT(*) AS count FROM students WHERE class_id = ? AND school_id = ?', [
+    id,
+    schoolId,
+  ]);
+  if (Number(rows[0].count) > 0) {
+    const err = new Error('This class still has students enrolled — move or remove them first');
+    err.status = 400;
+    throw err;
+  }
+
+  await db.query('DELETE FROM classes WHERE id = ? AND school_id = ?', [id, schoolId]);
+  return true;
+}
+
+module.exports = { listClasses, getClassById, createClass, updateClass, deleteClass };

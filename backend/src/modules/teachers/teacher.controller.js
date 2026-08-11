@@ -32,6 +32,31 @@ exports.create = asyncHandler(async (req, res) => {
   return ok(res, teacher, 201);
 });
 
+exports.update = asyncHandler(async (req, res) => {
+  const { name, email, employeeNo } = req.body;
+  const teacher = await teacherService.updateTeacher(req.schoolId, req.params.id, {
+    name,
+    email: email ? email.toLowerCase().trim() : undefined,
+    employeeNo,
+  });
+  if (!teacher) return fail(res, 'Teacher not found', 404);
+
+  await auditService.record({
+    schoolId: req.schoolId,
+    userId: req.user.id,
+    action: 'teacher.updated',
+    description: `Updated teacher ${teacher.name}`,
+  });
+
+  return ok(res, teacher);
+});
+
+exports.remove = asyncHandler(async (req, res) => {
+  const deleted = await teacherService.deleteTeacher(req.schoolId, req.params.id);
+  if (!deleted) return fail(res, 'Teacher not found', 404);
+  return ok(res, null);
+});
+
 // Lets a Teacher resolve their own teachers.id client-side — needed to
 // figure out "am I the class teacher for this student" without exposing
 // every teacher's user_id (listTeachers deliberately doesn't return that).

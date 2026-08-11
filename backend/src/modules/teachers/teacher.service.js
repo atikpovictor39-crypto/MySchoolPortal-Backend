@@ -53,6 +53,71 @@ async function createTeacher(schoolId, { name, email, password, employeeNo }) {
   }
 }
 
+async function getTeacherById(schoolId, id) {
+  const [rows] = await db.query(
+    `SELECT t.id, t.user_id, t.employee_no, t.hire_date, u.name, u.email
+     FROM teachers t JOIN users u ON u.id = t.user_id
+     WHERE t.id = ? AND t.school_id = ? LIMIT 1`,
+    [id, schoolId]
+  );
+  return rows[0] || null;
+}
+
+// name/email live on the linked users row, employee_no on teachers itself
+// — updated together so the caller doesn't need to know that split.
+async function updateTeacher(schoolId, id, { name, email, employeeNo }) {
+  const existing = await getTeacherById(schoolId, id);
+  if (!existing) return null;
+
+  if (email && email !== existing.email) {
+    const [dupe] = await db.query('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1', [
+      email,
+      existing.user_id,
+    ]);
+    if (dupe.length > 0) {
+      const err = new Error('Email is already registered');
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  const userFields = [];
+  const userParams = [];
+  const setUserField = (column, value) => {
+    if (value !== undefined) {
+      userFields.push(`${column} = ?`);
+      userParams.push(value);
+    }
+  };
+  setUserField('name', name);
+  setUserField('email', email);
+  if (userFields.length > 0) {
+    userParams.push(existing.user_id);
+    await db.query(`UPDATE users SET ${userFields.join(', ')} WHERE id = ?`, userParams);
+  }
+
+  if (employeeNo !== undefined) {
+    await db.query('UPDATE teachers SET employee_no = ? WHERE id = ?', [employeeNo || null, id]);
+  }
+
+  return getTeacherById(schoolId, id);
+}
+
+// teachers.user_id -> users.id is ON DELETE CASCADE, so deleting the users
+// row is what actually removes the teacher — class-teacher/timetable/
+// class_subjects assignments unset themselves (ON DELETE SET NULL) and
+// clock-in/leave-request history cascades away with them, per schema.
+async function deleteTeacher(schoolId, id) {
+  const existing = await getTeacherById(schoolId, id);
+  if (!existing) return null;
+
+  await db.query("DELETE FROM users WHERE id = ? AND school_id = ? AND role = 'TEACHER'", [
+    existing.user_id,
+    schoolId,
+  ]);
+  return true;
+}
+
 async function getTeacherIdForUser(schoolId, userId) {
   const [rows] = await db.query('SELECT id FROM teachers WHERE user_id = ? AND school_id = ? LIMIT 1', [
     userId,
@@ -234,6 +299,9 @@ async function reviewLeaveRequest(schoolId, id, reviewerUserId, decision) {
 module.exports = {
   listTeachers,
   createTeacher,
+  getTeacherById,
+  updateTeacher,
+  deleteTeacher,
   getTeacherIdForUser,
   clockIn,
   clockOut,

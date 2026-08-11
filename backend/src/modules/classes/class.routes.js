@@ -15,5 +15,6 @@ router.get('/', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.list);
 router.get('/:id', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getById);
 router.post('/', requireRole('SCHOOL_ADMIN'), controller.create);
 router.put('/:id', requireRole('SCHOOL_ADMIN'), controller.update);
+router.delete('/:id', requireRole('SCHOOL_ADMIN'), controller.remove);
 
 module.exports = router;
