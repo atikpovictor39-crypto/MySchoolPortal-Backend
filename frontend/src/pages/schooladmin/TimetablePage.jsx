@@ -55,6 +55,33 @@ export default function TimetablePage() {
   const subjectNameById = Object.fromEntries(subjects.map((s) => [s.id, s.name]));
   const teacherNameById = Object.fromEntries(teachers.map((t) => [t.id, t.name]));
 
+  // Column headers: every distinct period (start–end time) that appears
+  // anywhere in the week, sorted chronologically — not just one day's
+  // periods, since a period that only meets on Wednesday still needs its
+  // own column so Wednesday has somewhere to show it.
+  const periodKey = (start, end) => `${start.slice(0, 5)}-${end.slice(0, 5)}`;
+  const periodsByKey = new Map();
+  for (const slot of slots) {
+    const key = periodKey(slot.start_time, slot.end_time);
+    if (!periodsByKey.has(key)) {
+      periodsByKey.set(key, { key, startTime: slot.start_time.slice(0, 5), endTime: slot.end_time.slice(0, 5) });
+    }
+  }
+  const periods = [...periodsByKey.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  // Monday–Friday always shown (the standard school week); Saturday/Sunday
+  // only appear as rows if something is actually scheduled on them.
+  const daysWithSlots = new Set(slots.map((s) => s.day_of_week));
+  const daysToShow = [1, 2, 3, 4, 5, 6, 7].filter((d) => d <= 5 || daysWithSlots.has(d));
+
+  const slotGrid = {}; // slotGrid[day][periodKey] = slot
+  for (const slot of slots) {
+    const day = slot.day_of_week;
+    const key = periodKey(slot.start_time, slot.end_time);
+    slotGrid[day] = slotGrid[day] || {};
+    slotGrid[day][key] = slot;
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     setError('');
@@ -113,6 +140,13 @@ export default function TimetablePage() {
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete period');
     }
+  }
+
+  // Clicking an empty grid cell pre-fills the Add period form with that
+  // day + time instead of making the admin retype them.
+  function prefillEmptyCell(day, period) {
+    setEditingId(null);
+    setForm({ dayOfWeek: String(day), startTime: period.startTime, endTime: period.endTime, subjectId: '', teacherId: '' });
   }
 
   return (
@@ -232,113 +266,122 @@ export default function TimetablePage() {
         <p className="text-sm text-slate-500">No periods scheduled yet.</p>
       ) : (
         <div className="overflow-x-auto">
-        <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <thead className="bg-slate-50 text-left text-slate-600">
-            <tr>
-              <th className="px-4 py-2">Day</th>
-              <th className="px-4 py-2">Time</th>
-              <th className="px-4 py-2">Subject</th>
-              <th className="px-4 py-2">Teacher</th>
-              {isAdmin && <th className="px-4 py-2" />}
-            </tr>
-          </thead>
-          <tbody>
-            {slots.map((slot) =>
-              editingId === slot.id ? (
-                <tr key={slot.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">
-                    <select
-                      value={editForm.dayOfWeek}
-                      onChange={(e) => setEditForm({ ...editForm, dayOfWeek: e.target.value })}
-                      className="rounded border border-slate-300 px-2 py-1 text-sm"
-                    >
-                      {DAY_NAMES.slice(1).map((name, i) => (
-                        <option key={name} value={i + 1}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
+          <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm border-separate border-spacing-0">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-3 py-2 text-left sticky left-0 bg-slate-50 border-b border-r border-slate-200">Day</th>
+                {periods.map((p) => (
+                  <th key={p.key} className="px-3 py-2 text-left whitespace-nowrap border-b border-slate-200">
+                    {p.startTime} – {p.endTime}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {daysToShow.map((day) => (
+                <tr key={day} className="border-t border-slate-100">
+                  <td className="px-3 py-2 font-medium text-slate-700 whitespace-nowrap sticky left-0 bg-white border-r border-slate-200">
+                    {DAY_NAMES[day]}
                   </td>
-                  <td className="px-4 py-2">
-                    <div className="flex gap-1 items-center">
-                      <input
-                        type="time"
-                        value={editForm.startTime}
-                        onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                        className="rounded border border-slate-300 px-2 py-1 text-sm"
-                      />
-                      <span>–</span>
-                      <input
-                        type="time"
-                        value={editForm.endTime}
-                        onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                        className="rounded border border-slate-300 px-2 py-1 text-sm"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={editForm.subjectId}
-                      onChange={(e) => setEditForm({ ...editForm, subjectId: e.target.value })}
-                      className="rounded border border-slate-300 px-2 py-1 text-sm"
-                    >
-                      {subjects.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={editForm.teacherId}
-                      onChange={(e) => setEditForm({ ...editForm, teacherId: e.target.value })}
-                      className="rounded border border-slate-300 px-2 py-1 text-sm"
-                    >
-                      <option value="">—</option>
-                      {teachers.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex gap-2">
-                      <button onClick={() => saveEdit(slot.id)} className="text-blue-600 text-xs font-medium">
-                        Save
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
-                        Cancel
-                      </button>
-                    </div>
-                  </td>
+                  {periods.map((p) => {
+                    const slot = slotGrid[day]?.[p.key];
+
+                    if (slot && editingId === slot.id) {
+                      return (
+                        <td key={p.key} className="px-2 py-2 align-top min-w-[160px]">
+                          <div className="flex flex-col gap-1">
+                            <select
+                              value={editForm.dayOfWeek}
+                              onChange={(e) => setEditForm({ ...editForm, dayOfWeek: e.target.value })}
+                              className="rounded border border-slate-300 px-1.5 py-1 text-xs"
+                            >
+                              {DAY_NAMES.slice(1).map((name, i) => (
+                                <option key={name} value={i + 1}>
+                                  {name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex gap-1 items-center">
+                              <input
+                                type="time"
+                                value={editForm.startTime}
+                                onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                                className="rounded border border-slate-300 px-1 py-1 text-xs w-full"
+                              />
+                              <input
+                                type="time"
+                                value={editForm.endTime}
+                                onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                                className="rounded border border-slate-300 px-1 py-1 text-xs w-full"
+                              />
+                            </div>
+                            <select
+                              value={editForm.subjectId}
+                              onChange={(e) => setEditForm({ ...editForm, subjectId: e.target.value })}
+                              className="rounded border border-slate-300 px-1.5 py-1 text-xs"
+                            >
+                              {subjects.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={editForm.teacherId}
+                              onChange={(e) => setEditForm({ ...editForm, teacherId: e.target.value })}
+                              className="rounded border border-slate-300 px-1.5 py-1 text-xs"
+                            >
+                              <option value="">No teacher</option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex gap-2">
+                              <button onClick={() => saveEdit(slot.id)} className="text-blue-600 text-xs font-medium">
+                                Save
+                              </button>
+                              <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    if (!slot) {
+                      return (
+                        <td
+                          key={p.key}
+                          onClick={isAdmin ? () => prefillEmptyCell(day, p) : undefined}
+                          className={`px-3 py-2 min-w-[140px] ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                        />
+                      );
+                    }
+
+                    return (
+                      <td key={p.key} className="px-3 py-2 align-top min-w-[140px] group">
+                        <p className="font-medium text-slate-900">{subjectNameById[slot.subject_id] || slot.subject_name}</p>
+                        <p className="text-xs text-slate-500">{slot.teacher_name || teacherNameById[slot.teacher_id] || '—'}</p>
+                        {isAdmin && (
+                          <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => startEdit(slot)} className="text-blue-600 text-xs font-medium">
+                              Edit
+                            </button>
+                            <button onClick={() => handleDelete(slot.id)} className="text-red-600 text-xs font-medium">
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
-              ) : (
-                <tr key={slot.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">{DAY_NAMES[slot.day_of_week]}</td>
-                  <td className="px-4 py-2">
-                    {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
-                  </td>
-                  <td className="px-4 py-2">{subjectNameById[slot.subject_id] || slot.subject_name}</td>
-                  <td className="px-4 py-2">{slot.teacher_name || teacherNameById[slot.teacher_id] || '—'}</td>
-                  {isAdmin && (
-                    <td className="px-4 py-2">
-                      <div className="flex gap-3">
-                        <button onClick={() => startEdit(slot)} className="text-blue-600 text-xs font-medium">
-                          Edit
-                        </button>
-                        <button onClick={() => handleDelete(slot.id)} className="text-red-600 text-xs font-medium">
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              )
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
