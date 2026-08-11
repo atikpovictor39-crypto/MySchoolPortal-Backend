@@ -4,6 +4,14 @@ import { listAcademicYears, createAcademicYear } from '../../features/academicYe
 
 const emptyForm = { name: '', startDate: '', endDate: '', isCurrent: false };
 
+// Formats digits-only input as "YYYY/YYYY" while typing — strips anything
+// that isn't a digit and re-derives the slash position every keystroke, so
+// backspace/paste/autofill all just work without extra handling.
+function formatYearRange(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  return digits.length <= 4 ? digits : `${digits.slice(0, 4)}/${digits.slice(4)}`;
+}
+
 export default function AcademicYearsPage() {
   const { user } = useAuth();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
@@ -58,8 +66,9 @@ export default function AcademicYearsPage() {
             <input
               required
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => setForm({ ...form, name: formatYearRange(e.target.value) })}
               placeholder="2026/2027"
+              inputMode="numeric"
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-32"
             />
           </div>
