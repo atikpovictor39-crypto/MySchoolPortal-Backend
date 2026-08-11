@@ -4,8 +4,8 @@ const studentService = require('./student.service');
 const auditService = require('../audit/audit.service');
 
 exports.list = asyncHandler(async (req, res) => {
-  const { classId, page, pageSize } = req.query;
-  const result = await studentService.listStudents(req.schoolId, { classId, page, pageSize });
+  const { classId, search, page, pageSize } = req.query;
+  const result = await studentService.listStudents(req.schoolId, { classId, search, page, pageSize });
   return ok(res, result);
 });
 

@@ -26,7 +26,7 @@ async function admissionNoTaken(schoolId, admissionNo, excludeStudentId = null) 
   return rows.length > 0;
 }
 
-async function listStudents(schoolId, { classId, page = 1, pageSize = 20 } = {}) {
+async function listStudents(schoolId, { classId, search, page = 1, pageSize = 20 } = {}) {
   const limit = Math.min(Number(pageSize) || 20, 100);
   const offset = (Math.max(Number(page) || 1, 1) - 1) * limit;
 
@@ -35,6 +35,11 @@ async function listStudents(schoolId, { classId, page = 1, pageSize = 20 } = {})
   if (classId) {
     conditions.push('class_id = ?');
     params.push(classId);
+  }
+  if (search) {
+    conditions.push('(first_name ILIKE ? OR last_name ILIKE ? OR admission_no ILIKE ?)');
+    const like = `%${search.trim()}%`;
+    params.push(like, like, like);
   }
   const where = conditions.join(' AND ');
 

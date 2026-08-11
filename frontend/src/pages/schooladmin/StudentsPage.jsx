@@ -27,11 +27,19 @@ export default function StudentsPage() {
   const [guardians, setGuardians] = useState([]);
   const [guardianForm, setGuardianForm] = useState(emptyGuardianForm);
   const [isAddingGuardian, setIsAddingGuardian] = useState(false);
+  const [classFilter, setClassFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   async function refresh() {
     setIsLoading(true);
     try {
-      const [studentResult, classList] = await Promise.all([listStudents(), listClasses()]);
+      // pageSize well above any realistic single-school roster so nothing
+      // is silently hidden behind pagination the UI doesn't expose yet.
+      const [studentResult, classList] = await Promise.all([
+        listStudents({ classId: classFilter || undefined, search: search || undefined, pageSize: 100 }),
+        listClasses(),
+      ]);
       setStudents(studentResult.items);
       setClasses(classList);
       if (isTeacher) {
@@ -47,7 +55,13 @@ export default function StudentsPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [classFilter, search]);
+
+  // Debounced so typing a name doesn't fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // A Teacher can manage guardians only for students in a class they're the
   // assigned class teacher of — mirrors the ownership check the backend
@@ -206,6 +220,45 @@ export default function StudentsPage() {
         <p className="text-sm text-amber-600 mb-4">Create a class first before adding students.</p>
       )}
 
+      <div className="mb-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Class</label>
+          <select
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            <option value="">All classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.section ? ` ${c.section}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Search by name or admission no.</label>
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="e.g. Kwame"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-56"
+          />
+        </div>
+        {(classFilter || search) && (
+          <button
+            onClick={() => {
+              setClassFilter('');
+              setSearchInput('');
+            }}
+            className="text-xs text-slate-500 hover:text-slate-700 pb-1.5"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       {error && (
         <p role="alert" className="text-sm text-red-600 mb-4">
           {error}
@@ -215,7 +268,9 @@ export default function StudentsPage() {
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : students.length === 0 ? (
-        <p className="text-sm text-slate-500">No students yet.</p>
+        <p className="text-sm text-slate-500">
+          {classFilter || search ? 'No students match.' : 'No students yet.'}
+        </p>
       ) : (
         <div className="overflow-x-auto">
         <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
