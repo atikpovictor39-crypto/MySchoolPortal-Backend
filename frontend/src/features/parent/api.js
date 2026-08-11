@@ -30,6 +30,15 @@ export async function listAnnouncements() {
   return data.data;
 }
 
+export async function getUnreadAnnouncementsCount() {
+  const { data } = await axiosClient.get('/parent/announcements/unread-count');
+  return data.data.count;
+}
+
+export async function markAnnouncementsSeen() {
+  await axiosClient.post('/parent/announcements/seen');
+}
+
 export async function getChildHomework(studentId) {
   const { data } = await axiosClient.get(`/parent/children/${studentId}/homework`);
   return data.data;

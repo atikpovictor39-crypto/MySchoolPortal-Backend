@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../features/announcements/api';
+import {
+  listAnnouncements,
+  createAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement,
+  markAnnouncementsSeen,
+} from '../../features/announcements/api';
 import { listClasses } from '../../features/classes/api';
 
 const TARGET_ROLES = ['all', 'teachers', 'parents', 'students'];
@@ -34,6 +40,9 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     refresh();
+    // Clears the unread badge next to this nav link (AppShell refetches the
+    // count on every route change, after this has already run).
+    markAnnouncementsSeen().catch(() => {});
   }, []);
 
   const classNameById = Object.fromEntries(classes.map((c) => [c.id, `${c.name}${c.section ? ` ${c.section}` : ''}`]));

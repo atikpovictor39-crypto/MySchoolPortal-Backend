@@ -19,6 +19,18 @@ exports.listAnnouncements = asyncHandler(async (req, res) => {
   return ok(res, announcements);
 });
 
+// Powers the badge next to the Announcements nav link.
+exports.unreadAnnouncementsCount = asyncHandler(async (req, res) => {
+  const count = await announcementService.countUnreadForParent(req.schoolId, req.user.id);
+  return ok(res, { count });
+});
+
+// Called when the Announcements page mounts — clears the badge.
+exports.markAnnouncementsSeen = asyncHandler(async (req, res) => {
+  await announcementService.markAnnouncementsSeen(req.user.id);
+  return ok(res, null);
+});
+
 // School-level info, not tied to any specific child — no ownership check needed.
 exports.getPaymentDetails = asyncHandler(async (req, res) => {
   const details = await schoolService.getPaymentDetails(req.schoolId);

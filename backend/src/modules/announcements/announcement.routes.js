@@ -12,6 +12,8 @@ router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenan
 
 // Staff-only — Parents get their own filtered view via /api/v1/parent/announcements.
 router.get('/', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.list);
+router.get('/unread-count', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.unreadCount);
+router.post('/seen', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.markSeen);
 router.get('/:id', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getById);
 router.post('/', requireRole('SCHOOL_ADMIN'), controller.create);
 router.put('/:id', requireRole('SCHOOL_ADMIN'), controller.update);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listAnnouncements } from '../../features/parent/api';
+import { listAnnouncements, markAnnouncementsSeen } from '../../features/parent/api';
 
 export default function ParentAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([]);
@@ -11,6 +11,9 @@ export default function ParentAnnouncementsPage() {
       .then(setAnnouncements)
       .catch((err) => setError(err.response?.data?.message || 'Failed to load announcements'))
       .finally(() => setIsLoading(false));
+    // Clears the unread badge next to this nav link (AppShell refetches the
+    // count on every route change, after this has already run).
+    markAnnouncementsSeen().catch(() => {});
   }, []);
 
   return (

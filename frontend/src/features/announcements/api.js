@@ -18,3 +18,12 @@ export async function updateAnnouncement(id, payload) {
 export async function deleteAnnouncement(id) {
   await axiosClient.delete(`/announcements/${id}`);
 }
+
+export async function getUnreadAnnouncementsCount() {
+  const { data } = await axiosClient.get('/announcements/unread-count');
+  return data.data.count;
+}
+
+export async function markAnnouncementsSeen() {
+  await axiosClient.post('/announcements/seen');
+}

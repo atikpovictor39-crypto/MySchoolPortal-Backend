@@ -133,6 +133,7 @@ CREATE TABLE users (
   email_verified_at TIMESTAMP NULL, -- NULL = not yet verified; set by POST /auth/verify-email
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE for accounts an admin set a temp password for (teachers, guardians) until they change it
   superadmin_scope VARCHAR(20) NULL CHECK (superadmin_scope IN ('full','support','billing','developer')), -- only meaningful when role='SUPERADMIN'; NULL/'full' = unrestricted
+  last_seen_announcements_at TIMESTAMP NULL, -- powers the unread-count badge on the Announcements nav link; NULL = never visited, so every visible announcement counts as unread
   last_login_at TIMESTAMP,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP

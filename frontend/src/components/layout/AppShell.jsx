@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ParentProvider } from '../../context/ParentContext';
 import PushNotificationButton from '../common/PushNotificationButton';
 import { MenuIcon, CloseIcon } from '../common/icons';
 import ForcedPasswordChangePage from '../../features/auth/ForcedPasswordChangePage';
+import { getUnreadAnnouncementsCount as getUnreadStaff } from '../../features/announcements/api';
+import { getUnreadAnnouncementsCount as getUnreadParent } from '../../features/parent/api';
 
 const STAFF_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -69,10 +71,35 @@ function initials(name) {
     .toUpperCase();
 }
 
+// Only staff and parents have a personal "unread" concept for announcements
+// — SuperAdmin authors the platform broadcasts rather than reading them.
+function announcementsPathFor(role) {
+  if (role === 'PARENT') return '/parent-announcements';
+  if (role === 'SCHOOL_ADMIN' || role === 'TEACHER') return '/announcements';
+  return null;
+}
+
 export default function AppShell() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
+
+  const announcementsPath = announcementsPathFor(user.role);
+
+  // Refetches on every route change (not just mount) so the badge clears
+  // shortly after visiting the Announcements page and navigating elsewhere
+  // — that page calls markAnnouncementsSeen() on its own mount, which runs
+  // before this effect fires for the same commit (child effects before
+  // parent effects), so the count it fetches here is already up to date.
+  useEffect(() => {
+    if (!announcementsPath) return;
+    const getUnreadCount = user.role === 'PARENT' ? getUnreadParent : getUnreadStaff;
+    getUnreadCount()
+      .then(setUnreadAnnouncements)
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcementsPath, location.pathname]);
 
   // Accounts an admin set a temp password for (teachers, guardians) are
   // blocked from every tenant route server-side until they change it — see
@@ -157,12 +184,17 @@ export default function AppShell() {
               to={link.to}
               onClick={() => setIsMenuOpen(false)}
               className={({ isActive }) =>
-                `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                `flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   isActive ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
                 }`
               }
             >
-              {link.label}
+              <span>{link.label}</span>
+              {link.to === announcementsPath && unreadAnnouncements > 0 && (
+                <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+                  {unreadAnnouncements > 9 ? '9+' : unreadAnnouncements}
+                </span>
+              )}
             </NavLink>
           ))}
 

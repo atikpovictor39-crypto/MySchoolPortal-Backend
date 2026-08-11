@@ -20,6 +20,8 @@ router.get('/children/:studentId/homework', controller.getChildHomework);
 router.get('/children/:studentId/timetable', controller.getChildTimetable);
 router.get('/children/:studentId/overview', controller.getChildOverview);
 router.get('/announcements', controller.listAnnouncements);
+router.get('/announcements/unread-count', controller.unreadAnnouncementsCount);
+router.post('/announcements/seen', controller.markAnnouncementsSeen);
 router.get('/payment-details', controller.getPaymentDetails);
 
 module.exports = router;

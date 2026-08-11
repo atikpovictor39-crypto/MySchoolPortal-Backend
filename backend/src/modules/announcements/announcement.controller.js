@@ -67,6 +67,18 @@ exports.remove = asyncHandler(async (req, res) => {
   return ok(res, null);
 });
 
+// Powers the badge next to the Announcements nav link.
+exports.unreadCount = asyncHandler(async (req, res) => {
+  const count = await announcementService.countUnreadForStaff(req.schoolId, req.user.id);
+  return ok(res, { count });
+});
+
+// Called when the Announcements page mounts — clears the badge.
+exports.markSeen = asyncHandler(async (req, res) => {
+  await announcementService.markAnnouncementsSeen(req.user.id);
+  return ok(res, null);
+});
+
 // ---- SuperAdmin platform-wide broadcasts ----
 
 exports.listPlatform = asyncHandler(async (req, res) => {

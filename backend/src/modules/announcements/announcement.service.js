@@ -153,6 +153,59 @@ async function deletePlatformAnnouncement(id) {
   return result.affectedRows > 0;
 }
 
+// Epoch, not NULL — a user who's never visited the Announcements page yet
+// should have every visible announcement count as unread, and comparing
+// against a fixed old date is simpler than pushing a NULL-handling
+// COALESCE into every caller.
+const NEVER_SEEN = new Date(0);
+
+async function getLastSeenAnnouncementsAt(userId) {
+  const [rows] = await db.query('SELECT last_seen_announcements_at FROM users WHERE id = ? LIMIT 1', [userId]);
+  return rows[0]?.last_seen_announcements_at || NEVER_SEEN;
+}
+
+// Marking "seen" is a per-user, cross-role concept (the same users row for
+// staff and parents alike), so one function covers both call sites below.
+async function markAnnouncementsSeen(userId) {
+  await db.query('UPDATE users SET last_seen_announcements_at = NOW() WHERE id = ?', [userId]);
+}
+
+// Mirrors listAnnouncements' visibility rules exactly (own school +
+// platform-wide, no target_role/class filtering — staff sees everything),
+// just counting instead of returning rows.
+async function countUnreadForStaff(schoolId, userId) {
+  const since = await getLastSeenAnnouncementsAt(userId);
+  const [rows] = await db.query(
+    `SELECT COUNT(*) AS count FROM announcements a
+     WHERE (a.school_id = ? OR a.school_id IS NULL) AND a.published_at > ?`,
+    [schoolId, since]
+  );
+  return Number(rows[0].count);
+}
+
+// Mirrors listForParent's visibility rules exactly (own school +
+// platform-wide, target_role in ('all','parents'), class-scoped to this
+// parent's own linked children).
+async function countUnreadForParent(schoolId, parentUserId) {
+  const since = await getLastSeenAnnouncementsAt(parentUserId);
+  const [rows] = await db.query(
+    `SELECT COUNT(*) AS count FROM announcements a
+     WHERE (a.school_id = ? OR a.school_id IS NULL)
+       AND a.target_role IN ('all', 'parents')
+       AND (
+         a.class_id IS NULL
+         OR a.class_id IN (
+           SELECT s.class_id FROM student_guardians sg
+           JOIN students s ON s.id = sg.student_id
+           WHERE sg.school_id = ? AND sg.parent_user_id = ?
+         )
+       )
+       AND a.published_at > ?`,
+    [schoolId, schoolId, parentUserId, since]
+  );
+  return Number(rows[0].count);
+}
+
 module.exports = {
   TARGET_ROLES,
   listAnnouncements,
@@ -164,4 +217,7 @@ module.exports = {
   listPlatformAnnouncements,
   createPlatformAnnouncement,
   deletePlatformAnnouncement,
+  markAnnouncementsSeen,
+  countUnreadForStaff,
+  countUnreadForParent,
 };
