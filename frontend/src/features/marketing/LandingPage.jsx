@@ -98,6 +98,10 @@ export default function LandingPage() {
           or{' '}
           <Link to="/login?demo=parent" className="text-blue-600 font-medium hover:underline">
             as a parent
+          </Link>{' '}
+          or{' '}
+          <Link to="/login?demo=teacher" className="text-blue-600 font-medium hover:underline">
+            as a teacher
           </Link>
         </p>
 

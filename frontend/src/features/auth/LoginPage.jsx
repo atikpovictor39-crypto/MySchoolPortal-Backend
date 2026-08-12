@@ -39,6 +39,7 @@ function isSafeRedirect(path, role) {
 const DEMO_CREDENTIALS = {
   admin: { email: 'demo.admin@myschoolportalgh.com', password: 'Demo1234!' },
   parent: { email: 'demo.parent@myschoolportalgh.com', password: 'Demo1234!' },
+  teacher: { email: 'demo.teacher1@myschoolportalgh.com', password: 'Demo1234!' },
 };
 
 export default function LoginPage() {
