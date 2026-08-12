@@ -219,13 +219,13 @@ export default function AnnouncementsPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold text-slate-900">{a.title}</h3>
-                    {!a.school_id && (
+                    {a.created_by_role === 'SUPERADMIN' && (
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                         MySchoolPortal
                       </span>
                     )}
                   </div>
-                  {isAdmin && a.school_id && (
+                  {isAdmin && a.created_by_role !== 'SUPERADMIN' && (
                     <div className="flex gap-3 shrink-0">
                       <button onClick={() => startEdit(a)} className="text-blue-600 text-xs font-medium">
                         Edit

@@ -31,14 +31,23 @@ describe('SuperAdmin sub-admin scopes', () => {
     expect(res.status).toBe(400);
   });
 
-  it('a support-scoped sub-admin can reach ticket endpoints but not schools or backup', async () => {
+  it('a support-scoped sub-admin can reach ticket endpoints and list schools, but not backup', async () => {
     const support = await createSuperAdmin({ scope: 'support' });
 
     const ticketsRes = await request(app).get('/api/v1/platform/tickets').set('Authorization', auth(support.accessToken));
     expect(ticketsRes.status).toBe(200);
 
+    // Listing (read-only) is allowed — support needs it to pick a school
+    // when targeting a platform announcement — but creating/suspending a
+    // school stays developer/billing-only.
     const schoolsRes = await request(app).get('/api/v1/schools').set('Authorization', auth(support.accessToken));
-    expect(schoolsRes.status).toBe(403);
+    expect(schoolsRes.status).toBe(200);
+
+    const createSchoolRes = await request(app)
+      .post('/api/v1/schools')
+      .set('Authorization', auth(support.accessToken))
+      .send({ schoolName: 'x', adminName: 'x', adminEmail: 'x@example.com', adminPassword: 'password123' });
+    expect(createSchoolRes.status).toBe(403);
 
     const backupRes = await request(app).get('/api/v1/platform/backup').set('Authorization', auth(support.accessToken));
     expect(backupRes.status).toBe(403);

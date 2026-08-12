@@ -87,7 +87,7 @@ exports.listPlatform = asyncHandler(async (req, res) => {
 });
 
 exports.createPlatform = asyncHandler(async (req, res) => {
-  const { title, content, targetRole } = req.body;
+  const { title, content, targetRole, schoolId } = req.body;
   if (!title || !content) {
     return fail(res, 'title and content are required', 400);
   }
@@ -99,6 +99,7 @@ exports.createPlatform = asyncHandler(async (req, res) => {
     title,
     content,
     targetRole,
+    schoolId,
   });
   return ok(res, announcement, 201);
 });

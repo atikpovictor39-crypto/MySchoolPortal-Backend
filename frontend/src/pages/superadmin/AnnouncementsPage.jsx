@@ -4,12 +4,14 @@ import {
   createPlatformAnnouncement,
   deletePlatformAnnouncement,
 } from '../../features/platform/api';
+import { listSchools } from '../../features/schools/api';
 
 const TARGET_ROLES = ['all', 'teachers', 'parents', 'students'];
-const emptyForm = { title: '', content: '', targetRole: 'all' };
+const emptyForm = { title: '', content: '', targetRole: 'all', schoolId: '' };
 
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([]);
+  const [schools, setSchools] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
@@ -28,15 +30,23 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     refresh();
+    listSchools()
+      .then(setSchools)
+      .catch(() => {});
   }, []);
+
+  const targetSchoolName = form.schoolId ? schools.find((s) => String(s.id) === form.schoolId)?.name : null;
 
   async function handleCreate(e) {
     e.preventDefault();
     setError('');
-    if (!window.confirm('This will post to every school on the platform. Continue?')) return;
+    const confirmMessage = form.schoolId
+      ? `This will post only to ${targetSchoolName || 'the selected school'}. Continue?`
+      : 'This will post to every school on the platform. Continue?';
+    if (!window.confirm(confirmMessage)) return;
     setIsSubmitting(true);
     try {
-      await createPlatformAnnouncement(form);
+      await createPlatformAnnouncement({ ...form, schoolId: form.schoolId || undefined });
       setForm(emptyForm);
       await refresh();
     } catch (err) {
@@ -59,7 +69,9 @@ export default function AnnouncementsPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="text-xl font-semibold text-slate-900 mb-1">Announcements</h1>
-      <p className="text-sm text-slate-500 mb-6">Broadcast a message to every school on the platform at once.</p>
+      <p className="text-sm text-slate-500 mb-6">
+        Broadcast a message to every school on the platform, or target just one.
+      </p>
 
       <form onSubmit={handleCreate} className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
         <div>
@@ -96,12 +108,27 @@ export default function AnnouncementsPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">School</label>
+            <select
+              value={form.schoolId}
+              onChange={(e) => setForm({ ...form, schoolId: e.target.value })}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">All schools</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
             disabled={isSubmitting}
             className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Broadcasting…' : 'Broadcast to all schools'}
+            {isSubmitting ? 'Sending…' : form.schoolId ? `Send to ${targetSchoolName || 'school'}` : 'Broadcast to all schools'}
           </button>
         </div>
       </form>
@@ -128,7 +155,8 @@ export default function AnnouncementsPage() {
               </div>
               <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.content}</p>
               <p className="text-xs text-slate-400 mt-2">
-                {a.target_role} · by {a.created_by_name} · {a.published_at.slice(0, 10)}
+                {a.target_school_name || 'All schools'} · {a.target_role} · by {a.created_by_name} ·{' '}
+                {a.published_at.slice(0, 10)}
               </p>
             </div>
           ))}

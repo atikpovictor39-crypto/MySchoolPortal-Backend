@@ -10,9 +10,17 @@ const blockDuringMaintenance = require('../../middleware/maintenanceMode.middlew
 
 // SuperAdmin-only: create a new school + its first SchoolAdmin login (onboarding).
 // Onboarding/suspension is treated as developer-or-billing territory — the
-// support scope doesn't get to create or suspend schools.
+// support scope doesn't get to create or suspend schools. Listing is
+// read-only and support also needs it (e.g. to pick a school when targeting
+// a platform announcement), so it additionally allows 'support'.
 router.post('/', requireAuth, requireRole('SUPERADMIN'), requireScope('developer', 'billing'), controller.createSchool);
-router.get('/', requireAuth, requireRole('SUPERADMIN'), requireScope('developer', 'billing'), controller.listSchools);
+router.get(
+  '/',
+  requireAuth,
+  requireRole('SUPERADMIN'),
+  requireScope('developer', 'billing', 'support'),
+  controller.listSchools
+);
 router.patch(
   '/:id/status',
   requireAuth,

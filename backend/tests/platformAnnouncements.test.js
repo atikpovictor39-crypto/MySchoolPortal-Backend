@@ -94,3 +94,87 @@ describe('Platform-wide announcements (broadcasts)', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('Platform announcements targeted at one school', () => {
+  it('reaches only the targeted school, not others', async () => {
+    const superadmin = await createSuperAdmin();
+    const tenantA = await setupTenant();
+    const tenantB = await setupTenant();
+
+    const createRes = await request(app)
+      .post('/api/v1/platform/announcements')
+      .set('Authorization', auth(superadmin.accessToken))
+      .send({ title: 'About your account', content: 'Just for you.', schoolId: tenantA.user.school_id });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.data.school_id).toBe(tenantA.user.school_id);
+    expect(createRes.body.data.target_school_name).toBeTruthy();
+
+    const resA = await request(app).get('/api/v1/announcements').set('Authorization', auth(tenantA.accessToken));
+    const resB = await request(app).get('/api/v1/announcements').set('Authorization', auth(tenantB.accessToken));
+    expect(resA.body.data.some((a) => a.title === 'About your account')).toBe(true);
+    expect(resB.body.data.some((a) => a.title === 'About your account')).toBe(false);
+  });
+
+  it("still shows up in the SuperAdmin's own list alongside all-school broadcasts", async () => {
+    const superadmin = await createSuperAdmin();
+    const tenant = await setupTenant();
+
+    await request(app)
+      .post('/api/v1/platform/announcements')
+      .set('Authorization', auth(superadmin.accessToken))
+      .send({ title: 'Targeted', content: 'x', schoolId: tenant.user.school_id });
+    await request(app)
+      .post('/api/v1/platform/announcements')
+      .set('Authorization', auth(superadmin.accessToken))
+      .send({ title: 'Broadcast', content: 'x' });
+
+    const list = await request(app)
+      .get('/api/v1/platform/announcements')
+      .set('Authorization', auth(superadmin.accessToken));
+    expect(list.status).toBe(200);
+    const titles = list.body.data.map((a) => a.title);
+    expect(titles).toEqual(expect.arrayContaining(['Targeted', 'Broadcast']));
+    const targeted = list.body.data.find((a) => a.title === 'Targeted');
+    expect(targeted.target_school_name).toBeTruthy();
+    const broadcast = list.body.data.find((a) => a.title === 'Broadcast');
+    expect(broadcast.target_school_name).toBeNull();
+  });
+
+  it('rejects a schoolId that does not exist', async () => {
+    const superadmin = await createSuperAdmin();
+    const res = await request(app)
+      .post('/api/v1/platform/announcements')
+      .set('Authorization', auth(superadmin.accessToken))
+      .send({ title: 'x', content: 'x', schoolId: 999999 });
+    expect(res.status).toBe(400);
+  });
+
+  it('still blocks the targeted school from editing or deleting it', async () => {
+    const superadmin = await createSuperAdmin();
+    const tenant = await setupTenant();
+    const created = await request(app)
+      .post('/api/v1/platform/announcements')
+      .set('Authorization', auth(superadmin.accessToken))
+      .send({ title: 'About your account', content: 'x', schoolId: tenant.user.school_id });
+
+    const updateRes = await request(app)
+      .put(`/api/v1/announcements/${created.body.data.id}`)
+      .set('Authorization', auth(tenant.accessToken))
+      .send({ title: 'Edited by the school' });
+    expect(updateRes.status).toBe(404);
+
+    const deleteRes = await request(app)
+      .delete(`/api/v1/announcements/${created.body.data.id}`)
+      .set('Authorization', auth(tenant.accessToken));
+    expect(deleteRes.status).toBe(404);
+  });
+
+  it('a support-scoped SuperAdmin can list schools to pick a target', async () => {
+    const supportAdmin = await createSuperAdmin({ scope: 'support' });
+    await setupTenant();
+
+    const res = await request(app).get('/api/v1/schools').set('Authorization', auth(supportAdmin.accessToken));
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThan(0);
+  });
+});

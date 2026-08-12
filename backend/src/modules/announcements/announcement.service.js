@@ -10,8 +10,17 @@ async function classBelongsToSchool(schoolId, classId) {
   return rows.length > 0;
 }
 
+async function schoolExists(schoolId) {
+  const [rows] = await db.query('SELECT id FROM schools WHERE id = ? LIMIT 1', [schoolId]);
+  return rows.length > 0;
+}
+
+// created_by_role distinguishes a platform message (posted by a SuperAdmin,
+// possibly targeted at just one school) from a school's own announcement —
+// used to keep a school admin from editing/deleting a message the platform
+// sent them (see updateAnnouncement/deleteAnnouncement below).
 const COLUMNS = `a.id, a.school_id, a.title, a.content, a.target_role, a.class_id, a.created_by, u.name AS created_by_name,
-  a.published_at, a.created_at`;
+  u.role AS created_by_role, a.published_at, a.created_at`;
 
 // Every school's own announcements plus every platform-wide broadcast
 // (school_id IS NULL, posted by a SuperAdmin) — the latter shown to all schools.
@@ -66,7 +75,10 @@ async function createAnnouncement(schoolId, createdBy, { title, content, targetR
 
 async function updateAnnouncement(schoolId, id, { title, content, targetRole, classId }) {
   const existing = await getAnnouncementById(schoolId, id);
-  if (!existing) return null;
+  // A platform message (posted by a SuperAdmin, whether broadcast to every
+  // school or targeted at just this one) shows up in this school's list but
+  // isn't this school's own to edit — treat it the same as "not found".
+  if (!existing || existing.created_by_role === 'SUPERADMIN') return null;
 
   if (classId !== undefined && classId !== null && !(await classBelongsToSchool(schoolId, classId))) {
     const err = new Error('classId does not belong to this school');
@@ -95,7 +107,13 @@ async function updateAnnouncement(schoolId, id, { title, content, targetRole, cl
 }
 
 async function deleteAnnouncement(schoolId, id) {
-  const [result] = await db.query('DELETE FROM announcements WHERE id = ? AND school_id = ?', [id, schoolId]);
+  // Same rule as updateAnnouncement — a school can't delete a message the
+  // platform sent it.
+  const [result] = await db.query(
+    `DELETE FROM announcements WHERE id = ? AND school_id = ?
+     AND created_by NOT IN (SELECT id FROM users WHERE role = 'SUPERADMIN')`,
+    [id, schoolId]
+  );
   return result.affectedRows > 0;
 }
 
@@ -122,34 +140,54 @@ async function listForParent(schoolId, parentUserId) {
   return rows;
 }
 
-// SuperAdmin side — platform-wide broadcasts only (school_id IS NULL),
-// always whole-audience (no per-class targeting; that only makes sense
-// within a single school).
+// SuperAdmin side — every announcement a SuperAdmin has posted, whether
+// broadcast to every school (school_id NULL) or targeted at just one
+// (school_id set) — identified by the poster's role rather than by
+// school_id IS NULL, so a targeted one still shows up here too. No
+// per-class targeting; that only makes sense within a single school.
 async function listPlatformAnnouncements() {
   const [rows] = await db.query(
-    `SELECT ${COLUMNS} FROM announcements a
+    `SELECT ${COLUMNS}, s.name AS target_school_name FROM announcements a
      JOIN users u ON u.id = a.created_by
-     WHERE a.school_id IS NULL
+     LEFT JOIN schools s ON s.id = a.school_id
+     WHERE u.role = 'SUPERADMIN'
      ORDER BY a.published_at DESC`
   );
   return rows;
 }
 
-async function createPlatformAnnouncement(createdBy, { title, content, targetRole }) {
+// schoolId omitted/null broadcasts to every school, same as before; passing
+// one targets just that school (it'll then also appear in that school's own
+// Announcements list via listAnnouncements' `school_id = ? OR school_id IS
+// NULL` clause — no separate delivery path needed).
+async function createPlatformAnnouncement(createdBy, { title, content, targetRole, schoolId }) {
+  if (schoolId && !(await schoolExists(schoolId))) {
+    const err = new Error('schoolId does not exist');
+    err.status = 400;
+    throw err;
+  }
+
   const [result] = await db.query(
     `INSERT INTO announcements (school_id, title, content, target_role, class_id, created_by, published_at)
-     VALUES (NULL, ?, ?, ?, NULL, ?, NOW()) RETURNING id`,
-    [title, content, targetRole || 'all', createdBy]
+     VALUES (?, ?, ?, ?, NULL, ?, NOW()) RETURNING id`,
+    [schoolId || null, title, content, targetRole || 'all', createdBy]
   );
   const [rows] = await db.query(
-    `SELECT ${COLUMNS} FROM announcements a JOIN users u ON u.id = a.created_by WHERE a.id = ?`,
+    `SELECT ${COLUMNS}, s.name AS target_school_name FROM announcements a
+     JOIN users u ON u.id = a.created_by
+     LEFT JOIN schools s ON s.id = a.school_id
+     WHERE a.id = ?`,
     [result[0].id]
   );
   return rows[0];
 }
 
 async function deletePlatformAnnouncement(id) {
-  const [result] = await db.query('DELETE FROM announcements WHERE id = ? AND school_id IS NULL', [id]);
+  const [result] = await db.query(
+    `DELETE FROM announcements WHERE id = ?
+     AND created_by IN (SELECT id FROM users WHERE role = 'SUPERADMIN')`,
+    [id]
+  );
   return result.affectedRows > 0;
 }
 

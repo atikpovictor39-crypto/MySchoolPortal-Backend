@@ -36,7 +36,7 @@ export default function ParentAnnouncementsPage() {
             <div key={a.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-slate-900">{a.title}</h3>
-                {!a.school_id && (
+                {a.created_by_role === 'SUPERADMIN' && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                     MySchoolPortal
                   </span>
