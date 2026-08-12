@@ -59,6 +59,11 @@ export async function getPaymentDetails() {
   return data.data;
 }
 
+export async function getSchoolInfo() {
+  const { data } = await axiosClient.get('/parent/school-info');
+  return data.data;
+}
+
 export async function submitPaymentClaim(studentId, invoiceId, payload) {
   const { data } = await axiosClient.post(`/parent/children/${studentId}/fees/${invoiceId}/claims`, payload);
   return data.data;

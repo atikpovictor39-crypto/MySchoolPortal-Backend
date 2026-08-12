@@ -16,12 +16,18 @@ router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenan
 router.get('/exams', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.listExams);
 router.post('/exams', requireRole('SCHOOL_ADMIN'), controller.createExam);
 router.get('/exams/:id', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getExam);
+router.put('/exams/:id', requireRole('SCHOOL_ADMIN'), controller.updateExam);
 router.post('/exams/:id/subjects', requireRole('SCHOOL_ADMIN'), controller.addExamSubjects);
 
 router.get('/exam-subjects/:examSubjectId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getResultsSheet);
 router.post('/exam-subjects/:examSubjectId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.saveResults);
 
 router.get('/exams/:examId/report-card/:studentId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getReportCard);
+router.put(
+  '/exams/:examId/report-card/:studentId/notes',
+  requireRole('SCHOOL_ADMIN'),
+  controller.saveReportCardNotes
+);
 router.get('/exams/:examId/class-report', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getClassReport);
 
 module.exports = router;

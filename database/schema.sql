@@ -372,9 +372,34 @@ CREATE TABLE exams (
   class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   name          VARCHAR(150) NOT NULL,                -- 'Term 1 Exam'
   term          VARCHAR(50),
+  term_start_date TIMESTAMP NULL, -- attendance present/absent counts on the report card are summed over [term_start_date, term_end_date]
+  term_end_date   TIMESTAMP NULL, -- also printed as "Vacation Date"
+  reopening_date  TIMESTAMP NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_exams_school ON exams(school_id);
+
+-- Free-text, per-student additions to a report card that don't come from
+-- exam_subjects/results — the class teacher's narrative remarks, not a
+-- score. One row per (exam, student); filled in after marks are entered,
+-- typically once near the end of term.
+CREATE TABLE report_card_notes (
+  id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id             BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  exam_id               BIGINT NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  student_id            BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  interest              VARCHAR(255),
+  academic_strength     VARCHAR(255),
+  class_teacher_remarks TEXT,
+  headmaster_remarks    TEXT,
+  promoted_to           VARCHAR(100),
+  created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_report_card_notes UNIQUE (exam_id, student_id)
+);
+CREATE INDEX idx_rcn_school ON report_card_notes(school_id);
+CREATE TRIGGER trg_report_card_notes_updated_at BEFORE UPDATE ON report_card_notes
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Per-subject config for an exam (max marks, pass mark)
 CREATE TABLE exam_subjects (

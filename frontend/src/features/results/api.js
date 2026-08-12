@@ -15,6 +15,11 @@ export async function createExam(payload) {
   return data.data;
 }
 
+export async function updateExam(id, payload) {
+  const { data } = await axiosClient.put(`/results/exams/${id}`, payload);
+  return data.data;
+}
+
 export async function addExamSubjects(examId, subjects) {
   const { data } = await axiosClient.post(`/results/exams/${examId}/subjects`, { subjects });
   return data.data;
@@ -37,5 +42,10 @@ export async function getReportCard(examId, studentId) {
 
 export async function getClassReport(examId) {
   const { data } = await axiosClient.get(`/results/exams/${examId}/class-report`);
+  return data.data;
+}
+
+export async function saveReportCardNotes(examId, studentId, payload) {
+  const { data } = await axiosClient.put(`/results/exams/${examId}/report-card/${studentId}/notes`, payload);
   return data.data;
 }

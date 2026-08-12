@@ -1,7 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParent } from '../../context/ParentContext';
 import ChildTabs from '../../components/parent/ChildTabs';
-import { getChildExams, getChildReportCard } from '../../features/parent/api';
+import { getChildExams, getChildReportCard, getSchoolInfo } from '../../features/parent/api';
+
+// 1st, 2nd, 3rd, 4th, 11th–13th stay "th" (not "11st"/"12nd"/"13rd").
+function ordinalSuffix(n) {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return 'th';
+  switch (n % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+}
 
 export default function ParentResultsPage() {
   const { childList, selectedChildId, isLoading: isLoadingChildren, error: childrenError } = useParent();
@@ -10,6 +26,13 @@ export default function ParentResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [reportCard, setReportCard] = useState(null);
+  const [schoolProfile, setSchoolProfile] = useState(null);
+
+  useEffect(() => {
+    getSchoolInfo()
+      .then(setSchoolProfile)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!selectedChildId) return;
@@ -72,8 +95,8 @@ export default function ParentResultsPage() {
       </div>
 
       {reportCard && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 print:shadow-none print:max-w-none">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 print:shadow-none print:max-w-none print:rounded-none">
             <div className="flex justify-between items-start mb-4 print:hidden">
               <h2 className="text-base font-semibold text-slate-900">Report Card</h2>
               <button onClick={() => setReportCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">
@@ -81,60 +104,136 @@ export default function ParentResultsPage() {
               </button>
             </div>
 
-            <div className="mb-4">
-              <p className="text-sm font-medium text-slate-900">
-                {reportCard.student.first_name} {reportCard.student.last_name} ({reportCard.student.admission_no})
+            {/* Letterhead */}
+            <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-3 mb-4">
+              <div className="flex items-center gap-3">
+                {schoolProfile?.logo_url && (
+                  <img src={schoolProfile.logo_url} alt="" className="w-14 h-14 object-contain shrink-0" />
+                )}
+                <div>
+                  <p className="text-lg font-bold text-slate-900 leading-tight">{schoolProfile?.name || 'School'}</p>
+                  {schoolProfile?.address && <p className="text-xs text-slate-600">{schoolProfile.address}</p>}
+                  <p className="text-xs text-slate-600">
+                    {[schoolProfile?.phone, schoolProfile?.email].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p className="text-center text-sm font-bold uppercase tracking-wide mb-4">Result Slip</p>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm mb-4">
+              <p>
+                <span className="font-semibold">Name of Student: </span>
+                {reportCard.student.first_name} {reportCard.student.last_name}
               </p>
-              <p className="text-sm text-slate-600">
-                {reportCard.exam.name} {reportCard.exam.term ? `· ${reportCard.exam.term}` : ''}
+              <p>
+                <span className="font-semibold">Year: </span>
+                {reportCard.exam.academic_year_name || '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Class: </span>
+                {reportCard.exam.class_name}
+                {reportCard.exam.class_section ? ` ${reportCard.exam.class_section}` : ''}
+              </p>
+              <p>
+                <span className="font-semibold">No. on Roll: </span>
+                {reportCard.noOnRoll}
+              </p>
+              <p>
+                <span className="font-semibold">No. of Times Present: </span>
+                {reportCard.attendance.present ?? 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold">No. of Times Absent: </span>
+                {reportCard.attendance.total !== null
+                  ? reportCard.attendance.total - reportCard.attendance.present
+                  : 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold">Vacation Date: </span>
+                {reportCard.exam.term_end_date ? reportCard.exam.term_end_date.slice(0, 10) : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Re-opening Date: </span>
+                {reportCard.exam.reopening_date ? reportCard.exam.reopening_date.slice(0, 10) : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Term: </span>
+                {reportCard.exam.term || '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Promoted To: </span>
+                {reportCard.notes.promoted_to || '—'}
               </p>
             </div>
 
             <div className="overflow-x-auto">
-            <table className="w-full text-sm mb-4">
-              <thead className="text-left text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-1">Subject</th>
-                  <th className="py-1">Marks</th>
-                  <th className="py-1">Grade</th>
-                  <th className="py-1">Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportCard.subjects.map((s) => (
-                  <tr key={s.exam_subject_id} className="border-b border-slate-100">
-                    <td className="py-1">{s.subject_name}</td>
-                    <td className="py-1">
-                      {s.marks_obtained !== null ? `${s.marks_obtained} / ${s.max_marks}` : 'Not entered'}
-                    </td>
-                    <td className="py-1">{s.grade || '—'}</td>
-                    <td className="py-1">{s.remarks || ''}</td>
+              <table className="w-full text-sm mb-3 border border-slate-300 print:border-slate-800">
+                <thead className="text-left bg-slate-50 print:bg-transparent">
+                  <tr>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Subjects</th>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Marks</th>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Position</th>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Remarks</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {reportCard.subjects.map((s) => (
+                    <tr key={s.exam_subject_id} className="border-b border-slate-200">
+                      <td className="py-1 px-2 uppercase">{s.subject_name}</td>
+                      <td className="py-1 px-2">{s.marks_obtained !== null ? s.marks_obtained : '—'}</td>
+                      <td className="py-1 px-2">{s.position ? `${s.position}${ordinalSuffix(s.position)}` : '—'}</td>
+                      <td className="py-1 px-2">{s.remarks || ''}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-semibold">
+                    <td className="py-1 px-2">Total</td>
+                    <td className="py-1 px-2">{reportCard.totalObtained}</td>
+                    <td className="py-1 px-2">
+                      {reportCard.position ? `${reportCard.position}${ordinalSuffix(reportCard.position)}` : '—'}
+                    </td>
+                    <td className="py-1 px-2"></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-sm border-t border-slate-200 pt-3">
-              <div>
-                <p className="text-xs text-slate-500">Total</p>
-                <p className="font-medium">
-                  {reportCard.totalObtained} / {reportCard.totalMax} ({reportCard.percentage}%)
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Overall grade</p>
-                <p className="font-medium">{reportCard.overallGrade || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Position</p>
-                <p className="font-medium">
-                  {reportCard.position ? `${reportCard.position} of ${reportCard.classSize}` : 'Not ranked yet'}
-                </p>
+            <div className="text-sm space-y-1 mb-3">
+              <p>
+                <span className="font-semibold">Interest: </span>
+                {reportCard.notes.interest || '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Academic Strength: </span>
+                {reportCard.notes.academic_strength || '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Attendance: </span>
+                {reportCard.attendance.total !== null
+                  ? `${reportCard.attendance.present} out of ${reportCard.attendance.total}`
+                  : 'Not available yet'}
+              </p>
+            </div>
+
+            <div className="text-sm mb-3">
+              <p className="font-semibold mb-1">Class Teacher's Remarks:</p>
+              <p className="whitespace-pre-wrap">{reportCard.notes.class_teacher_remarks || '—'}</p>
+              <div className="flex justify-between items-end mt-2 text-xs">
+                <p>Teacher's Name: {reportCard.classTeacherName || '_______________________'}</p>
+                <p>Signature: _______________________</p>
               </div>
             </div>
 
-            <button onClick={() => window.print()} className="print:hidden mt-4 text-sm text-blue-600 underline">
+            <div className="text-sm mb-2">
+              <p className="font-semibold mb-1">Headmaster's Remarks:</p>
+              <p className="whitespace-pre-wrap">{reportCard.notes.headmaster_remarks || '—'}</p>
+              <div className="flex justify-between items-end mt-2 text-xs">
+                <p>Headmaster's Signature: _______________________</p>
+                <p>Date: _______________________</p>
+              </div>
+            </div>
+
+            <button onClick={() => window.print()} className="print:hidden mt-2 text-sm text-blue-600 underline">
               Print report card
             </button>
           </div>

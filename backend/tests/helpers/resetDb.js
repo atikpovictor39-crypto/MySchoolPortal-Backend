@@ -14,6 +14,7 @@ const TABLES_TO_TRUNCATE = [
   'homework',
   'announcements',
   'attendance',
+  'report_card_notes',
   'results',
   'exam_subjects',
   'exams',

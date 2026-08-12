@@ -37,6 +37,9 @@ async function subjectBelongsToSchool(schoolId, subjectId) {
 
 // ---- Exams ----
 
+const EXAM_COLUMNS =
+  'id, academic_year_id, class_id, name, term, term_start_date, term_end_date, reopening_date, created_at';
+
 async function listExams(schoolId, { classId } = {}) {
   const conditions = ['school_id = ?'];
   const params = [schoolId];
@@ -46,18 +49,17 @@ async function listExams(schoolId, { classId } = {}) {
   }
 
   const [rows] = await db.query(
-    `SELECT id, academic_year_id, class_id, name, term, created_at
-     FROM exams WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+    `SELECT ${EXAM_COLUMNS} FROM exams WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
     params
   );
   return rows;
 }
 
 async function getExamById(schoolId, id) {
-  const [examRows] = await db.query(
-    'SELECT id, academic_year_id, class_id, name, term, created_at FROM exams WHERE id = ? AND school_id = ? LIMIT 1',
-    [id, schoolId]
-  );
+  const [examRows] = await db.query(`SELECT ${EXAM_COLUMNS} FROM exams WHERE id = ? AND school_id = ? LIMIT 1`, [
+    id,
+    schoolId,
+  ]);
   const exam = examRows[0];
   if (!exam) return null;
 
@@ -73,7 +75,7 @@ async function getExamById(schoolId, id) {
   return { ...exam, subjects: subjectRows };
 }
 
-async function createExam(schoolId, { academicYearId, classId, name, term }) {
+async function createExam(schoolId, { academicYearId, classId, name, term, termStartDate, termEndDate, reopeningDate }) {
   if (!(await academicYearBelongsToSchool(schoolId, academicYearId))) {
     const err = new Error('academicYearId does not belong to this school');
     err.status = 400;
@@ -86,10 +88,39 @@ async function createExam(schoolId, { academicYearId, classId, name, term }) {
   }
 
   const [result] = await db.query(
-    'INSERT INTO exams (school_id, academic_year_id, class_id, name, term) VALUES (?, ?, ?, ?, ?) RETURNING id',
-    [schoolId, academicYearId, classId, name, term || null]
+    `INSERT INTO exams (school_id, academic_year_id, class_id, name, term, term_start_date, term_end_date, reopening_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    [schoolId, academicYearId, classId, name, term || null, termStartDate || null, termEndDate || null, reopeningDate || null]
   );
   return getExamById(schoolId, result[0].id);
+}
+
+// Term dates are typically only known/settled near the end of term (once
+// vacation and re-opening are confirmed), so these are edited after the
+// exam already exists rather than required up front at creation.
+async function updateExam(schoolId, id, { name, term, termStartDate, termEndDate, reopeningDate }) {
+  const existing = await getExamById(schoolId, id);
+  if (!existing) return null;
+
+  const fields = [];
+  const params = [];
+  const set = (column, value) => {
+    if (value !== undefined) {
+      fields.push(`${column} = ?`);
+      params.push(value);
+    }
+  };
+  set('name', name);
+  set('term', term);
+  set('term_start_date', termStartDate);
+  set('term_end_date', termEndDate);
+  set('reopening_date', reopeningDate);
+
+  if (fields.length === 0) return existing;
+
+  params.push(id, schoolId);
+  await db.query(`UPDATE exams SET ${fields.join(', ')} WHERE id = ? AND school_id = ?`, params);
+  return getExamById(schoolId, id);
 }
 
 // Upsert one or more subjects onto an exam (via the UNIQUE(exam_id, subject_id)
@@ -248,12 +279,110 @@ async function getClassReport(schoolId, examId) {
   return computeClassRanking(schoolId, examId);
 }
 
-async function getReportCard(schoolId, examId, studentId) {
-  const [examRows] = await db.query(
-    'SELECT id, academic_year_id, class_id, name, term FROM exams WHERE id = ? AND school_id = ? LIMIT 1',
+// Rank within EACH subject individually (not the same as the overall class
+// position) — e.g. a student might be 3rd in the class overall but 1st in
+// Science specifically. RANK() so tied scores share a position rather than
+// silently picking a winner.
+async function getPerSubjectPositions(schoolId, examId) {
+  const [rows] = await db.query(
+    `SELECT r.exam_subject_id, r.student_id,
+       RANK() OVER (PARTITION BY r.exam_subject_id ORDER BY r.marks_obtained DESC) AS position
+     FROM results r
+     JOIN exam_subjects es ON es.id = r.exam_subject_id
+     WHERE es.exam_id = ? AND es.school_id = ?`,
     [examId, schoolId]
   );
-  const exam = examRows[0];
+
+  const positions = {};
+  for (const row of rows) {
+    positions[row.exam_subject_id] = positions[row.exam_subject_id] || {};
+    positions[row.exam_subject_id][row.student_id] = row.position;
+  }
+  return positions;
+}
+
+// "No. of times present/absent" on the printed slip, summed over the exam's
+// own term_start_date/term_end_date — null/null (not 0/0) when those
+// haven't been set yet, so the frontend can show "not available" instead of
+// a misleading zero.
+async function getAttendanceSummary(schoolId, studentId, fromDate, toDate) {
+  if (!fromDate || !toDate) return { present: null, total: null };
+
+  const [rows] = await db.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE status IN ('present', 'late')) AS present,
+       COUNT(*) AS total
+     FROM attendance
+     WHERE school_id = ? AND student_id = ? AND date BETWEEN ? AND ?`,
+    [schoolId, studentId, fromDate, toDate]
+  );
+  return { present: Number(rows[0].present), total: Number(rows[0].total) };
+}
+
+async function getReportCardNotes(schoolId, examId, studentId) {
+  const [rows] = await db.query(
+    `SELECT interest, academic_strength, class_teacher_remarks, headmaster_remarks, promoted_to
+     FROM report_card_notes WHERE exam_id = ? AND student_id = ? AND school_id = ? LIMIT 1`,
+    [examId, studentId, schoolId]
+  );
+  return (
+    rows[0] || {
+      interest: null,
+      academic_strength: null,
+      class_teacher_remarks: null,
+      headmaster_remarks: null,
+      promoted_to: null,
+    }
+  );
+}
+
+async function upsertReportCardNotes(
+  schoolId,
+  examId,
+  studentId,
+  { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo }
+) {
+  const exam = await getExamById(schoolId, examId);
+  if (!exam) {
+    const err = new Error('Exam not found');
+    err.status = 404;
+    throw err;
+  }
+  const [studentRows] = await db.query(
+    'SELECT id FROM students WHERE id = ? AND school_id = ? AND class_id = ? LIMIT 1',
+    [studentId, schoolId, exam.class_id]
+  );
+  if (studentRows.length === 0) {
+    const err = new Error("Student not found in this exam's class");
+    err.status = 404;
+    throw err;
+  }
+
+  await db.query(
+    `INSERT INTO report_card_notes
+       (school_id, exam_id, student_id, interest, academic_strength, class_teacher_remarks, headmaster_remarks, promoted_to)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT ON CONSTRAINT uq_report_card_notes
+     DO UPDATE SET interest = EXCLUDED.interest, academic_strength = EXCLUDED.academic_strength,
+       class_teacher_remarks = EXCLUDED.class_teacher_remarks, headmaster_remarks = EXCLUDED.headmaster_remarks,
+       promoted_to = EXCLUDED.promoted_to`,
+    [
+      schoolId,
+      examId,
+      studentId,
+      interest || null,
+      academicStrength || null,
+      classTeacherRemarks || null,
+      headmasterRemarks || null,
+      promotedTo || null,
+    ]
+  );
+
+  return getReportCardNotes(schoolId, examId, studentId);
+}
+
+async function getReportCard(schoolId, examId, studentId) {
+  const exam = await getExamById(schoolId, examId);
   if (!exam) {
     const err = new Error('Exam not found');
     err.status = 404;
@@ -282,6 +411,11 @@ async function getReportCard(schoolId, examId, studentId) {
     [studentId, examId, schoolId]
   );
 
+  const perSubjectPositions = await getPerSubjectPositions(schoolId, examId);
+  for (const s of subjectRows) {
+    s.position = perSubjectPositions[s.exam_subject_id]?.[Number(studentId)] ?? null;
+  }
+
   const entered = subjectRows.filter((s) => s.marks_obtained !== null);
   const totalObtained = entered.reduce((sum, s) => sum + Number(s.marks_obtained), 0);
   const totalMax = entered.reduce((sum, s) => sum + Number(s.max_marks), 0);
@@ -290,6 +424,36 @@ async function getReportCard(schoolId, examId, studentId) {
 
   const ranking = await computeClassRanking(schoolId, examId);
   const rankEntry = ranking.find((r) => r.student_id === Number(studentId));
+
+  const [rollRows] = await db.query(
+    "SELECT COUNT(*) AS count FROM students WHERE school_id = ? AND class_id = ? AND status = 'active'",
+    [schoolId, exam.class_id]
+  );
+
+  const [teacherRows] = await db.query(
+    `SELECT u.name FROM classes c
+     JOIN teachers t ON t.id = c.class_teacher_id
+     JOIN users u ON u.id = t.user_id
+     WHERE c.id = ? LIMIT 1`,
+    [exam.class_id]
+  );
+
+  // Resolved here (rather than left for the frontend to cross-reference a
+  // classes/academic-years lookup list) since the parent-facing report card
+  // has no access to those staff-only endpoints at all.
+  const [classRows] = await db.query('SELECT name, section FROM classes WHERE id = ? LIMIT 1', [exam.class_id]);
+  const [yearRows] = await db.query('SELECT name FROM academic_years WHERE id = ? LIMIT 1', [exam.academic_year_id]);
+  exam.class_name = classRows[0]?.name || null;
+  exam.class_section = classRows[0]?.section || null;
+  exam.academic_year_name = yearRows[0]?.name || null;
+
+  const attendance = await getAttendanceSummary(
+    schoolId,
+    studentId,
+    exam.term_start_date,
+    exam.term_end_date
+  );
+  const notes = await getReportCardNotes(schoolId, examId, studentId);
 
   return {
     exam,
@@ -301,6 +465,10 @@ async function getReportCard(schoolId, examId, studentId) {
     overallGrade,
     position: rankEntry ? rankEntry.position : null,
     classSize: ranking.length,
+    noOnRoll: Number(rollRows[0].count),
+    classTeacherName: teacherRows[0]?.name || null,
+    attendance,
+    notes,
   };
 }
 
@@ -326,10 +494,12 @@ module.exports = {
   listExams,
   getExamById,
   createExam,
+  updateExam,
   addExamSubjects,
   getResultsSheet,
   saveResults,
   getReportCard,
   getClassReport,
   getExamSummaryForStudent,
+  upsertReportCardNotes,
 };

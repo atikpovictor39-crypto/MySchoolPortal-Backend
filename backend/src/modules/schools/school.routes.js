@@ -22,7 +22,17 @@ router.patch(
 );
 
 // SchoolAdmin self-service: the school's own profile (name/contact/logo).
-router.get('/me', requireAuth, tenantScope, blockDuringMaintenance, requireRole('SCHOOL_ADMIN'), controller.getMyProfile);
+// GET also allows TEACHER — nothing sensitive in it (payment details are
+// their own separate SCHOOL_ADMIN-only endpoint below), and teachers need
+// it too for the report card letterhead.
+router.get(
+  '/me',
+  requireAuth,
+  tenantScope,
+  blockDuringMaintenance,
+  requireRole('SCHOOL_ADMIN', 'TEACHER'),
+  controller.getMyProfile
+);
 router.put(
   '/me',
   requireAuth,

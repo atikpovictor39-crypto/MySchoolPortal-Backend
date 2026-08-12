@@ -17,13 +17,36 @@ exports.getExam = asyncHandler(async (req, res) => {
 });
 
 exports.createExam = asyncHandler(async (req, res) => {
-  const { academicYearId, classId, name, term } = req.body;
+  const { academicYearId, classId, name, term, termStartDate, termEndDate, reopeningDate } = req.body;
   if (!academicYearId || !classId || !name) {
     return fail(res, 'academicYearId, classId and name are required', 400);
   }
 
-  const exam = await resultService.createExam(req.schoolId, { academicYearId, classId, name, term });
+  const exam = await resultService.createExam(req.schoolId, {
+    academicYearId,
+    classId,
+    name,
+    term,
+    termStartDate,
+    termEndDate,
+    reopeningDate,
+  });
   return ok(res, exam, 201);
+});
+
+// Term dates (vacation/re-opening) are usually only confirmed near the end
+// of term, so this is edited after the exam already exists.
+exports.updateExam = asyncHandler(async (req, res) => {
+  const { name, term, termStartDate, termEndDate, reopeningDate } = req.body;
+  const exam = await resultService.updateExam(req.schoolId, req.params.id, {
+    name,
+    term,
+    termStartDate,
+    termEndDate,
+    reopeningDate,
+  });
+  if (!exam) return fail(res, 'Exam not found', 404);
+  return ok(res, exam);
 });
 
 exports.addExamSubjects = asyncHandler(async (req, res) => {
@@ -71,4 +94,19 @@ exports.getReportCard = asyncHandler(async (req, res) => {
 exports.getClassReport = asyncHandler(async (req, res) => {
   const ranking = await resultService.getClassReport(req.schoolId, req.params.examId);
   return ok(res, ranking);
+});
+
+// Free-text additions to a report card (interest, academic strength, class
+// teacher's and headmaster's remarks, promoted-to) — not a score, so it
+// lives outside exam_subjects/results entirely. See report_card_notes.
+exports.saveReportCardNotes = asyncHandler(async (req, res) => {
+  const { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo } = req.body;
+  const notes = await resultService.upsertReportCardNotes(req.schoolId, req.params.examId, req.params.studentId, {
+    interest,
+    academicStrength,
+    classTeacherRemarks,
+    headmasterRemarks,
+    promotedTo,
+  });
+  return ok(res, notes);
 });

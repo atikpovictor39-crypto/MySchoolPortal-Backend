@@ -23,5 +23,6 @@ router.get('/announcements', controller.listAnnouncements);
 router.get('/announcements/unread-count', controller.unreadAnnouncementsCount);
 router.post('/announcements/seen', controller.markAnnouncementsSeen);
 router.get('/payment-details', controller.getPaymentDetails);
+router.get('/school-info', controller.getSchoolInfo);
 
 module.exports = router;

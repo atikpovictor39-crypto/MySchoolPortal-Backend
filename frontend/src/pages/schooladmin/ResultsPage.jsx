@@ -5,16 +5,38 @@ import { listAcademicYears } from '../../features/academicYears/api';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
 import { listStudents } from '../../features/students/api';
+import { getMyProfile } from '../../features/schools/api';
 import {
   listExams,
   getExam,
   createExam,
+  updateExam,
   addExamSubjects,
   getResultsSheet,
   saveResults,
   getReportCard,
   getClassReport,
+  saveReportCardNotes,
 } from '../../features/results/api';
+
+const emptyExamForm = { academicYearId: '', classId: '', name: '', term: '', termStartDate: '', termEndDate: '', reopeningDate: '' };
+const emptyNotesForm = { interest: '', academicStrength: '', classTeacherRemarks: '', headmasterRemarks: '', promotedTo: '' };
+
+// 1st, 2nd, 3rd, 4th, 11th–13th stay "th" (not "11st"/"12nd"/"13rd").
+function ordinalSuffix(n) {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return 'th';
+  switch (n % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+}
 
 const TABS = [
   { key: 'exams', label: 'Exams' },
@@ -36,12 +58,15 @@ export default function ResultsPage() {
   const [error, setError] = useState('');
 
   // ---- Exams tab ----
-  const [examForm, setExamForm] = useState({ academicYearId: '', classId: '', name: '', term: '' });
+  const [examForm, setExamForm] = useState(emptyExamForm);
   const [isCreatingExam, setIsCreatingExam] = useState(false);
   const [managingExamId, setManagingExamId] = useState(null);
   const [managingExam, setManagingExam] = useState(null);
   const [examSubjectForm, setExamSubjectForm] = useState({ subjectId: '', maxMarks: '100', passingMarks: '40' });
   const [isAddingExamSubject, setIsAddingExamSubject] = useState(false);
+  const [editingExamId, setEditingExamId] = useState(null);
+  const [editExamForm, setEditExamForm] = useState({});
+  const [isSavingExam, setIsSavingExam] = useState(false);
 
   // ---- Shared exam context for the other three tabs ----
   const [selectedExamId, setSelectedExamId] = useState('');
@@ -56,21 +81,26 @@ export default function ResultsPage() {
   const [classStudents, setClassStudents] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [reportCard, setReportCard] = useState(null);
+  const [schoolProfile, setSchoolProfile] = useState(null);
+  const [notesForm, setNotesForm] = useState(emptyNotesForm);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   // ---- Class Ranking tab ----
   const [ranking, setRanking] = useState(null);
 
   async function refreshLookups() {
-    const [yearList, classList, subjectList, examList] = await Promise.all([
+    const [yearList, classList, subjectList, examList, profile] = await Promise.all([
       listAcademicYears(),
       listClasses(),
       listSubjects(),
       listExams(),
+      getMyProfile(),
     ]);
     setYears(yearList);
     setClasses(classList);
     setSubjects(subjectList);
     setExams(examList);
+    setSchoolProfile(profile);
   }
 
   useEffect(() => {
@@ -125,12 +155,43 @@ export default function ResultsPage() {
     setIsCreatingExam(true);
     try {
       await createExam(examForm);
-      setExamForm({ academicYearId: '', classId: '', name: '', term: '' });
+      setExamForm(emptyExamForm);
       setExams(await listExams());
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create exam');
     } finally {
       setIsCreatingExam(false);
+    }
+  }
+
+  // Vacation/re-opening dates are usually only confirmed near the end of
+  // term, so this is normally used after the exam already exists rather
+  // than at creation time.
+  function startEditExam(exam) {
+    setEditingExamId(exam.id);
+    setEditExamForm({
+      name: exam.name,
+      term: exam.term || '',
+      termStartDate: exam.term_start_date?.slice(0, 10) || '',
+      termEndDate: exam.term_end_date?.slice(0, 10) || '',
+      reopeningDate: exam.reopening_date?.slice(0, 10) || '',
+    });
+  }
+
+  async function saveEditExam() {
+    setError('');
+    setIsSavingExam(true);
+    try {
+      await updateExam(editingExamId, editExamForm);
+      setEditingExamId(null);
+      setExams(await listExams());
+      if (Number(selectedExamId) === editingExamId) {
+        setSelectedExam(await getExam(editingExamId));
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update exam');
+    } finally {
+      setIsSavingExam(false);
     }
   }
 
@@ -195,9 +256,30 @@ export default function ResultsPage() {
   async function handleViewReportCard() {
     setError('');
     try {
-      setReportCard(await getReportCard(selectedExamId, selectedStudentId));
+      const card = await getReportCard(selectedExamId, selectedStudentId);
+      setReportCard(card);
+      setNotesForm({
+        interest: card.notes.interest || '',
+        academicStrength: card.notes.academic_strength || '',
+        classTeacherRemarks: card.notes.class_teacher_remarks || '',
+        headmasterRemarks: card.notes.headmaster_remarks || '',
+        promotedTo: card.notes.promoted_to || '',
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load report card');
+    }
+  }
+
+  async function handleSaveNotes() {
+    setError('');
+    setIsSavingNotes(true);
+    try {
+      const notes = await saveReportCardNotes(selectedExamId, selectedStudentId, notesForm);
+      setReportCard((prev) => ({ ...prev, notes }));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save notes');
+    } finally {
+      setIsSavingNotes(false);
     }
   }
 
@@ -277,6 +359,33 @@ export default function ResultsPage() {
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-28"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Term start (optional)</label>
+                  <input
+                    type="date"
+                    value={examForm.termStartDate}
+                    onChange={(e) => setExamForm({ ...examForm, termStartDate: e.target.value })}
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Vacation date (optional)</label>
+                  <input
+                    type="date"
+                    value={examForm.termEndDate}
+                    onChange={(e) => setExamForm({ ...examForm, termEndDate: e.target.value })}
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Re-opening date (optional)</label>
+                  <input
+                    type="date"
+                    value={examForm.reopeningDate}
+                    onChange={(e) => setExamForm({ ...examForm, reopeningDate: e.target.value })}
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={isCreatingExam}
@@ -285,6 +394,13 @@ export default function ResultsPage() {
                   {isCreatingExam ? 'Adding…' : 'Add exam'}
                 </button>
               </form>
+            )}
+            {isAdmin && (
+              <p className="text-xs text-slate-400 -mt-6 mb-6">
+                Term dates can also be filled in later, once vacation/re-opening are confirmed — use Edit on the exam
+                below. The term start/vacation dates are what "no. of times present/absent" on report cards are
+                counted over.
+              </p>
             )}
 
             {exams.length === 0 ? (
@@ -309,14 +425,84 @@ export default function ResultsPage() {
                       <td className="px-4 py-2">{classNameById[e.class_id] || e.class_id}</td>
                       <td className="px-4 py-2">{yearNameById[e.academic_year_id] || e.academic_year_id}</td>
                       <td className="px-4 py-2">
-                        <button onClick={() => openManageSubjects(e.id)} className="text-blue-600 text-xs font-medium">
-                          Manage subjects
-                        </button>
+                        <div className="flex gap-3">
+                          <button onClick={() => openManageSubjects(e.id)} className="text-blue-600 text-xs font-medium">
+                            Manage subjects
+                          </button>
+                          {isAdmin && (
+                            <button onClick={() => startEditExam(e)} className="text-blue-600 text-xs font-medium">
+                              Edit
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
+            )}
+
+            {editingExamId && (
+              <div className="mt-6 bg-white border border-slate-200 rounded-xl shadow-sm p-4 max-w-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-semibold text-slate-900">Edit exam</h3>
+                  <button onClick={() => setEditingExamId(null)} className="text-slate-400 text-xs">
+                    Close
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Name</label>
+                    <input
+                      value={editExamForm.name}
+                      onChange={(e) => setEditExamForm({ ...editExamForm, name: e.target.value })}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-40"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Term</label>
+                    <input
+                      value={editExamForm.term}
+                      onChange={(e) => setEditExamForm({ ...editExamForm, term: e.target.value })}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-28"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Term start</label>
+                    <input
+                      type="date"
+                      value={editExamForm.termStartDate}
+                      onChange={(e) => setEditExamForm({ ...editExamForm, termStartDate: e.target.value })}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Vacation date</label>
+                    <input
+                      type="date"
+                      value={editExamForm.termEndDate}
+                      onChange={(e) => setEditExamForm({ ...editExamForm, termEndDate: e.target.value })}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Re-opening date</label>
+                    <input
+                      type="date"
+                      value={editExamForm.reopeningDate}
+                      onChange={(e) => setEditExamForm({ ...editExamForm, reopeningDate: e.target.value })}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={saveEditExam}
+                    disabled={isSavingExam}
+                    className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isSavingExam ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -608,8 +794,8 @@ export default function ResultsPage() {
       </div>
 
       {reportCard && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 print:shadow-none print:max-w-none">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 print:shadow-none print:max-w-none print:rounded-none">
             <div className="flex justify-between items-start mb-4 print:hidden">
               <h2 className="text-base font-semibold text-slate-900">Report Card</h2>
               <button onClick={() => setReportCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">
@@ -617,60 +803,185 @@ export default function ResultsPage() {
               </button>
             </div>
 
-            <div className="mb-4">
-              <p className="text-sm font-medium text-slate-900">
-                {reportCard.student.first_name} {reportCard.student.last_name} ({reportCard.student.admission_no})
+            {/* Letterhead */}
+            <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-3 mb-4">
+              <div className="flex items-center gap-3">
+                {schoolProfile?.logo_url && (
+                  <img src={schoolProfile.logo_url} alt="" className="w-14 h-14 object-contain shrink-0" />
+                )}
+                <div>
+                  <p className="text-lg font-bold text-slate-900 leading-tight">{schoolProfile?.name || 'School'}</p>
+                  {schoolProfile?.address && <p className="text-xs text-slate-600">{schoolProfile.address}</p>}
+                  <p className="text-xs text-slate-600">
+                    {[schoolProfile?.phone, schoolProfile?.email].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p className="text-center text-sm font-bold uppercase tracking-wide mb-4">Result Slip</p>
+
+            {/* Student / term info grid */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm mb-4">
+              <p>
+                <span className="font-semibold">Name of Student: </span>
+                {reportCard.student.first_name} {reportCard.student.last_name}
               </p>
-              <p className="text-sm text-slate-600">
-                {reportCard.exam.name} {reportCard.exam.term ? `· ${reportCard.exam.term}` : ''}
+              <p>
+                <span className="font-semibold">Year: </span>
+                {yearNameById[reportCard.exam.academic_year_id] || reportCard.exam.academic_year_id}
+              </p>
+              <p>
+                <span className="font-semibold">Class: </span>
+                {classNameById[reportCard.exam.class_id] || reportCard.exam.class_id}
+              </p>
+              <p>
+                <span className="font-semibold">No. on Roll: </span>
+                {reportCard.noOnRoll}
+              </p>
+              <p>
+                <span className="font-semibold">No. of Times Present: </span>
+                {reportCard.attendance.present ?? 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold">No. of Times Absent: </span>
+                {reportCard.attendance.total !== null
+                  ? reportCard.attendance.total - reportCard.attendance.present
+                  : 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold">Vacation Date: </span>
+                {reportCard.exam.term_end_date ? reportCard.exam.term_end_date.slice(0, 10) : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Re-opening Date: </span>
+                {reportCard.exam.reopening_date ? reportCard.exam.reopening_date.slice(0, 10) : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Term: </span>
+                {reportCard.exam.term || '—'}
+              </p>
+              <p className="flex items-center gap-1">
+                <span className="font-semibold">Promoted To: </span>
+                {isAdmin ? (
+                  <input
+                    value={notesForm.promotedTo}
+                    onChange={(e) => setNotesForm({ ...notesForm, promotedTo: e.target.value })}
+                    className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                  />
+                ) : null}
+                <span className="hidden print:inline">{notesForm.promotedTo || '—'}</span>
               </p>
             </div>
 
             <div className="overflow-x-auto">
-            <table className="w-full text-sm mb-4">
-              <thead className="text-left text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-1">Subject</th>
-                  <th className="py-1">Marks</th>
-                  <th className="py-1">Grade</th>
-                  <th className="py-1">Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportCard.subjects.map((s) => (
-                  <tr key={s.exam_subject_id} className="border-b border-slate-100">
-                    <td className="py-1">{s.subject_name}</td>
-                    <td className="py-1">
-                      {s.marks_obtained !== null ? `${s.marks_obtained} / ${s.max_marks}` : 'Not entered'}
-                    </td>
-                    <td className="py-1">{s.grade || '—'}</td>
-                    <td className="py-1">{s.remarks || ''}</td>
+              <table className="w-full text-sm mb-3 border border-slate-300 print:border-slate-800">
+                <thead className="text-left bg-slate-50 print:bg-transparent">
+                  <tr>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Subjects</th>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Marks</th>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Position</th>
+                    <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Remarks</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {reportCard.subjects.map((s) => (
+                    <tr key={s.exam_subject_id} className="border-b border-slate-200">
+                      <td className="py-1 px-2 uppercase">{s.subject_name}</td>
+                      <td className="py-1 px-2">{s.marks_obtained !== null ? s.marks_obtained : '—'}</td>
+                      <td className="py-1 px-2">{s.position ? `${s.position}${ordinalSuffix(s.position)}` : '—'}</td>
+                      <td className="py-1 px-2">{s.remarks || ''}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-semibold">
+                    <td className="py-1 px-2">Total</td>
+                    <td className="py-1 px-2">{reportCard.totalObtained}</td>
+                    <td className="py-1 px-2">
+                      {reportCard.position ? `${reportCard.position}${ordinalSuffix(reportCard.position)}` : '—'}
+                    </td>
+                    <td className="py-1 px-2"></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-sm border-t border-slate-200 pt-3">
-              <div>
-                <p className="text-xs text-slate-500">Total</p>
-                <p className="font-medium">
-                  {reportCard.totalObtained} / {reportCard.totalMax} ({reportCard.percentage}%)
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Overall grade</p>
-                <p className="font-medium">{reportCard.overallGrade || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Position</p>
-                <p className="font-medium">
-                  {reportCard.position ? `${reportCard.position} of ${reportCard.classSize}` : 'Not ranked yet'}
-                </p>
+            {/* Interest / academic strength / attendance summary */}
+            <div className="text-sm space-y-1 mb-3">
+              <p className="flex items-center gap-1">
+                <span className="font-semibold shrink-0">Interest: </span>
+                {isAdmin ? (
+                  <input
+                    value={notesForm.interest}
+                    onChange={(e) => setNotesForm({ ...notesForm, interest: e.target.value })}
+                    className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                  />
+                ) : null}
+                <span className="hidden print:inline">{notesForm.interest}</span>
+              </p>
+              <p className="flex items-center gap-1">
+                <span className="font-semibold shrink-0">Academic Strength: </span>
+                {isAdmin ? (
+                  <input
+                    value={notesForm.academicStrength}
+                    onChange={(e) => setNotesForm({ ...notesForm, academicStrength: e.target.value })}
+                    className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                  />
+                ) : null}
+                <span className="hidden print:inline">{notesForm.academicStrength}</span>
+              </p>
+              <p>
+                <span className="font-semibold">Attendance: </span>
+                {reportCard.attendance.total !== null
+                  ? `${reportCard.attendance.present} out of ${reportCard.attendance.total}`
+                  : 'Not available — set the exam\'s term dates to enable this'}
+              </p>
+            </div>
+
+            {/* Class teacher */}
+            <div className="text-sm mb-3">
+              <p className="font-semibold mb-1">Class Teacher's Remarks:</p>
+              {isAdmin ? (
+                <textarea
+                  rows={2}
+                  value={notesForm.classTeacherRemarks}
+                  onChange={(e) => setNotesForm({ ...notesForm, classTeacherRemarks: e.target.value })}
+                  className="print:hidden w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                />
+              ) : null}
+              <p className="hidden print:block whitespace-pre-wrap">{notesForm.classTeacherRemarks}</p>
+              <div className="flex justify-between items-end mt-2 text-xs">
+                <p>Teacher's Name: {reportCard.classTeacherName || '_______________________'}</p>
+                <p>Signature: _______________________</p>
               </div>
             </div>
 
-            <button onClick={() => window.print()} className="print:hidden mt-4 text-sm text-blue-600 underline">
+            {/* Headmaster */}
+            <div className="text-sm mb-2">
+              <p className="font-semibold mb-1">Headmaster's Remarks:</p>
+              {isAdmin ? (
+                <textarea
+                  rows={2}
+                  value={notesForm.headmasterRemarks}
+                  onChange={(e) => setNotesForm({ ...notesForm, headmasterRemarks: e.target.value })}
+                  className="print:hidden w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                />
+              ) : null}
+              <p className="hidden print:block whitespace-pre-wrap">{notesForm.headmasterRemarks}</p>
+              <div className="flex justify-between items-end mt-2 text-xs">
+                <p>Headmaster's Signature: _______________________</p>
+                <p>Date: _______________________</p>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <button
+                onClick={handleSaveNotes}
+                disabled={isSavingNotes}
+                className="print:hidden rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 mt-2"
+              >
+                {isSavingNotes ? 'Saving…' : 'Save remarks'}
+              </button>
+            )}
+            <button onClick={() => window.print()} className="print:hidden mt-2 ml-3 text-sm text-blue-600 underline">
               Print report card
             </button>
           </div>

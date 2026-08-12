@@ -37,6 +37,13 @@ exports.getPaymentDetails = asyncHandler(async (req, res) => {
   return ok(res, details);
 });
 
+// Name/address/phone/logo for the report card letterhead — not sensitive
+// (payment details above are the separate, actually-sensitive endpoint).
+exports.getSchoolInfo = asyncHandler(async (req, res) => {
+  const profile = await schoolService.getSchoolProfile(req.schoolId);
+  return ok(res, profile);
+});
+
 // Every handler below touches one specific student — always re-verify
 // ownership from the DB per request rather than trusting the URL, since a
 // parent could otherwise just change the studentId and read anyone's child.
