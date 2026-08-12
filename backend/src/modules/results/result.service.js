@@ -336,6 +336,10 @@ async function getReportCardNotes(schoolId, examId, studentId) {
   );
 }
 
+// A field left `undefined` here means "the caller isn't allowed to touch
+// this" (see result.controller.js's TEACHER-vs-headmasterRemarks handling),
+// not "clear it" — so it's merged against whatever's already saved rather
+// than blindly overwritten, unlike an explicit '' which does clear a field.
 async function upsertReportCardNotes(
   schoolId,
   examId,
@@ -358,6 +362,16 @@ async function upsertReportCardNotes(
     throw err;
   }
 
+  const existing = await getReportCardNotes(schoolId, examId, studentId);
+  const merged = {
+    interest: interest !== undefined ? interest || null : existing.interest,
+    academicStrength: academicStrength !== undefined ? academicStrength || null : existing.academic_strength,
+    classTeacherRemarks:
+      classTeacherRemarks !== undefined ? classTeacherRemarks || null : existing.class_teacher_remarks,
+    headmasterRemarks: headmasterRemarks !== undefined ? headmasterRemarks || null : existing.headmaster_remarks,
+    promotedTo: promotedTo !== undefined ? promotedTo || null : existing.promoted_to,
+  };
+
   await db.query(
     `INSERT INTO report_card_notes
        (school_id, exam_id, student_id, interest, academic_strength, class_teacher_remarks, headmaster_remarks, promoted_to)
@@ -370,11 +384,11 @@ async function upsertReportCardNotes(
       schoolId,
       examId,
       studentId,
-      interest || null,
-      academicStrength || null,
-      classTeacherRemarks || null,
-      headmasterRemarks || null,
-      promotedTo || null,
+      merged.interest,
+      merged.academicStrength,
+      merged.classTeacherRemarks,
+      merged.headmasterRemarks,
+      merged.promotedTo,
     ]
   );
 

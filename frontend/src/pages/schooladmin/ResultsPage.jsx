@@ -49,6 +49,10 @@ export default function ResultsPage() {
   const { user } = useAuth();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
   const canEnterScores = isAdmin || user.role === 'TEACHER';
+  // Class teachers normally fill in interest/academic strength/their own
+  // remarks/promoted-to; headmaster's remarks stays admin-only (see the
+  // matching field-level restriction in result.controller.js).
+  const canEditNotes = canEnterScores;
 
   const [tab, setTab] = useState('exams');
   const [years, setYears] = useState([]);
@@ -862,14 +866,14 @@ export default function ResultsPage() {
               </p>
               <p className="flex items-center gap-1">
                 <span className="font-semibold">Promoted To: </span>
-                {isAdmin ? (
+                {canEditNotes ? (
                   <input
                     value={notesForm.promotedTo}
                     onChange={(e) => setNotesForm({ ...notesForm, promotedTo: e.target.value })}
                     className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
-                <span className="hidden print:inline">{notesForm.promotedTo || '—'}</span>
+                <span className={canEditNotes ? 'hidden print:inline' : ''}>{notesForm.promotedTo || '—'}</span>
               </p>
             </div>
 
@@ -908,25 +912,25 @@ export default function ResultsPage() {
             <div className="text-sm space-y-1 mb-3">
               <p className="flex items-center gap-1">
                 <span className="font-semibold shrink-0">Interest: </span>
-                {isAdmin ? (
+                {canEditNotes ? (
                   <input
                     value={notesForm.interest}
                     onChange={(e) => setNotesForm({ ...notesForm, interest: e.target.value })}
                     className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
-                <span className="hidden print:inline">{notesForm.interest}</span>
+                <span className={canEditNotes ? 'hidden print:inline' : ''}>{notesForm.interest || '—'}</span>
               </p>
               <p className="flex items-center gap-1">
                 <span className="font-semibold shrink-0">Academic Strength: </span>
-                {isAdmin ? (
+                {canEditNotes ? (
                   <input
                     value={notesForm.academicStrength}
                     onChange={(e) => setNotesForm({ ...notesForm, academicStrength: e.target.value })}
                     className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
-                <span className="hidden print:inline">{notesForm.academicStrength}</span>
+                <span className={canEditNotes ? 'hidden print:inline' : ''}>{notesForm.academicStrength || '—'}</span>
               </p>
               <p>
                 <span className="font-semibold">Attendance: </span>
@@ -939,7 +943,7 @@ export default function ResultsPage() {
             {/* Class teacher */}
             <div className="text-sm mb-3">
               <p className="font-semibold mb-1">Class Teacher's Remarks:</p>
-              {isAdmin ? (
+              {canEditNotes ? (
                 <textarea
                   rows={2}
                   value={notesForm.classTeacherRemarks}
@@ -947,7 +951,9 @@ export default function ResultsPage() {
                   className="print:hidden w-full rounded border border-slate-300 px-2 py-1 text-sm"
                 />
               ) : null}
-              <p className="hidden print:block whitespace-pre-wrap">{notesForm.classTeacherRemarks}</p>
+              <p className={`whitespace-pre-wrap ${canEditNotes ? 'hidden print:block' : ''}`}>
+                {notesForm.classTeacherRemarks || '—'}
+              </p>
               <div className="flex justify-between items-end mt-2 text-xs">
                 <p>Teacher's Name: {reportCard.classTeacherName || '_______________________'}</p>
                 <p>Signature: _______________________</p>
@@ -965,14 +971,16 @@ export default function ResultsPage() {
                   className="print:hidden w-full rounded border border-slate-300 px-2 py-1 text-sm"
                 />
               ) : null}
-              <p className="hidden print:block whitespace-pre-wrap">{notesForm.headmasterRemarks}</p>
+              <p className={`whitespace-pre-wrap ${isAdmin ? 'hidden print:block' : ''}`}>
+                {notesForm.headmasterRemarks || '—'}
+              </p>
               <div className="flex justify-between items-end mt-2 text-xs">
                 <p>Headmaster's Signature: _______________________</p>
                 <p>Date: _______________________</p>
               </div>
             </div>
 
-            {isAdmin && (
+            {canEditNotes && (
               <button
                 onClick={handleSaveNotes}
                 disabled={isSavingNotes}

@@ -130,6 +130,44 @@ describe('Report card notes', () => {
 
     expect(res.status).toBe(404);
   });
+
+  it('lets a TEACHER save interest/strength/class-teacher-remarks/promoted-to', async () => {
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({
+        interest: 'Athletics',
+        academicStrength: 'Science',
+        classTeacherRemarks: 'Improving steadily.',
+        promotedTo: 'Grade 6',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      interest: 'Athletics',
+      academic_strength: 'Science',
+      class_teacher_remarks: 'Improving steadily.',
+      promoted_to: 'Grade 6',
+    });
+  });
+
+  it("ignores a TEACHER's attempt to set headmasterRemarks, and preserves an admin's existing value", async () => {
+    await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ headmasterRemarks: 'Set by the admin.' });
+
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ interest: 'Athletics', headmasterRemarks: 'Sneaky teacher edit.' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.interest).toBe('Athletics');
+    expect(res.body.data.headmaster_remarks).toBe('Set by the admin.');
+  });
 });
 
 describe('Extended report card shape', () => {

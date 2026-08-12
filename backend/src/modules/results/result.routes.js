@@ -23,9 +23,13 @@ router.get('/exam-subjects/:examSubjectId', requireRole('SCHOOL_ADMIN', 'TEACHER
 router.post('/exam-subjects/:examSubjectId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.saveResults);
 
 router.get('/exams/:examId/report-card/:studentId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getReportCard);
+// TEACHER can save interest/academic-strength/class-teacher-remarks/
+// promoted-to (the fields a class teacher normally fills in); headmaster's
+// remarks stays admin-only, enforced in the controller since it's a
+// field-level restriction rather than a whole-route one.
 router.put(
   '/exams/:examId/report-card/:studentId/notes',
-  requireRole('SCHOOL_ADMIN'),
+  requireRole('SCHOOL_ADMIN', 'TEACHER'),
   controller.saveReportCardNotes
 );
 router.get('/exams/:examId/class-report', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getClassReport);

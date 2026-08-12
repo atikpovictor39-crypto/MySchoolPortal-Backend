@@ -105,7 +105,11 @@ exports.saveReportCardNotes = asyncHandler(async (req, res) => {
     interest,
     academicStrength,
     classTeacherRemarks,
-    headmasterRemarks,
+    // Headmaster's remarks is the one field a TEACHER isn't allowed to set —
+    // passing undefined here leaves whatever value is already saved intact
+    // (see upsertReportCardNotes' merge-with-existing behavior) rather than
+    // silently blanking it out on a teacher's save.
+    headmasterRemarks: req.user.role === 'SCHOOL_ADMIN' ? headmasterRemarks : undefined,
     promotedTo,
   });
   return ok(res, notes);
