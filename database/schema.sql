@@ -391,7 +391,10 @@ CREATE TABLE report_card_notes (
   interest              VARCHAR(255),
   academic_strength     VARCHAR(255),
   class_teacher_remarks TEXT,
+  entered_by            BIGINT REFERENCES users(id) ON DELETE SET NULL, -- whoever last saved class_teacher_remarks; fallback "Teacher's Name" when the class has no official class_teacher_id
   headmaster_remarks    TEXT,
+  headmaster_signature  VARCHAR(255), -- typed, admin-only
+  headmaster_signed_date DATE,        -- admin-only
   promoted_to           VARCHAR(100),
   created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

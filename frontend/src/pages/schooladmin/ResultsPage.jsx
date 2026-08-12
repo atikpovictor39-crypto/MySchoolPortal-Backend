@@ -20,7 +20,15 @@ import {
 } from '../../features/results/api';
 
 const emptyExamForm = { academicYearId: '', classId: '', name: '', term: '', termStartDate: '', termEndDate: '', reopeningDate: '' };
-const emptyNotesForm = { interest: '', academicStrength: '', classTeacherRemarks: '', headmasterRemarks: '', promotedTo: '' };
+const emptyNotesForm = {
+  interest: '',
+  academicStrength: '',
+  classTeacherRemarks: '',
+  headmasterRemarks: '',
+  headmasterSignature: '',
+  headmasterSignedDate: '',
+  promotedTo: '',
+};
 
 // 1st, 2nd, 3rd, 4th, 11th–13th stay "th" (not "11st"/"12nd"/"13rd").
 function ordinalSuffix(n) {
@@ -267,6 +275,8 @@ export default function ResultsPage() {
         academicStrength: card.notes.academic_strength || '',
         classTeacherRemarks: card.notes.class_teacher_remarks || '',
         headmasterRemarks: card.notes.headmaster_remarks || '',
+        headmasterSignature: card.notes.headmaster_signature || '',
+        headmasterSignedDate: card.notes.headmaster_signed_date?.slice(0, 10) || '',
         promotedTo: card.notes.promoted_to || '',
       });
     } catch (err) {
@@ -974,9 +984,34 @@ export default function ResultsPage() {
               <p className={`whitespace-pre-wrap ${isAdmin ? 'hidden print:block' : ''}`}>
                 {notesForm.headmasterRemarks || '—'}
               </p>
-              <div className="flex justify-between items-end mt-2 text-xs">
-                <p>Headmaster's Signature: _______________________</p>
-                <p>Date: _______________________</p>
+              <div className="flex justify-between items-end mt-2 text-xs gap-4">
+                <p className="flex items-center gap-1">
+                  <span className="shrink-0">Headmaster's Signature: </span>
+                  {isAdmin ? (
+                    <input
+                      value={notesForm.headmasterSignature}
+                      onChange={(e) => setNotesForm({ ...notesForm, headmasterSignature: e.target.value })}
+                      className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-xs w-40"
+                    />
+                  ) : null}
+                  <span className={isAdmin ? 'hidden print:inline' : ''}>
+                    {notesForm.headmasterSignature || '_______________________'}
+                  </span>
+                </p>
+                <p className="flex items-center gap-1">
+                  <span className="shrink-0">Date: </span>
+                  {isAdmin ? (
+                    <input
+                      type="date"
+                      value={notesForm.headmasterSignedDate}
+                      onChange={(e) => setNotesForm({ ...notesForm, headmasterSignedDate: e.target.value })}
+                      className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+                    />
+                  ) : null}
+                  <span className={isAdmin ? 'hidden print:inline' : ''}>
+                    {notesForm.headmasterSignedDate || '_______________________'}
+                  </span>
+                </p>
               </div>
             </div>
 

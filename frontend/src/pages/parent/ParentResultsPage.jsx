@@ -228,8 +228,8 @@ export default function ParentResultsPage() {
               <p className="font-semibold mb-1">Headmaster's Remarks:</p>
               <p className="whitespace-pre-wrap">{reportCard.notes.headmaster_remarks || '—'}</p>
               <div className="flex justify-between items-end mt-2 text-xs">
-                <p>Headmaster's Signature: _______________________</p>
-                <p>Date: _______________________</p>
+                <p>Headmaster's Signature: {reportCard.notes.headmaster_signature || '_______________________'}</p>
+                <p>Date: {reportCard.notes.headmaster_signed_date?.slice(0, 10) || '_______________________'}</p>
               </div>
             </div>
 

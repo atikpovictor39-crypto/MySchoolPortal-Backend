@@ -321,7 +321,8 @@ async function getAttendanceSummary(schoolId, studentId, fromDate, toDate) {
 
 async function getReportCardNotes(schoolId, examId, studentId) {
   const [rows] = await db.query(
-    `SELECT interest, academic_strength, class_teacher_remarks, headmaster_remarks, promoted_to
+    `SELECT interest, academic_strength, class_teacher_remarks, entered_by, headmaster_remarks,
+       headmaster_signature, headmaster_signed_date, promoted_to
      FROM report_card_notes WHERE exam_id = ? AND student_id = ? AND school_id = ? LIMIT 1`,
     [examId, studentId, schoolId]
   );
@@ -330,21 +331,32 @@ async function getReportCardNotes(schoolId, examId, studentId) {
       interest: null,
       academic_strength: null,
       class_teacher_remarks: null,
+      entered_by: null,
       headmaster_remarks: null,
+      headmaster_signature: null,
+      headmaster_signed_date: null,
       promoted_to: null,
     }
   );
 }
 
 // A field left `undefined` here means "the caller isn't allowed to touch
-// this" (see result.controller.js's TEACHER-vs-headmasterRemarks handling),
-// not "clear it" — so it's merged against whatever's already saved rather
-// than blindly overwritten, unlike an explicit '' which does clear a field.
+// this" (see result.controller.js's TEACHER-vs-headmaster-only-fields
+// handling), not "clear it" — so it's merged against whatever's already
+// saved rather than blindly overwritten, unlike an explicit '' which does
+// clear a field.
+//
+// enteredByUserId is recorded as `entered_by` only when classTeacherRemarks
+// is actually part of this save — it's used as a "Teacher's Name" fallback
+// on the printed report card when the class has no official class_teacher_id
+// assigned, and shouldn't shift to whoever happened to touch an unrelated
+// field (e.g. an admin only updating headmaster's remarks).
 async function upsertReportCardNotes(
   schoolId,
   examId,
   studentId,
-  { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo }
+  { interest, academicStrength, classTeacherRemarks, headmasterRemarks, headmasterSignature, headmasterSignedDate, promotedTo },
+  enteredByUserId
 ) {
   const exam = await getExamById(schoolId, examId);
   if (!exam) {
@@ -368,18 +380,25 @@ async function upsertReportCardNotes(
     academicStrength: academicStrength !== undefined ? academicStrength || null : existing.academic_strength,
     classTeacherRemarks:
       classTeacherRemarks !== undefined ? classTeacherRemarks || null : existing.class_teacher_remarks,
+    enteredBy: classTeacherRemarks !== undefined ? enteredByUserId || null : existing.entered_by,
     headmasterRemarks: headmasterRemarks !== undefined ? headmasterRemarks || null : existing.headmaster_remarks,
+    headmasterSignature:
+      headmasterSignature !== undefined ? headmasterSignature || null : existing.headmaster_signature,
+    headmasterSignedDate:
+      headmasterSignedDate !== undefined ? headmasterSignedDate || null : existing.headmaster_signed_date,
     promotedTo: promotedTo !== undefined ? promotedTo || null : existing.promoted_to,
   };
 
   await db.query(
     `INSERT INTO report_card_notes
-       (school_id, exam_id, student_id, interest, academic_strength, class_teacher_remarks, headmaster_remarks, promoted_to)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       (school_id, exam_id, student_id, interest, academic_strength, class_teacher_remarks, entered_by,
+        headmaster_remarks, headmaster_signature, headmaster_signed_date, promoted_to)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT ON CONSTRAINT uq_report_card_notes
      DO UPDATE SET interest = EXCLUDED.interest, academic_strength = EXCLUDED.academic_strength,
-       class_teacher_remarks = EXCLUDED.class_teacher_remarks, headmaster_remarks = EXCLUDED.headmaster_remarks,
-       promoted_to = EXCLUDED.promoted_to`,
+       class_teacher_remarks = EXCLUDED.class_teacher_remarks, entered_by = EXCLUDED.entered_by,
+       headmaster_remarks = EXCLUDED.headmaster_remarks, headmaster_signature = EXCLUDED.headmaster_signature,
+       headmaster_signed_date = EXCLUDED.headmaster_signed_date, promoted_to = EXCLUDED.promoted_to`,
     [
       schoolId,
       examId,
@@ -387,7 +406,10 @@ async function upsertReportCardNotes(
       merged.interest,
       merged.academicStrength,
       merged.classTeacherRemarks,
+      merged.enteredBy,
       merged.headmasterRemarks,
+      merged.headmasterSignature,
+      merged.headmasterSignedDate,
       merged.promotedTo,
     ]
   );
@@ -469,6 +491,16 @@ async function getReportCard(schoolId, examId, studentId) {
   );
   const notes = await getReportCardNotes(schoolId, examId, studentId);
 
+  // Falls back to whoever actually wrote the class teacher's remarks when
+  // the class has no official class_teacher_id assigned — otherwise
+  // "Teacher's Name" on the printed slip is just blank even though someone
+  // clearly did fill the remarks in.
+  let classTeacherName = teacherRows[0]?.name || null;
+  if (!classTeacherName && notes.entered_by) {
+    const [enteredByRows] = await db.query('SELECT name FROM users WHERE id = ? LIMIT 1', [notes.entered_by]);
+    classTeacherName = enteredByRows[0]?.name || null;
+  }
+
   return {
     exam,
     student,
@@ -480,7 +512,7 @@ async function getReportCard(schoolId, examId, studentId) {
     position: rankEntry ? rankEntry.position : null,
     classSize: ranking.length,
     noOnRoll: Number(rollRows[0].count),
-    classTeacherName: teacherRows[0]?.name || null,
+    classTeacherName,
     attendance,
     notes,
   };

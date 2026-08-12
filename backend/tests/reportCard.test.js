@@ -168,6 +168,74 @@ describe('Report card notes', () => {
     expect(res.body.data.interest).toBe('Athletics');
     expect(res.body.data.headmaster_remarks).toBe('Set by the admin.');
   });
+
+  it('lets an admin save headmaster signature and signed date', async () => {
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ headmasterSignature: 'V. Atikpo', headmasterSignedDate: '2026-04-03' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.headmaster_signature).toBe('V. Atikpo');
+    expect(res.body.data.headmaster_signed_date).toContain('2026-04-03');
+  });
+
+  it("ignores a TEACHER's attempt to set headmaster signature/date, and preserves an admin's existing value", async () => {
+    await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ headmasterSignature: 'V. Atikpo', headmasterSignedDate: '2026-04-03' });
+
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ interest: 'Athletics', headmasterSignature: 'Sneaky', headmasterSignedDate: '2099-01-01' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.headmaster_signature).toBe('V. Atikpo');
+    expect(res.body.data.headmaster_signed_date).toContain('2026-04-03');
+  });
+
+  it("falls back Teacher's Name to whoever saved the class teacher remarks when no class teacher is assigned", async () => {
+    const teacherLogin = await createTeacher(school.accessToken, { name: 'Ama Boateng' });
+    await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ classTeacherRemarks: 'Doing well.' });
+
+    const res = await request(app)
+      .get(`/api/v1/results/exams/${examId}/report-card/${student.id}`)
+      .set('Authorization', auth(school.accessToken));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.classTeacherName).toBe('Ama Boateng');
+  });
+
+  it("prefers the class's official class teacher over the entered_by fallback", async () => {
+    // Someone else (a substitute) saves the remarks...
+    const substituteLogin = await createTeacher(school.accessToken, { name: 'Substitute Teacher' });
+    await request(app)
+      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
+      .set('Authorization', auth(substituteLogin.accessToken))
+      .send({ classTeacherRemarks: 'Doing well.' });
+
+    // ...but the class does have an official class teacher on record.
+    await createTeacher(school.accessToken, { name: 'Official Class Teacher' });
+    const teachersRes = await request(app).get('/api/v1/teachers').set('Authorization', auth(school.accessToken));
+    const officialTeacherId = teachersRes.body.data.find((t) => t.name === 'Official Class Teacher').id;
+    await request(app)
+      .put(`/api/v1/classes/${school.classId}`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ classTeacherId: officialTeacherId });
+
+    const res = await request(app)
+      .get(`/api/v1/results/exams/${examId}/report-card/${student.id}`)
+      .set('Authorization', auth(school.accessToken));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.classTeacherName).toBe('Official Class Teacher');
+  });
 });
 
 describe('Extended report card shape', () => {
@@ -293,7 +361,10 @@ describe('Extended report card shape', () => {
       interest: null,
       academic_strength: null,
       class_teacher_remarks: null,
+      entered_by: null,
       headmaster_remarks: null,
+      headmaster_signature: null,
+      headmaster_signed_date: null,
       promoted_to: null,
     });
   });

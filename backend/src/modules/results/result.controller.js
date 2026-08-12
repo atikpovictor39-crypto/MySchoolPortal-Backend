@@ -100,17 +100,27 @@ exports.getClassReport = asyncHandler(async (req, res) => {
 // teacher's and headmaster's remarks, promoted-to) — not a score, so it
 // lives outside exam_subjects/results entirely. See report_card_notes.
 exports.saveReportCardNotes = asyncHandler(async (req, res) => {
-  const { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo } = req.body;
-  const notes = await resultService.upsertReportCardNotes(req.schoolId, req.params.examId, req.params.studentId, {
-    interest,
-    academicStrength,
-    classTeacherRemarks,
-    // Headmaster's remarks is the one field a TEACHER isn't allowed to set —
-    // passing undefined here leaves whatever value is already saved intact
-    // (see upsertReportCardNotes' merge-with-existing behavior) rather than
-    // silently blanking it out on a teacher's save.
-    headmasterRemarks: req.user.role === 'SCHOOL_ADMIN' ? headmasterRemarks : undefined,
-    promotedTo,
-  });
+  const { interest, academicStrength, classTeacherRemarks, headmasterRemarks, headmasterSignature, headmasterSignedDate, promotedTo } =
+    req.body;
+  const isAdmin = req.user.role === 'SCHOOL_ADMIN';
+  const notes = await resultService.upsertReportCardNotes(
+    req.schoolId,
+    req.params.examId,
+    req.params.studentId,
+    {
+      interest,
+      academicStrength,
+      classTeacherRemarks,
+      // Headmaster's remarks/signature/date are the fields a TEACHER isn't
+      // allowed to set — passing undefined here leaves whatever value is
+      // already saved intact (see upsertReportCardNotes' merge-with-existing
+      // behavior) rather than silently blanking it out on a teacher's save.
+      headmasterRemarks: isAdmin ? headmasterRemarks : undefined,
+      headmasterSignature: isAdmin ? headmasterSignature : undefined,
+      headmasterSignedDate: isAdmin ? headmasterSignedDate : undefined,
+      promotedTo,
+    },
+    req.user.id
+  );
   return ok(res, notes);
 });
