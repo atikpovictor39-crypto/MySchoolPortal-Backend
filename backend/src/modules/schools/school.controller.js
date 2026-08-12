@@ -58,7 +58,7 @@ exports.getMyProfile = asyncHandler(async (req, res) => {
   return ok(res, profile);
 });
 
-const PROFILE_MAX_LENGTHS = { name: 150, email: 150, phone: 30, address: 255, logoUrl: 500 };
+const PROFILE_MAX_LENGTHS = { name: 150, email: 150, phone: 30, address: 255, logoUrl: 500, headmasterSignature: 255 };
 
 exports.updateMyProfile = asyncHandler(async (req, res) => {
   const updates = {};

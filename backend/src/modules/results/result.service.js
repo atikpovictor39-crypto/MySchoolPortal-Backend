@@ -38,7 +38,7 @@ async function subjectBelongsToSchool(schoolId, subjectId) {
 // ---- Exams ----
 
 const EXAM_COLUMNS =
-  'id, academic_year_id, class_id, name, term, term_start_date, term_end_date, reopening_date, created_at';
+  'id, academic_year_id, class_id, name, term, term_start_date, term_end_date, reopening_date, headmaster_signed_date, created_at';
 
 async function listExams(schoolId, { classId } = {}) {
   const conditions = ['school_id = ?'];
@@ -98,7 +98,7 @@ async function createExam(schoolId, { academicYearId, classId, name, term, termS
 // Term dates are typically only known/settled near the end of term (once
 // vacation and re-opening are confirmed), so these are edited after the
 // exam already exists rather than required up front at creation.
-async function updateExam(schoolId, id, { name, term, termStartDate, termEndDate, reopeningDate }) {
+async function updateExam(schoolId, id, { name, term, termStartDate, termEndDate, reopeningDate, headmasterSignedDate }) {
   const existing = await getExamById(schoolId, id);
   if (!existing) return null;
 
@@ -115,6 +115,9 @@ async function updateExam(schoolId, id, { name, term, termStartDate, termEndDate
   set('term_start_date', termStartDate);
   set('term_end_date', termEndDate);
   set('reopening_date', reopeningDate);
+  // Same date for every student's report card in this exam — the headmaster
+  // signs one batch, not one date per student.
+  set('headmaster_signed_date', headmasterSignedDate);
 
   if (fields.length === 0) return existing;
 
@@ -321,8 +324,7 @@ async function getAttendanceSummary(schoolId, studentId, fromDate, toDate) {
 
 async function getReportCardNotes(schoolId, examId, studentId) {
   const [rows] = await db.query(
-    `SELECT interest, academic_strength, class_teacher_remarks, entered_by, headmaster_remarks,
-       headmaster_signature, headmaster_signed_date, promoted_to
+    `SELECT interest, academic_strength, class_teacher_remarks, entered_by, headmaster_remarks, promoted_to
      FROM report_card_notes WHERE exam_id = ? AND student_id = ? AND school_id = ? LIMIT 1`,
     [examId, studentId, schoolId]
   );
@@ -333,29 +335,30 @@ async function getReportCardNotes(schoolId, examId, studentId) {
       class_teacher_remarks: null,
       entered_by: null,
       headmaster_remarks: null,
-      headmaster_signature: null,
-      headmaster_signed_date: null,
       promoted_to: null,
     }
   );
 }
 
 // A field left `undefined` here means "the caller isn't allowed to touch
-// this" (see result.controller.js's TEACHER-vs-headmaster-only-fields
-// handling), not "clear it" — so it's merged against whatever's already
-// saved rather than blindly overwritten, unlike an explicit '' which does
-// clear a field.
+// this" (see result.controller.js's TEACHER-vs-headmasterRemarks handling),
+// not "clear it" — so it's merged against whatever's already saved rather
+// than blindly overwritten, unlike an explicit '' which does clear a field.
 //
 // enteredByUserId is recorded as `entered_by` only when classTeacherRemarks
 // is actually part of this save — it's used as a "Teacher's Name" fallback
 // on the printed report card when the class has no official class_teacher_id
 // assigned, and shouldn't shift to whoever happened to touch an unrelated
-// field (e.g. an admin only updating headmaster's remarks).
+// field (e.g. an admin only updating headmaster's remarks). The headmaster's
+// signature itself lives on the school profile (set once, applies to every
+// report card) and the signed date on the exam (set once per exam batch) —
+// neither belongs here, since re-typing a signature per student defeats the
+// point of it being a signature.
 async function upsertReportCardNotes(
   schoolId,
   examId,
   studentId,
-  { interest, academicStrength, classTeacherRemarks, headmasterRemarks, headmasterSignature, headmasterSignedDate, promotedTo },
+  { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo },
   enteredByUserId
 ) {
   const exam = await getExamById(schoolId, examId);
@@ -382,23 +385,18 @@ async function upsertReportCardNotes(
       classTeacherRemarks !== undefined ? classTeacherRemarks || null : existing.class_teacher_remarks,
     enteredBy: classTeacherRemarks !== undefined ? enteredByUserId || null : existing.entered_by,
     headmasterRemarks: headmasterRemarks !== undefined ? headmasterRemarks || null : existing.headmaster_remarks,
-    headmasterSignature:
-      headmasterSignature !== undefined ? headmasterSignature || null : existing.headmaster_signature,
-    headmasterSignedDate:
-      headmasterSignedDate !== undefined ? headmasterSignedDate || null : existing.headmaster_signed_date,
     promotedTo: promotedTo !== undefined ? promotedTo || null : existing.promoted_to,
   };
 
   await db.query(
     `INSERT INTO report_card_notes
        (school_id, exam_id, student_id, interest, academic_strength, class_teacher_remarks, entered_by,
-        headmaster_remarks, headmaster_signature, headmaster_signed_date, promoted_to)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        headmaster_remarks, promoted_to)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT ON CONSTRAINT uq_report_card_notes
      DO UPDATE SET interest = EXCLUDED.interest, academic_strength = EXCLUDED.academic_strength,
        class_teacher_remarks = EXCLUDED.class_teacher_remarks, entered_by = EXCLUDED.entered_by,
-       headmaster_remarks = EXCLUDED.headmaster_remarks, headmaster_signature = EXCLUDED.headmaster_signature,
-       headmaster_signed_date = EXCLUDED.headmaster_signed_date, promoted_to = EXCLUDED.promoted_to`,
+       headmaster_remarks = EXCLUDED.headmaster_remarks, promoted_to = EXCLUDED.promoted_to`,
     [
       schoolId,
       examId,
@@ -408,8 +406,6 @@ async function upsertReportCardNotes(
       merged.classTeacherRemarks,
       merged.enteredBy,
       merged.headmasterRemarks,
-      merged.headmasterSignature,
-      merged.headmasterSignedDate,
       merged.promotedTo,
     ]
   );

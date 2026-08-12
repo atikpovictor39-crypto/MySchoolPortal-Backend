@@ -169,34 +169,6 @@ describe('Report card notes', () => {
     expect(res.body.data.headmaster_remarks).toBe('Set by the admin.');
   });
 
-  it('lets an admin save headmaster signature and signed date', async () => {
-    const res = await request(app)
-      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
-      .set('Authorization', auth(school.accessToken))
-      .send({ headmasterSignature: 'V. Atikpo', headmasterSignedDate: '2026-04-03' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.headmaster_signature).toBe('V. Atikpo');
-    expect(res.body.data.headmaster_signed_date).toContain('2026-04-03');
-  });
-
-  it("ignores a TEACHER's attempt to set headmaster signature/date, and preserves an admin's existing value", async () => {
-    await request(app)
-      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
-      .set('Authorization', auth(school.accessToken))
-      .send({ headmasterSignature: 'V. Atikpo', headmasterSignedDate: '2026-04-03' });
-
-    const teacherLogin = await createTeacher(school.accessToken);
-    const res = await request(app)
-      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
-      .set('Authorization', auth(teacherLogin.accessToken))
-      .send({ interest: 'Athletics', headmasterSignature: 'Sneaky', headmasterSignedDate: '2099-01-01' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.headmaster_signature).toBe('V. Atikpo');
-    expect(res.body.data.headmaster_signed_date).toContain('2026-04-03');
-  });
-
   it("falls back Teacher's Name to whoever saved the class teacher remarks when no class teacher is assigned", async () => {
     const teacherLogin = await createTeacher(school.accessToken, { name: 'Ama Boateng' });
     await request(app)
@@ -363,10 +335,80 @@ describe('Extended report card shape', () => {
       class_teacher_remarks: null,
       entered_by: null,
       headmaster_remarks: null,
-      headmaster_signature: null,
-      headmaster_signed_date: null,
       promoted_to: null,
     });
+  });
+});
+
+describe('Headmaster signature (school-wide) and signed date (per-exam)', () => {
+  it('set once on the school profile, the signature applies to every report card without re-entry', async () => {
+    const updateRes = await request(app)
+      .put('/api/v1/schools/me')
+      .set('Authorization', auth(school.accessToken))
+      .send({ headmasterSignature: 'V. Atikpo' });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.data.headmaster_signature).toBe('V. Atikpo');
+
+    const meRes = await request(app).get('/api/v1/schools/me').set('Authorization', auth(school.accessToken));
+    expect(meRes.body.data.headmaster_signature).toBe('V. Atikpo');
+
+    const parentLogin = await createGuardian(school.accessToken, student.id);
+    const parentInfoRes = await request(app)
+      .get('/api/v1/parent/school-info')
+      .set('Authorization', auth(parentLogin.accessToken));
+    expect(parentInfoRes.body.data.headmaster_signature).toBe('V. Atikpo');
+  });
+
+  it('blocks a TEACHER from setting the school-wide headmaster signature', async () => {
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put('/api/v1/schools/me')
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ headmasterSignature: 'Sneaky' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('sets one signed date per exam, shared by every student in it', async () => {
+    const examRes = await request(app)
+      .post('/api/v1/results/exams')
+      .set('Authorization', auth(school.accessToken))
+      .send({ academicYearId: school.academicYearId, classId: school.classId, name: 'Term 1 Exam' });
+    const examId = examRes.body.data.id;
+    const studentB = await createStudent(school.accessToken, school.classId, { firstName: 'Ben' });
+
+    const updateRes = await request(app)
+      .put(`/api/v1/results/exams/${examId}`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ headmasterSignedDate: '2026-04-03' });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.data.headmaster_signed_date).toContain('2026-04-03');
+
+    const cardA = await request(app)
+      .get(`/api/v1/results/exams/${examId}/report-card/${student.id}`)
+      .set('Authorization', auth(school.accessToken));
+    const cardB = await request(app)
+      .get(`/api/v1/results/exams/${examId}/report-card/${studentB.id}`)
+      .set('Authorization', auth(school.accessToken));
+
+    expect(cardA.body.data.exam.headmaster_signed_date).toContain('2026-04-03');
+    expect(cardB.body.data.exam.headmaster_signed_date).toContain('2026-04-03');
+  });
+
+  it('blocks a TEACHER from setting the headmaster signed date on an exam', async () => {
+    const examRes = await request(app)
+      .post('/api/v1/results/exams')
+      .set('Authorization', auth(school.accessToken))
+      .send({ academicYearId: school.academicYearId, classId: school.classId, name: 'Term 1 Exam' });
+    const examId = examRes.body.data.id;
+
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ headmasterSignedDate: '2026-04-03' });
+
+    expect(res.status).toBe(403);
   });
 });
 

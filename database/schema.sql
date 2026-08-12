@@ -42,6 +42,7 @@ CREATE TABLE schools (
   bank_account_number VARCHAR(50),
   bank_account_name   VARCHAR(150),
   logo_url      VARCHAR(500),
+  headmaster_signature VARCHAR(255), -- typed, admin-only; set once, printed on every report card (see exams.headmaster_signed_date for the per-exam signing date)
   status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','archived')),
   is_demo       BOOLEAN NOT NULL DEFAULT FALSE, -- public read-only demo tenant, see demoReadOnly.middleware.js
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -375,6 +376,7 @@ CREATE TABLE exams (
   term_start_date TIMESTAMP NULL, -- attendance present/absent counts on the report card are summed over [term_start_date, term_end_date]
   term_end_date   TIMESTAMP NULL, -- also printed as "Vacation Date"
   reopening_date  TIMESTAMP NULL,
+  headmaster_signed_date DATE, -- date the headmaster signed this exam's whole batch of report cards; same for every student
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_exams_school ON exams(school_id);
@@ -393,8 +395,6 @@ CREATE TABLE report_card_notes (
   class_teacher_remarks TEXT,
   entered_by            BIGINT REFERENCES users(id) ON DELETE SET NULL, -- whoever last saved class_teacher_remarks; fallback "Teacher's Name" when the class has no official class_teacher_id
   headmaster_remarks    TEXT,
-  headmaster_signature  VARCHAR(255), -- typed, admin-only
-  headmaster_signed_date DATE,        -- admin-only
   promoted_to           VARCHAR(100),
   created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

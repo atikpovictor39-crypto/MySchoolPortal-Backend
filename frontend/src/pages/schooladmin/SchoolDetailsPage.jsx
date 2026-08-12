@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getMyProfile, updateMyProfile } from '../../features/schools/api';
 
-const emptyForm = { name: '', email: '', phone: '', address: '', logoUrl: '' };
+const emptyForm = { name: '', email: '', phone: '', address: '', logoUrl: '', headmasterSignature: '' };
 
 export default function SchoolDetailsPage() {
   const [form, setForm] = useState(emptyForm);
@@ -19,6 +19,7 @@ export default function SchoolDetailsPage() {
           phone: profile.phone || '',
           address: profile.address || '',
           logoUrl: profile.logo_url || '',
+          headmasterSignature: profile.headmaster_signature || '',
         })
       )
       .catch((err) => setError(err.response?.data?.message || 'Failed to load school details'))
@@ -104,6 +105,19 @@ export default function SchoolDetailsPage() {
             rows={2}
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Headmaster's signature</label>
+          <input
+            value={form.headmasterSignature}
+            onChange={(e) => setForm({ ...form, headmasterSignature: e.target.value })}
+            placeholder="Typed name to print as the signature on report cards"
+            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            Set once here — it's printed automatically on every student's report card.
+          </p>
         </div>
 
         {error && (

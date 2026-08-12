@@ -37,13 +37,14 @@ exports.createExam = asyncHandler(async (req, res) => {
 // Term dates (vacation/re-opening) are usually only confirmed near the end
 // of term, so this is edited after the exam already exists.
 exports.updateExam = asyncHandler(async (req, res) => {
-  const { name, term, termStartDate, termEndDate, reopeningDate } = req.body;
+  const { name, term, termStartDate, termEndDate, reopeningDate, headmasterSignedDate } = req.body;
   const exam = await resultService.updateExam(req.schoolId, req.params.id, {
     name,
     term,
     termStartDate,
     termEndDate,
     reopeningDate,
+    headmasterSignedDate,
   });
   if (!exam) return fail(res, 'Exam not found', 404);
   return ok(res, exam);
@@ -100,8 +101,7 @@ exports.getClassReport = asyncHandler(async (req, res) => {
 // teacher's and headmaster's remarks, promoted-to) — not a score, so it
 // lives outside exam_subjects/results entirely. See report_card_notes.
 exports.saveReportCardNotes = asyncHandler(async (req, res) => {
-  const { interest, academicStrength, classTeacherRemarks, headmasterRemarks, headmasterSignature, headmasterSignedDate, promotedTo } =
-    req.body;
+  const { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo } = req.body;
   const isAdmin = req.user.role === 'SCHOOL_ADMIN';
   const notes = await resultService.upsertReportCardNotes(
     req.schoolId,
@@ -111,13 +111,11 @@ exports.saveReportCardNotes = asyncHandler(async (req, res) => {
       interest,
       academicStrength,
       classTeacherRemarks,
-      // Headmaster's remarks/signature/date are the fields a TEACHER isn't
-      // allowed to set — passing undefined here leaves whatever value is
-      // already saved intact (see upsertReportCardNotes' merge-with-existing
-      // behavior) rather than silently blanking it out on a teacher's save.
+      // Headmaster's remarks is the one field a TEACHER isn't allowed to set
+      // — passing undefined here leaves whatever value is already saved
+      // intact (see upsertReportCardNotes' merge-with-existing behavior)
+      // rather than silently blanking it out on a teacher's save.
       headmasterRemarks: isAdmin ? headmasterRemarks : undefined,
-      headmasterSignature: isAdmin ? headmasterSignature : undefined,
-      headmasterSignedDate: isAdmin ? headmasterSignedDate : undefined,
       promotedTo,
     },
     req.user.id
