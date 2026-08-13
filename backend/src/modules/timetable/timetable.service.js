@@ -367,6 +367,193 @@ async function deleteSubstitution(schoolId, id) {
   return result.affectedRows > 0;
 }
 
+// ---- Auto-generate a class's weekly timetable ----
+
+function toTimeString(minutes) {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const DEFAULT_GENERATE_DAYS = [1, 2, 3, 4, 5];
+
+// Lays out one school day as a sequence of fixed-length subject periods,
+// with assembly/break inserted at their own exact times — any subject
+// period whose span would overlap a reserved window is skipped entirely (the
+// window gets its own slot instead, at its own time), so periods never
+// straddle a break. Stops once `periodsPerDay` subject periods are placed,
+// or after a generous safety cap so a bad input can't loop forever.
+function buildDaySlots(dayStartMinutes, periodLengthMinutes, periodsPerDay, reservedWindows) {
+  const reserved = [...reservedWindows].sort((a, b) => a.start - b.start);
+  const daySlots = [];
+  let cursor = dayStartMinutes;
+  let subjectCount = 0;
+  let ri = 0;
+  let safety = 0;
+
+  while (subjectCount < periodsPerDay && safety < 80) {
+    safety++;
+    if (ri < reserved.length && cursor >= reserved[ri].start && cursor < reserved[ri].end) {
+      daySlots.push({ start: reserved[ri].start, end: reserved[ri].end, type: reserved[ri].type });
+      cursor = reserved[ri].end;
+      ri++;
+      continue;
+    }
+    if (ri < reserved.length && cursor < reserved[ri].start && cursor + periodLengthMinutes > reserved[ri].start) {
+      daySlots.push({ start: reserved[ri].start, end: reserved[ri].end, type: reserved[ri].type });
+      cursor = reserved[ri].end;
+      ri++;
+      continue;
+    }
+    daySlots.push({ start: cursor, end: cursor + periodLengthMinutes, type: 'subject' });
+    subjectCount++;
+    cursor += periodLengthMinutes;
+  }
+  return daySlots;
+}
+
+// Fills a class's weekly timetable from its class_subjects rows (subject +
+// teacher + periods/week — see class.service.js), inserting Assembly/Break
+// at the given times and round-robining subjects across the remaining
+// periods. A fast, fully-editable starting point, not an optimizer: it
+// doesn't guarantee zero same-day repeats when a class has few subjects
+// relative to its periods/day, and it entirely WIPES this class's existing
+// timetable before writing the new one (callers should confirm with the
+// admin first — this is destructive by design, same as re-running it later).
+async function generateTimetable(schoolId, { classId, days, dayStartTime, periodLengthMinutes, periodsPerDay, breaks, assembly }) {
+  if (!(await classBelongsToSchool(schoolId, classId))) {
+    const err = new Error('classId does not belong to this school');
+    err.status = 400;
+    throw err;
+  }
+
+  const [classSubjectRows] = await db.query(
+    `SELECT cs.subject_id, sub.name AS subject_name, cs.teacher_id, cs.periods_per_week
+     FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
+     WHERE cs.class_id = ? AND cs.school_id = ?`,
+    [classId, schoolId]
+  );
+  if (classSubjectRows.length === 0) {
+    const err = new Error('This class has no subjects assigned yet — add them on the Classes page first');
+    err.status = 400;
+    throw err;
+  }
+
+  const scheduleDays = days && days.length > 0 ? days : DEFAULT_GENERATE_DAYS;
+  const dayStartMinutes = toMinutes(dayStartTime);
+  const warnings = [];
+
+  // Existing teacher commitments school-wide, EXCLUDING this class (whose
+  // slots are about to be wiped and rebuilt) — checked in memory rather
+  // than with one query per placement.
+  const [existingRows] = await db.query(
+    `SELECT teacher_id, day_of_week, start_time FROM timetable_slots
+     WHERE school_id = ? AND class_id != ? AND teacher_id IS NOT NULL`,
+    [schoolId, classId]
+  );
+  const busy = new Set(existingRows.map((r) => `${r.teacher_id}-${r.day_of_week}-${r.start_time.slice(0, 5)}`));
+
+  const subjectQueue = classSubjectRows.map((cs) => ({ ...cs, remaining: cs.periods_per_week }));
+  const totalRequested = subjectQueue.reduce((sum, s) => sum + s.remaining, 0);
+  let rotationIndex = 0;
+
+  const toInsert = [];
+  let totalSubjectSlots = 0;
+
+  for (const day of scheduleDays) {
+    const reservedWindows = [];
+    for (const b of breaks || []) {
+      const start = toMinutes(b.startTime);
+      reservedWindows.push({ start, end: start + b.durationMinutes, type: 'break' });
+    }
+    if (assembly && (!assembly.days || assembly.days.includes(day))) {
+      const start = toMinutes(assembly.startTime);
+      reservedWindows.push({ start, end: start + assembly.durationMinutes, type: 'assembly' });
+    }
+
+    const daySlots = buildDaySlots(dayStartMinutes, periodLengthMinutes, periodsPerDay, reservedWindows);
+    const usedToday = new Set();
+
+    for (const slot of daySlots) {
+      if (slot.type !== 'subject') {
+        toInsert.push({
+          dayOfWeek: day,
+          startTime: toTimeString(slot.start),
+          endTime: toTimeString(slot.end),
+          slotType: slot.type,
+          subjectId: null,
+          teacherId: null,
+        });
+        continue;
+      }
+
+      totalSubjectSlots++;
+      const startTimeStr = toTimeString(slot.start);
+      let picked = null;
+      let fallback = null;
+      for (let attempts = 0; attempts < subjectQueue.length; attempts++) {
+        const candidate = subjectQueue[(rotationIndex + attempts) % subjectQueue.length];
+        if (candidate.remaining <= 0) continue;
+        if (candidate.teacher_id && busy.has(`${candidate.teacher_id}-${day}-${startTimeStr}`)) continue;
+        if (!usedToday.has(candidate.subject_id)) {
+          picked = candidate;
+          rotationIndex = (rotationIndex + attempts + 1) % subjectQueue.length;
+          break;
+        }
+        if (!fallback) fallback = candidate;
+      }
+      if (!picked) picked = fallback;
+      if (!picked) continue; // nothing schedulable right now — leave this period empty
+
+      picked.remaining--;
+      usedToday.add(picked.subject_id);
+      if (picked.teacher_id) busy.add(`${picked.teacher_id}-${day}-${startTimeStr}`);
+
+      toInsert.push({
+        dayOfWeek: day,
+        startTime: startTimeStr,
+        endTime: toTimeString(slot.end),
+        slotType: 'subject',
+        subjectId: picked.subject_id,
+        teacherId: picked.teacher_id,
+      });
+    }
+  }
+
+  if (totalRequested > totalSubjectSlots) {
+    warnings.push(
+      `You asked for ${totalRequested} periods/week in total, but only ${totalSubjectSlots} subject periods fit in the week you set up.`
+    );
+  }
+  const leftover = subjectQueue.filter((s) => s.remaining > 0);
+  if (leftover.length > 0) {
+    warnings.push(
+      `Could not fit every requested period for: ${leftover.map((s) => `${s.subject_name} (${s.remaining} short)`).join(', ')} — often because their teacher was already busy elsewhere at the only slots left.`
+    );
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM timetable_slots WHERE class_id = ? AND school_id = ?', [classId, schoolId]);
+    for (const slot of toInsert) {
+      await conn.query(
+        `INSERT INTO timetable_slots (school_id, class_id, day_of_week, start_time, end_time, slot_type, subject_id, teacher_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [schoolId, classId, slot.dayOfWeek, slot.startTime, slot.endTime, slot.slotType, slot.subjectId, slot.teacherId]
+      );
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+
+  return { slots: await listTimetable(schoolId, { classId }), warnings };
+}
+
 module.exports = {
   DAY_NAMES,
   SLOT_TYPES,
@@ -379,4 +566,5 @@ module.exports = {
   listSubstitutions,
   createSubstitution,
   deleteSubstitution,
+  generateTimetable,
 };

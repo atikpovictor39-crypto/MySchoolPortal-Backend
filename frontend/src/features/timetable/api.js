@@ -37,3 +37,8 @@ export async function createSubstitution(payload) {
 export async function deleteSubstitution(id) {
   await axiosClient.delete(`/timetable/substitutions/${id}`);
 }
+
+export async function generateTimetable(payload) {
+  const { data } = await axiosClient.post('/timetable/generate', payload);
+  return data.data;
+}

@@ -12,11 +12,29 @@ import {
   listSubstitutions,
   createSubstitution,
   deleteSubstitution,
+  generateTimetable,
 } from '../../features/timetable/api';
 
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOT_TYPE_LABELS = { subject: 'Subject', assembly: 'Assembly', break: 'Break' };
 const emptyForm = { slotType: 'subject', dayOfWeek: '1', startTime: '', endTime: '', subjectId: '', teacherId: '' };
+const emptyGenForm = {
+  days: [1, 2, 3, 4, 5],
+  dayStartTime: '07:30',
+  periodLengthMinutes: '40',
+  periodsPerDay: '6',
+  break1Start: '',
+  break1Duration: '20',
+  break2Start: '',
+  break2Duration: '20',
+  assemblyStart: '',
+  assemblyDuration: '20',
+  assemblyDays: [1],
+};
+
+function toggleDay(list, day) {
+  return list.includes(day) ? list.filter((d) => d !== day) : [...list, day].sort((a, b) => a - b);
+}
 
 // A different light color per subject so the grid is scannable at a
 // glance — assigned by subject id, so it stays stable across reloads
@@ -88,6 +106,12 @@ export default function TimetablePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  // ---- Auto-generate (class view, admin only) ----
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [genForm, setGenForm] = useState(emptyGenForm);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genWarnings, setGenWarnings] = useState([]);
 
   // ---- Substitute teachers (class view only — tied to a specific slot,
   // managed from wherever that slot's regular schedule lives) ----
@@ -236,6 +260,45 @@ export default function TimetablePage() {
       setError(err.response?.data?.message || 'Failed to add period');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleGenerate(e) {
+    e.preventDefault();
+    setError('');
+    if (
+      !window.confirm(
+        `This will replace ${selectedClassName || 'this class'}'s current timetable with a freshly generated one. Continue?`
+      )
+    ) {
+      return;
+    }
+    setIsGenerating(true);
+    setGenWarnings([]);
+    try {
+      const breaks = [];
+      if (genForm.break1Start) breaks.push({ startTime: genForm.break1Start, durationMinutes: Number(genForm.break1Duration) });
+      if (genForm.break2Start) breaks.push({ startTime: genForm.break2Start, durationMinutes: Number(genForm.break2Duration) });
+      const assembly = genForm.assemblyStart
+        ? { startTime: genForm.assemblyStart, durationMinutes: Number(genForm.assemblyDuration), days: genForm.assemblyDays }
+        : undefined;
+
+      const result = await generateTimetable({
+        classId,
+        days: genForm.days,
+        dayStartTime: genForm.dayStartTime,
+        periodLengthMinutes: Number(genForm.periodLengthMinutes),
+        periodsPerDay: Number(genForm.periodsPerDay),
+        breaks,
+        assembly,
+      });
+      setGenWarnings(result.warnings || []);
+      setShowGenerateForm(false);
+      await refreshSlots();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to generate timetable');
+    } finally {
+      setIsGenerating(false);
     }
   }
 
@@ -404,6 +467,18 @@ export default function TimetablePage() {
               {showAddForm ? 'Hide add period form' : '+ Add / Edit Timetable'}
             </button>
           )}
+
+          {viewMode === 'class' && classId && isAdmin && (
+            <button
+              onClick={() => {
+                setShowGenerateForm((v) => !v);
+                setGenWarnings([]);
+              }}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {showGenerateForm ? 'Hide generator' : 'Generate timetable'}
+            </button>
+          )}
         </div>
 
         {(classId || filterTeacherId) && (
@@ -555,6 +630,172 @@ export default function TimetablePage() {
             {isSubmitting ? 'Adding…' : 'Add period'}
           </button>
         </form>
+      )}
+
+      {viewMode === 'class' && classId && isAdmin && showGenerateForm && (
+        <form
+          onSubmit={handleGenerate}
+          className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3 print:hidden"
+        >
+          <p className="text-xs text-slate-500">
+            Fills this class's timetable from the subjects assigned to it (set up via Classes → Subjects) — a fast
+            starting point, still fully editable afterward. This replaces whatever is currently on this class's
+            timetable.
+          </p>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">School days</label>
+            <div className="flex flex-wrap gap-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                <label key={d} className="flex items-center gap-1 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={genForm.days.includes(d)}
+                    onChange={() => setGenForm({ ...genForm, days: toggleDay(genForm.days, d) })}
+                  />
+                  {DAY_NAMES[d].slice(0, 3)}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Day starts at</label>
+              <input
+                required
+                type="time"
+                lang="en-GB"
+                value={genForm.dayStartTime}
+                onChange={(e) => setGenForm({ ...genForm, dayStartTime: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Period length (min)</label>
+              <input
+                required
+                type="number"
+                min="10"
+                max="180"
+                value={genForm.periodLengthMinutes}
+                onChange={(e) => setGenForm({ ...genForm, periodLengthMinutes: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-24"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Periods per day</label>
+              <input
+                required
+                type="number"
+                min="1"
+                max="15"
+                value={genForm.periodsPerDay}
+                onChange={(e) => setGenForm({ ...genForm, periodsPerDay: e.target.value })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-24"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Break 1 (optional)</label>
+              <div className="flex gap-1">
+                <input
+                  type="time"
+                  lang="en-GB"
+                  value={genForm.break1Start}
+                  onChange={(e) => setGenForm({ ...genForm, break1Start: e.target.value })}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                />
+                <input
+                  type="number"
+                  min="5"
+                  max="60"
+                  value={genForm.break1Duration}
+                  onChange={(e) => setGenForm({ ...genForm, break1Duration: e.target.value })}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm w-16"
+                  title="Minutes"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Break 2 (optional)</label>
+              <div className="flex gap-1">
+                <input
+                  type="time"
+                  lang="en-GB"
+                  value={genForm.break2Start}
+                  onChange={(e) => setGenForm({ ...genForm, break2Start: e.target.value })}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                />
+                <input
+                  type="number"
+                  min="5"
+                  max="60"
+                  value={genForm.break2Duration}
+                  onChange={(e) => setGenForm({ ...genForm, break2Duration: e.target.value })}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm w-16"
+                  title="Minutes"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Assembly (optional)</label>
+              <div className="flex gap-1">
+                <input
+                  type="time"
+                  lang="en-GB"
+                  value={genForm.assemblyStart}
+                  onChange={(e) => setGenForm({ ...genForm, assemblyStart: e.target.value })}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                />
+                <input
+                  type="number"
+                  min="5"
+                  max="90"
+                  value={genForm.assemblyDuration}
+                  onChange={(e) => setGenForm({ ...genForm, assemblyDuration: e.target.value })}
+                  className="rounded-md border border-slate-300 px-2 py-1.5 text-sm w-16"
+                  title="Minutes"
+                />
+              </div>
+            </div>
+            {genForm.assemblyStart && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Assembly on</label>
+                <div className="flex flex-wrap gap-2">
+                  {genForm.days.map((d) => (
+                    <label key={d} className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={genForm.assemblyDays.includes(d)}
+                        onChange={() => setGenForm({ ...genForm, assemblyDays: toggleDay(genForm.assemblyDays, d) })}
+                      />
+                      {DAY_NAMES[d].slice(0, 3)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isGenerating}
+            className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isGenerating ? 'Generating…' : 'Generate'}
+          </button>
+        </form>
+      )}
+
+      {genWarnings.length > 0 && (
+        <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4 print:hidden">
+          {genWarnings.map((w, i) => (
+            <p key={i}>{w}</p>
+          ))}
+        </div>
       )}
 
       {printTitle && <p className="hidden print:block text-base font-semibold mb-4">{printTitle}</p>}

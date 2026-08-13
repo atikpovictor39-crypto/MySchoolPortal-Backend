@@ -42,3 +42,38 @@ exports.remove = asyncHandler(async (req, res) => {
   if (!deleted) return fail(res, 'Class not found', 404);
   return ok(res, null);
 });
+
+// ---- Class subjects ----
+
+exports.listSubjects = asyncHandler(async (req, res) => {
+  const subjects = await classService.listClassSubjects(req.schoolId, req.params.id);
+  return ok(res, subjects);
+});
+
+exports.addSubject = asyncHandler(async (req, res) => {
+  const { subjectId, teacherId, periodsPerWeek } = req.body;
+  if (!subjectId) return fail(res, 'subjectId is required', 400);
+
+  const classSubject = await classService.addClassSubject(req.schoolId, req.params.id, {
+    subjectId,
+    teacherId,
+    periodsPerWeek,
+  });
+  return ok(res, classSubject, 201);
+});
+
+exports.updateSubject = asyncHandler(async (req, res) => {
+  const { teacherId, periodsPerWeek } = req.body;
+  const classSubject = await classService.updateClassSubject(req.schoolId, req.params.subjectAssignmentId, {
+    teacherId,
+    periodsPerWeek,
+  });
+  if (!classSubject) return fail(res, 'Class subject not found', 404);
+  return ok(res, classSubject);
+});
+
+exports.removeSubject = asyncHandler(async (req, res) => {
+  const deleted = await classService.removeClassSubject(req.schoolId, req.params.subjectAssignmentId);
+  if (!deleted) return fail(res, 'Class subject not found', 404);
+  return ok(res, null);
+});

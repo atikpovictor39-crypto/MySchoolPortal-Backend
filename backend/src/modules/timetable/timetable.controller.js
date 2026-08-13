@@ -109,3 +109,26 @@ exports.removeSubstitution = asyncHandler(async (req, res) => {
   if (!deleted) return fail(res, 'Substitution not found', 404);
   return ok(res, null);
 });
+
+// ---- Auto-generate ----
+
+exports.generate = asyncHandler(async (req, res) => {
+  const { classId, days, dayStartTime, periodLengthMinutes, periodsPerDay, breaks, assembly } = req.body;
+  if (!classId || !dayStartTime || !periodLengthMinutes || !periodsPerDay) {
+    return fail(res, 'classId, dayStartTime, periodLengthMinutes and periodsPerDay are required', 400);
+  }
+  if (days && (!Array.isArray(days) || days.some((d) => !validDayOfWeek(d)))) {
+    return fail(res, 'days must be an array of integers between 1 (Monday) and 7 (Sunday)', 400);
+  }
+
+  const result = await timetableService.generateTimetable(req.schoolId, {
+    classId,
+    days,
+    dayStartTime,
+    periodLengthMinutes,
+    periodsPerDay,
+    breaks,
+    assembly,
+  });
+  return ok(res, result);
+});

@@ -223,13 +223,16 @@ CREATE INDEX idx_teachers_school ON teachers(school_id);
 ALTER TABLE classes
   ADD CONSTRAINT fk_classes_teacher FOREIGN KEY (class_teacher_id) REFERENCES teachers(id) ON DELETE SET NULL;
 
--- Which teacher teaches which subject in which class
+-- Which teacher teaches which subject in which class, and how many periods a
+-- week it needs — the latter drives the timetable auto-generator (see
+-- timetable.service.js generateTimetable), not required for manual entry.
 CREATE TABLE class_subjects (
-  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  school_id     BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
-  class_id      BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  subject_id    BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-  teacher_id    BIGINT NULL REFERENCES teachers(id) ON DELETE SET NULL,
+  id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id         BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  class_id          BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  subject_id        BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  teacher_id        BIGINT NULL REFERENCES teachers(id) ON DELETE SET NULL,
+  periods_per_week  SMALLINT NOT NULL DEFAULT 1,
   CONSTRAINT uq_class_subject UNIQUE (class_id, subject_id)
 );
 CREATE INDEX idx_cs_school ON class_subjects(school_id);

@@ -20,4 +20,6 @@ router.get('/substitutions', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.
 router.post('/substitutions', requireRole('SCHOOL_ADMIN'), controller.createSubstitution);
 router.delete('/substitutions/:id', requireRole('SCHOOL_ADMIN'), controller.removeSubstitution);
 
+router.post('/generate', requireRole('SCHOOL_ADMIN'), controller.generate);
+
 module.exports = router;
