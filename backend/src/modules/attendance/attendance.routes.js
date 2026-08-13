@@ -15,5 +15,7 @@ router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenan
 router.get('/', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getSheet); // GET /attendance?class_id=&date=
 router.post('/mark', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.mark);
 router.get('/summary', requireRole('SCHOOL_ADMIN'), controller.getSummary);
+router.get('/report', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getReport); // ?classId=&fromDate=&toDate=
+router.get('/report/export', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.exportReport);
 
 module.exports = router;

@@ -114,3 +114,81 @@ describe('Attendance summary', () => {
     expect(res.body.data.totalMarked).toBe(0);
   });
 });
+
+describe('Attendance report (date range)', () => {
+  it('totals present/absent/late/excused per student over a range', async () => {
+    await request(app)
+      .post('/api/v1/attendance/mark')
+      .set('Authorization', auth(school.accessToken))
+      .send({ classId: school.classId, date: '2026-01-05', records: [{ studentId: student.id, status: 'present' }] });
+    await request(app)
+      .post('/api/v1/attendance/mark')
+      .set('Authorization', auth(school.accessToken))
+      .send({ classId: school.classId, date: '2026-01-06', records: [{ studentId: student.id, status: 'late' }] });
+    await request(app)
+      .post('/api/v1/attendance/mark')
+      .set('Authorization', auth(school.accessToken))
+      .send({ classId: school.classId, date: '2026-01-07', records: [{ studentId: student.id, status: 'absent' }] });
+
+    const res = await request(app)
+      .get(`/api/v1/attendance/report?classId=${school.classId}&fromDate=2026-01-01&toDate=2026-01-31`)
+      .set('Authorization', auth(school.accessToken));
+
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.student_id === student.id);
+    expect(row.present_count).toBe(1);
+    expect(row.late_count).toBe(1);
+    expect(row.absent_count).toBe(1);
+    expect(row.total_marked).toBe(3);
+    expect(row.rate).toBe(33); // 1 of 3 marked days present, rounded
+  });
+
+  it('includes a student with zero marked days at 0 counts and a null rate', async () => {
+    const res = await request(app)
+      .get(`/api/v1/attendance/report?classId=${school.classId}&fromDate=2026-01-01&toDate=2026-01-31`)
+      .set('Authorization', auth(school.accessToken));
+
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.student_id === student.id);
+    expect(row.total_marked).toBe(0);
+    expect(row.rate).toBeNull();
+  });
+
+  it('excludes marks outside the requested date range', async () => {
+    await request(app)
+      .post('/api/v1/attendance/mark')
+      .set('Authorization', auth(school.accessToken))
+      .send({ classId: school.classId, date: '2026-02-01', records: [{ studentId: student.id, status: 'present' }] });
+
+    const res = await request(app)
+      .get(`/api/v1/attendance/report?classId=${school.classId}&fromDate=2026-01-01&toDate=2026-01-31`)
+      .set('Authorization', auth(school.accessToken));
+
+    const row = res.body.data.find((r) => r.student_id === student.id);
+    expect(row.total_marked).toBe(0);
+  });
+
+  it('requires classId, fromDate and toDate', async () => {
+    const res = await request(app)
+      .get('/api/v1/attendance/report')
+      .set('Authorization', auth(school.accessToken));
+    expect(res.status).toBe(400);
+  });
+
+  it('exports the same data as a downloadable CSV', async () => {
+    await request(app)
+      .post('/api/v1/attendance/mark')
+      .set('Authorization', auth(school.accessToken))
+      .send({ classId: school.classId, date: '2026-01-05', records: [{ studentId: student.id, status: 'present' }] });
+
+    const res = await request(app)
+      .get(`/api/v1/attendance/report/export?classId=${school.classId}&fromDate=2026-01-01&toDate=2026-01-31`)
+      .set('Authorization', auth(school.accessToken));
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+    expect(res.headers['content-disposition']).toContain('attachment');
+    expect(res.text).toContain(student.admission_no);
+    expect(res.text).toContain('Attendance Rate (%)');
+  });
+});

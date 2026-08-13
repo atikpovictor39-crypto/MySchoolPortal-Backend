@@ -1,6 +1,7 @@
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/apiResponse');
 const attendanceService = require('./attendance.service');
+const { toCsv } = require('../../utils/csv');
 
 // GET /attendance?class_id=&date=
 exports.getSheet = asyncHandler(async (req, res) => {
@@ -45,4 +46,51 @@ exports.mark = asyncHandler(async (req, res) => {
 
   const students = await attendanceService.markAttendance(req.schoolId, classId, date, req.user.id, records);
   return ok(res, { classId: Number(classId), date, students });
+});
+
+function parseReportQuery(query) {
+  const { classId, fromDate, toDate } = query;
+  if (!classId || !fromDate || !toDate) {
+    return { error: 'classId, fromDate and toDate query params are required' };
+  }
+  return { classId, fromDate, toDate };
+}
+
+// GET /attendance/report?classId=&fromDate=&toDate= — per-student totals
+// over a date range, for the "View Reports" mode of the Attendance page.
+exports.getReport = asyncHandler(async (req, res) => {
+  const { error, classId, fromDate, toDate } = parseReportQuery(req.query);
+  if (error) return fail(res, error, 400);
+  if (!(await attendanceService.classBelongsToSchool(req.schoolId, classId))) {
+    return fail(res, 'classId does not belong to this school', 400);
+  }
+
+  const report = await attendanceService.getAttendanceReport(req.schoolId, classId, fromDate, toDate);
+  return ok(res, report);
+});
+
+// GET /attendance/report/export?classId=&fromDate=&toDate= — same data as
+// getReport, as a downloadable CSV (opens directly in Excel).
+exports.exportReport = asyncHandler(async (req, res) => {
+  const { error, classId, fromDate, toDate } = parseReportQuery(req.query);
+  if (error) return fail(res, error, 400);
+  if (!(await attendanceService.classBelongsToSchool(req.schoolId, classId))) {
+    return fail(res, 'classId does not belong to this school', 400);
+  }
+
+  const report = await attendanceService.getAttendanceReport(req.schoolId, classId, fromDate, toDate);
+  const csv = toCsv(report, [
+    { label: 'Admission No', value: (r) => r.admission_no },
+    { label: 'First Name', value: (r) => r.first_name },
+    { label: 'Last Name', value: (r) => r.last_name },
+    { label: 'Present', value: (r) => r.present_count },
+    { label: 'Absent', value: (r) => r.absent_count },
+    { label: 'Late', value: (r) => r.late_count },
+    { label: 'Excused', value: (r) => r.excused_count },
+    { label: 'Total Marked', value: (r) => r.total_marked },
+    { label: 'Attendance Rate (%)', value: (r) => r.rate ?? '' },
+  ]);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="attendance-report-${fromDate}-to-${toDate}.csv"`);
+  return res.send(csv);
 });

@@ -112,10 +112,41 @@ async function getAttendanceSummary(schoolId, date) {
   return { date, totalMarked: row.totalMarked, presentCount: row.presentCount, rate };
 }
 
+// Per-student attendance totals over a date range (inclusive) — powers the
+// Attendance page's "View Reports" mode and its CSV export. A student with
+// zero marked days still appears, with every count at 0 and rate null
+// (COUNT/FILTER over a LEFT JOIN naturally gives 0, not a missing row).
+async function getAttendanceReport(schoolId, classId, fromDate, toDate) {
+  const [rows] = await db.query(
+    `SELECT s.id AS student_id, s.admission_no, s.first_name, s.last_name,
+       COUNT(a.id) FILTER (WHERE a.status = 'present') AS present_count,
+       COUNT(a.id) FILTER (WHERE a.status = 'absent') AS absent_count,
+       COUNT(a.id) FILTER (WHERE a.status = 'late') AS late_count,
+       COUNT(a.id) FILTER (WHERE a.status = 'excused') AS excused_count,
+       COUNT(a.id) AS total_marked
+     FROM students s
+     LEFT JOIN attendance a ON a.student_id = s.id AND a.date BETWEEN ? AND ?
+     WHERE s.school_id = ? AND s.class_id = ? AND s.status = 'active'
+     GROUP BY s.id, s.admission_no, s.first_name, s.last_name
+     ORDER BY s.last_name, s.first_name`,
+    [fromDate, toDate, schoolId, classId]
+  );
+  return rows.map((r) => ({
+    ...r,
+    present_count: Number(r.present_count),
+    absent_count: Number(r.absent_count),
+    late_count: Number(r.late_count),
+    excused_count: Number(r.excused_count),
+    total_marked: Number(r.total_marked),
+    rate: Number(r.total_marked) > 0 ? Math.round((Number(r.present_count) / Number(r.total_marked)) * 100) : null,
+  }));
+}
+
 module.exports = {
   classBelongsToSchool,
   getAttendanceSheet,
   markAttendance,
   getAttendanceSummary,
+  getAttendanceReport,
   ALLOWED_STATUSES,
 };
