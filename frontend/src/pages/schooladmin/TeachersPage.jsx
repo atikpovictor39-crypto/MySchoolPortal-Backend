@@ -18,11 +18,13 @@ export default function TeachersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   async function refresh() {
     setIsLoading(true);
     try {
-      setTeachers(await listTeachers());
+      setTeachers(await listTeachers(search || undefined));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load teachers');
     } finally {
@@ -32,7 +34,14 @@ export default function TeachersPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  // Debounced so typing a name doesn't fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -142,6 +151,23 @@ export default function TeachersPage() {
         </form>
       )}
 
+      <div className="mb-4 bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Search by name, email or employee no.</label>
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="e.g. Kwame"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-64"
+          />
+        </div>
+        {search && (
+          <button onClick={() => setSearchInput('')} className="text-xs text-slate-500 hover:text-slate-700">
+            Clear
+          </button>
+        )}
+      </div>
+
       {error && (
         <p role="alert" className="text-sm text-red-600 mb-4">
           {error}
@@ -151,7 +177,7 @@ export default function TeachersPage() {
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : teachers.length === 0 ? (
-        <p className="text-sm text-slate-500">No teachers yet.</p>
+        <p className="text-sm text-slate-500">{search ? 'No teachers match.' : 'No teachers yet.'}</p>
       ) : (
         <div className="overflow-x-auto">
         <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

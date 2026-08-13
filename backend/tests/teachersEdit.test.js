@@ -94,3 +94,60 @@ describe('Editing and deleting a teacher', () => {
     expect(classRes.body.data.class_teacher_id).toBeNull();
   });
 });
+
+describe('Searching teachers', () => {
+  it('matches by name, email, or employee number, case-insensitively', async () => {
+    const tenant = await setupTenant();
+    const amaEmail = uniqueEmail('ama.boateng');
+    await request(app)
+      .post('/api/v1/teachers')
+      .set('Authorization', auth(tenant.accessToken))
+      .send({ name: 'Ama Boateng', email: amaEmail, password: 'teacherpass123', employeeNo: 'EMP-0100' });
+    await request(app)
+      .post('/api/v1/teachers')
+      .set('Authorization', auth(tenant.accessToken))
+      .send({ name: 'Kwame Mensah', email: uniqueEmail('kwame'), password: 'teacherpass123' });
+
+    const byName = await request(app)
+      .get('/api/v1/teachers?search=ama')
+      .set('Authorization', auth(tenant.accessToken));
+    expect(byName.body.data).toHaveLength(1);
+    expect(byName.body.data[0].name).toBe('Ama Boateng');
+
+    const byEmail = await request(app)
+      .get(`/api/v1/teachers?search=${encodeURIComponent(amaEmail.toUpperCase())}`)
+      .set('Authorization', auth(tenant.accessToken));
+    expect(byEmail.body.data).toHaveLength(1);
+
+    const byEmployeeNo = await request(app)
+      .get('/api/v1/teachers?search=EMP-0100')
+      .set('Authorization', auth(tenant.accessToken));
+    expect(byEmployeeNo.body.data).toHaveLength(1);
+    expect(byEmployeeNo.body.data[0].name).toBe('Ama Boateng');
+  });
+
+  it('returns everyone when no search is given, and nobody for a non-match', async () => {
+    const tenant = await setupTenant();
+    await createTeacher(tenant.accessToken, { name: 'Someone' });
+
+    const noSearch = await request(app).get('/api/v1/teachers').set('Authorization', auth(tenant.accessToken));
+    expect(noSearch.body.data).toHaveLength(1);
+
+    const noMatch = await request(app)
+      .get('/api/v1/teachers?search=nobody-with-this-name')
+      .set('Authorization', auth(tenant.accessToken));
+    expect(noMatch.body.data).toHaveLength(0);
+  });
+
+  it("only searches within the requesting school's own teachers", async () => {
+    const tenantA = await setupTenant();
+    const tenantB = await setupTenant({ adminEmail: uniqueEmail('other-admin') });
+    await createTeacher(tenantA.accessToken, { name: 'Shared Name Teacher' });
+    await createTeacher(tenantB.accessToken, { name: 'Shared Name Teacher' });
+
+    const res = await request(app)
+      .get('/api/v1/teachers?search=Shared Name')
+      .set('Authorization', auth(tenantA.accessToken));
+    expect(res.body.data).toHaveLength(1);
+  });
+});

@@ -1,12 +1,20 @@
 const db = require('../../config/db');
 const { hashPassword } = require('../../utils/password');
 
-async function listTeachers(schoolId) {
+async function listTeachers(schoolId, { search } = {}) {
+  const conditions = ['t.school_id = ?'];
+  const params = [schoolId];
+  if (search) {
+    conditions.push('(u.name ILIKE ? OR u.email ILIKE ? OR t.employee_no ILIKE ?)');
+    const like = `%${search.trim()}%`;
+    params.push(like, like, like);
+  }
+
   const [rows] = await db.query(
     `SELECT t.id, t.employee_no, t.hire_date, u.name, u.email
      FROM teachers t JOIN users u ON u.id = t.user_id
-     WHERE t.school_id = ? ORDER BY u.name`,
-    [schoolId]
+     WHERE ${conditions.join(' AND ')} ORDER BY u.name`,
+    params
   );
   return rows;
 }

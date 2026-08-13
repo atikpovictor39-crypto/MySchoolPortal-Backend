@@ -5,7 +5,7 @@ const auditService = require('../audit/audit.service');
 const notificationService = require('../notifications/notification.service');
 
 exports.list = asyncHandler(async (req, res) => {
-  const teachers = await teacherService.listTeachers(req.schoolId);
+  const teachers = await teacherService.listTeachers(req.schoolId, { search: req.query.search });
   return ok(res, teachers);
 });
 

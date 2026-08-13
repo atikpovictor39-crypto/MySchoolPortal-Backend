@@ -1,7 +1,7 @@
 import axiosClient from '../../api/axiosClient';
 
-export async function listTeachers() {
-  const { data } = await axiosClient.get('/teachers');
+export async function listTeachers(search) {
+  const { data } = await axiosClient.get('/teachers', { params: search ? { search } : {} });
   return data.data;
 }
 
