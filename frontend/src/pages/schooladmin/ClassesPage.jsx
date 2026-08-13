@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useUndoToast } from '../../context/UndoToastContext';
 import {
@@ -30,6 +30,7 @@ export default function ClassesPage() {
   const { user } = useAuth();
   const { deleteWithUndo } = useUndoToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
   const [classes, setClasses] = useState([]);
@@ -44,7 +45,8 @@ export default function ClassesPage() {
   const [editForm, setEditForm] = useState({});
 
   // ---- Filters ----
-  const [yearFilter, setYearFilter] = useState('');
+  // Lets the Academic Years page's class-count link land here pre-filtered.
+  const [yearFilter, setYearFilter] = useState(searchParams.get('academicYearId') || '');
   const [teacherFilter, setTeacherFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');

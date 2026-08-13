@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useUndoToast } from '../../context/UndoToastContext';
-import { listAcademicYears, createAcademicYear, updateAcademicYear, deleteAcademicYear } from '../../features/academicYears/api';
+import {
+  listAcademicYearsWithStats,
+  createAcademicYear,
+  updateAcademicYear,
+  deleteAcademicYear,
+} from '../../features/academicYears/api';
 
 const emptyForm = { name: '', startDate: '', endDate: '', isCurrent: false };
 
@@ -16,6 +22,7 @@ function formatYearRange(value) {
 export default function AcademicYearsPage() {
   const { user } = useAuth();
   const { deleteWithUndo } = useUndoToast();
+  const navigate = useNavigate();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
   const [years, setYears] = useState([]);
@@ -25,11 +32,12 @@ export default function AcademicYearsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [settingCurrentId, setSettingCurrentId] = useState(null);
 
   async function refresh() {
     setIsLoading(true);
     try {
-      setYears(await listAcademicYears());
+      setYears(await listAcademicYearsWithStats());
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load academic years');
     } finally {
@@ -74,6 +82,19 @@ export default function AcademicYearsPage() {
       await refresh();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update academic year');
+    }
+  }
+
+  async function handleSetCurrent(y) {
+    setError('');
+    setSettingCurrentId(y.id);
+    try {
+      await updateAcademicYear(y.id, { isCurrent: true });
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to set current year');
+    } finally {
+      setSettingCurrentId(null);
     }
   }
 
@@ -170,6 +191,8 @@ export default function AcademicYearsPage() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Start</th>
               <th className="px-4 py-2">End</th>
+              <th className="px-4 py-2">Classes</th>
+              <th className="px-4 py-2">Students</th>
               <th className="px-4 py-2">Current</th>
               {isAdmin && <th className="px-4 py-2" />}
             </tr>
@@ -202,6 +225,9 @@ export default function AcademicYearsPage() {
                       className="rounded-md border border-slate-300 px-2 py-1 text-sm"
                     />
                   </td>
+                  <td className="px-4 py-2 text-slate-400" colSpan={2}>
+                    —
+                  </td>
                   <td className="px-4 py-2">
                     <input
                       type="checkbox"
@@ -225,7 +251,34 @@ export default function AcademicYearsPage() {
                   <td className="px-4 py-2">{y.name}</td>
                   <td className="px-4 py-2">{y.start_date?.slice(0, 10)}</td>
                   <td className="px-4 py-2">{y.end_date?.slice(0, 10)}</td>
-                  <td className="px-4 py-2">{y.is_current ? 'Yes' : ''}</td>
+                  <td className="px-4 py-2">
+                    <button
+                      onClick={() => navigate(`/classes?academicYearId=${y.id}`)}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {y.class_count} class{y.class_count === 1 ? '' : 'es'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-2">
+                    {y.student_count} student{y.student_count === 1 ? '' : 's'}
+                  </td>
+                  <td className="px-4 py-2">
+                    {y.is_current ? (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200">
+                        Current
+                      </span>
+                    ) : (
+                      isAdmin && (
+                        <button
+                          onClick={() => handleSetCurrent(y)}
+                          disabled={settingCurrentId === y.id}
+                          className="text-xs text-blue-600 font-medium hover:underline disabled:opacity-50"
+                        >
+                          {settingCurrentId === y.id ? 'Setting…' : 'Set as current'}
+                        </button>
+                      )
+                    )}
+                  </td>
                   {isAdmin && (
                     <td className="px-4 py-2">
                       <div className="flex gap-3 justify-end">

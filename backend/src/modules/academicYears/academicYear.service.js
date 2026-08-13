@@ -9,6 +9,31 @@ async function listAcademicYears(schoolId) {
   return rows;
 }
 
+// Richer than listAcademicYears — used only by the Academic Years page's own
+// table (class/student counts), not the several other pages that just need
+// a plain dropdown of {id, name, start_date, end_date, is_current}.
+async function listAcademicYearsWithStats(schoolId) {
+  const [rows] = await db.query(
+    `SELECT ay.id, ay.name, ay.start_date, ay.end_date, ay.is_current,
+       COALESCE(cc.class_count, 0) AS class_count,
+       COALESCE(sc.student_count, 0) AS student_count
+     FROM academic_years ay
+     LEFT JOIN (
+       SELECT academic_year_id, COUNT(*) AS class_count FROM classes
+       WHERE school_id = ? GROUP BY academic_year_id
+     ) cc ON cc.academic_year_id = ay.id
+     LEFT JOIN (
+       SELECT c.academic_year_id, COUNT(*) AS student_count
+       FROM students s JOIN classes c ON c.id = s.class_id
+       WHERE s.school_id = ? AND s.status = 'active' GROUP BY c.academic_year_id
+     ) sc ON sc.academic_year_id = ay.id
+     WHERE ay.school_id = ?
+     ORDER BY ay.start_date DESC`,
+    [schoolId, schoolId, schoolId]
+  );
+  return rows.map((r) => ({ ...r, class_count: Number(r.class_count), student_count: Number(r.student_count) }));
+}
+
 async function getAcademicYearById(schoolId, id) {
   const [rows] = await db.query(`SELECT ${COLUMNS} FROM academic_years WHERE id = ? AND school_id = ? LIMIT 1`, [
     id,
@@ -109,6 +134,7 @@ async function deleteAcademicYear(schoolId, id) {
 
 module.exports = {
   listAcademicYears,
+  listAcademicYearsWithStats,
   getAcademicYearById,
   createAcademicYear,
   updateAcademicYear,

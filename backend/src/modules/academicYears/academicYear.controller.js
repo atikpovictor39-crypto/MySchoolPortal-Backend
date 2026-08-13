@@ -3,7 +3,9 @@ const { ok, fail } = require('../../utils/apiResponse');
 const academicYearService = require('./academicYear.service');
 
 exports.list = asyncHandler(async (req, res) => {
-  const years = await academicYearService.listAcademicYears(req.schoolId);
+  const years = req.query.withStats
+    ? await academicYearService.listAcademicYearsWithStats(req.schoolId)
+    : await academicYearService.listAcademicYears(req.schoolId);
   return ok(res, years);
 });
 
