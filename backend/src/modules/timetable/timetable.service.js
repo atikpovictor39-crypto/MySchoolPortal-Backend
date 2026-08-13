@@ -393,6 +393,14 @@ function buildDaySlots(dayStartMinutes, periodLengthMinutes, periodsPerDay, rese
 
   while (subjectCount < periodsPerDay && safety < 80) {
     safety++;
+    // A reserved window that's already entirely behind the cursor (e.g.
+    // Assembly set earlier than "Day starts at") can never be reached —
+    // skip past it rather than getting stuck checking it forever, which
+    // would silently block every later window (Break 1, Break 2, ...) too.
+    if (ri < reserved.length && reserved[ri].end <= cursor) {
+      ri++;
+      continue;
+    }
     if (ri < reserved.length && cursor >= reserved[ri].start && cursor < reserved[ri].end) {
       daySlots.push({ start: reserved[ri].start, end: reserved[ri].end, type: reserved[ri].type });
       cursor = reserved[ri].end;

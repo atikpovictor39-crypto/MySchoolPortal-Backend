@@ -98,6 +98,36 @@ describe('Timetable generator', () => {
     expect(brk).toBeTruthy();
   });
 
+  it("still places Break 1 and Break 2 when Assembly's time is earlier than the day's start time", async () => {
+    // Regression test: Assembly at 06:45 with the day starting at 07:30 used
+    // to permanently block the generator from ever reaching Break 1/Break 2,
+    // since it got stuck checking an Assembly window it could never reach.
+    const mathId = await addSubject('Mathematics');
+    await assignSubject(school.classId, mathId, 6);
+
+    const res = await request(app)
+      .post('/api/v1/timetable/generate')
+      .set('Authorization', auth(school.accessToken))
+      .send({
+        classId: school.classId,
+        days: [1],
+        dayStartTime: '07:30',
+        periodLengthMinutes: 60,
+        periodsPerDay: 6,
+        assembly: { startTime: '06:45', durationMinutes: 15, days: [1] },
+        breaks: [
+          { startTime: '10:00', durationMinutes: 30 },
+          { startTime: '12:00', durationMinutes: 60 },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    const slots = res.body.data.slots;
+    expect(slots.filter((s) => s.slot_type === 'break')).toHaveLength(2);
+    expect(slots.some((s) => s.slot_type === 'assembly')).toBe(false); // 06:45 is before the day even starts — correctly unreachable
+    expect(slots.filter((s) => s.slot_type === 'subject')).toHaveLength(6);
+  });
+
   it("skips a subject's teacher when they're already teaching another class at that day and time", async () => {
     const mathId = await addSubject('Mathematics');
     const scienceId = await addSubject('Science');
