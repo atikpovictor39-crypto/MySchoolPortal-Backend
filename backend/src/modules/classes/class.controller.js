@@ -3,8 +3,10 @@ const { ok, fail } = require('../../utils/apiResponse');
 const classService = require('./class.service');
 
 exports.list = asyncHandler(async (req, res) => {
-  const { academicYearId } = req.query;
-  const classes = await classService.listClasses(req.schoolId, { academicYearId });
+  const { academicYearId, classTeacherId, withStats } = req.query;
+  const classes = withStats
+    ? await classService.listClassesWithStats(req.schoolId, { academicYearId, classTeacherId })
+    : await classService.listClasses(req.schoolId, { academicYearId });
   return ok(res, classes);
 });
 
@@ -76,4 +78,34 @@ exports.removeSubject = asyncHandler(async (req, res) => {
   const deleted = await classService.removeClassSubject(req.schoolId, req.params.subjectAssignmentId);
   if (!deleted) return fail(res, 'Class subject not found', 404);
   return ok(res, null);
+});
+
+exports.bulkAssignSubjects = asyncHandler(async (req, res) => {
+  const { classIds, subjects } = req.body;
+  if (!Array.isArray(subjects) || subjects.some((s) => !s.subjectId)) {
+    return fail(res, 'subjects must be a non-empty array of { subjectId, periodsPerWeek }', 400);
+  }
+
+  const result = await classService.bulkAssignSubjects(req.schoolId, classIds, subjects);
+  return ok(res, result, 201);
+});
+
+// ---- Promote students ----
+
+exports.promote = asyncHandler(async (req, res) => {
+  const { studentIds, targetClassId, targetNewClass } = req.body;
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    return fail(res, 'studentIds must be a non-empty array', 400);
+  }
+  if (!targetClassId && !targetNewClass) {
+    return fail(res, 'Provide either targetClassId or targetNewClass', 400);
+  }
+
+  const result = await classService.promoteStudents(req.schoolId, {
+    sourceClassId: req.params.id,
+    studentIds,
+    targetClassId,
+    targetNewClass,
+  });
+  return ok(res, result);
 });

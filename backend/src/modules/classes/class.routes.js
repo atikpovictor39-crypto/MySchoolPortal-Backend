@@ -22,4 +22,7 @@ router.post('/:id/subjects', requireRole('SCHOOL_ADMIN'), controller.addSubject)
 router.put('/:id/subjects/:subjectAssignmentId', requireRole('SCHOOL_ADMIN'), controller.updateSubject);
 router.delete('/:id/subjects/:subjectAssignmentId', requireRole('SCHOOL_ADMIN'), controller.removeSubject);
 
+router.post('/bulk-assign-subjects', requireRole('SCHOOL_ADMIN'), controller.bulkAssignSubjects);
+router.post('/:id/promote', requireRole('SCHOOL_ADMIN'), controller.promote);
+
 module.exports = router;

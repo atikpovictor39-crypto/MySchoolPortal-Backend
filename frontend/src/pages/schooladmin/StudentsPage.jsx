@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { listStudents, createStudent, updateStudent, listGuardians, addGuardian } from '../../features/students/api';
 import { listClasses } from '../../features/classes/api';
@@ -27,7 +28,10 @@ export default function StudentsPage() {
   const [guardians, setGuardians] = useState([]);
   const [guardianForm, setGuardianForm] = useState(emptyGuardianForm);
   const [isAddingGuardian, setIsAddingGuardian] = useState(false);
-  const [classFilter, setClassFilter] = useState('');
+  const [searchParams] = useSearchParams();
+  // Lets the Classes page's "Students" quick action land here pre-filtered
+  // to that class instead of the admin having to reselect it.
+  const [classFilter, setClassFilter] = useState(searchParams.get('classId') || '');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
 

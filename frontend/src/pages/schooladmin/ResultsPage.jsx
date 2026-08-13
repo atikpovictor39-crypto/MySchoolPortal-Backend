@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Tabs from '../../components/common/Tabs';
 import { listAcademicYears } from '../../features/academicYears/api';
@@ -60,12 +61,16 @@ export default function ResultsPage() {
   // matching field-level restriction in result.controller.js).
   const canEditNotes = canEnterScores;
 
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState('exams');
   const [years, setYears] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [exams, setExams] = useState([]);
   const [error, setError] = useState('');
+  // Lets the Classes page's "Results" quick action land here with the
+  // Exams list pre-filtered to that class.
+  const [examClassFilter, setExamClassFilter] = useState(searchParams.get('classId') || '');
 
   // ---- Exams tab ----
   const [examForm, setExamForm] = useState(emptyExamForm);
@@ -414,8 +419,25 @@ export default function ResultsPage() {
               </p>
             )}
 
-            {exams.length === 0 ? (
-              <p className="text-sm text-slate-500">No exams yet.</p>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Filter by class</label>
+              <select
+                value={examClassFilter}
+                onChange={(e) => setExamClassFilter(e.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                <option value="">All classes</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.section ? ` ${c.section}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {exams.filter((e) => !examClassFilter || String(e.class_id) === String(examClassFilter)).length === 0 ? (
+              <p className="text-sm text-slate-500">{examClassFilter ? 'No exams for this class yet.' : 'No exams yet.'}</p>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -429,7 +451,9 @@ export default function ResultsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {exams.map((e) => (
+                  {exams
+                    .filter((e) => !examClassFilter || String(e.class_id) === String(examClassFilter))
+                    .map((e) => (
                     <tr key={e.id} className="border-t border-slate-100">
                       <td className="px-4 py-2">{e.name}</td>
                       <td className="px-4 py-2">{e.term || '—'}</td>

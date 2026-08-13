@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
@@ -36,10 +37,13 @@ export default function AttendancePage() {
   const { user } = useAuth();
   const canMark = user.role === 'SCHOOL_ADMIN' || user.role === 'TEACHER';
 
+  const [searchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState('take'); // 'take' | 'reports'
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [classId, setClassId] = useState('');
+  // Lets the Classes page's "Attendance" quick action land here with that
+  // class pre-selected, ready to take attendance immediately.
+  const [classId, setClassId] = useState(searchParams.get('classId') || '');
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
 

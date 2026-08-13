@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
@@ -85,6 +86,7 @@ export default function TimetablePage() {
   const { user } = useAuth();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
 
+  const [searchParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -92,7 +94,9 @@ export default function TimetablePage() {
 
   // ---- View by Class vs. View by Teacher ----
   const [viewMode, setViewMode] = useState('class'); // 'class' | 'teacher'
-  const [classId, setClassId] = useState('');
+  // Lets the Classes page's "Timetable" quick action land here with that
+  // class pre-selected.
+  const [classId, setClassId] = useState(searchParams.get('classId') || '');
   const [filterTeacherId, setFilterTeacherId] = useState('');
   const [slots, setSlots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);

@@ -39,3 +39,20 @@ export async function updateClassSubject(classId, subjectAssignmentId, payload) 
 export async function removeClassSubject(classId, subjectAssignmentId) {
   await axiosClient.delete(`/classes/${classId}/subjects/${subjectAssignmentId}`);
 }
+
+export async function listClassesWithStats({ academicYearId, classTeacherId } = {}) {
+  const { data } = await axiosClient.get('/classes', {
+    params: { withStats: 'true', ...(academicYearId ? { academicYearId } : {}), ...(classTeacherId ? { classTeacherId } : {}) },
+  });
+  return data.data;
+}
+
+export async function bulkAssignSubjects(classIds, subjects) {
+  const { data } = await axiosClient.post('/classes/bulk-assign-subjects', { classIds, subjects });
+  return data.data;
+}
+
+export async function promoteStudents(sourceClassId, payload) {
+  const { data } = await axiosClient.post(`/classes/${sourceClassId}/promote`, payload);
+  return data.data;
+}
