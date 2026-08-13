@@ -140,7 +140,14 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex bg-[#F5F8FF]">
+    // h-dvh + overflow-hidden locks the whole shell to exactly the viewport
+    // height so main's own overflow-y-auto below is the thing that actually
+    // scrolls — without this the page (body) itself grows taller than the
+    // viewport and scrolls instead, which is what let scrolling the sidebar
+    // nav bleed into scrolling the whole page (and vice versa) via scroll
+    // chaining. print: overrides restore natural flow so a printed page
+    // (e.g. a report card) isn't clipped to one viewport-height's worth.
+    <div className="h-dvh overflow-hidden flex bg-[#F5F8FF] print:h-auto print:overflow-visible">
       {/* Mobile-only top bar: the sidebar below is an off-canvas drawer on
           small screens (hidden unless isMenuOpen), always visible on md+. */}
       <div className="md:hidden fixed inset-x-0 top-0 h-14 bg-slate-900 flex items-center gap-3 px-4 z-30 print:hidden">
@@ -183,7 +190,7 @@ export default function AppShell() {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto overscroll-contain">
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -248,7 +255,7 @@ export default function AppShell() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto mt-14 md:mt-0 min-w-0">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto overscroll-contain mt-14 md:mt-0 min-w-0 print:overflow-visible print:h-auto print:mt-0">
         {user.role === 'PARENT' ? (
           <ParentProvider>
             <Outlet />
