@@ -44,7 +44,7 @@ async function listClasses(schoolId, { academicYearId } = {}) {
 // Richer than listClasses — used only by the Classes page's own table
 // (teacher name, roll count, subject count, derived status), not the many
 // other pages that just need a lightweight dropdown of {id, name, section}.
-async function listClassesWithStats(schoolId, { academicYearId, classTeacherId } = {}) {
+async function listClassesWithStats(schoolId, { academicYearId, classTeacherId, search } = {}) {
   const conditions = ['c.school_id = ?'];
   const whereParams = [schoolId];
   if (academicYearId) {
@@ -54,6 +54,11 @@ async function listClassesWithStats(schoolId, { academicYearId, classTeacherId }
   if (classTeacherId) {
     conditions.push('c.class_teacher_id = ?');
     whereParams.push(classTeacherId);
+  }
+  if (search) {
+    conditions.push('(c.name ILIKE ? OR c.section ILIKE ? OR u.name ILIKE ?)');
+    const like = `%${search.trim()}%`;
+    whereParams.push(like, like, like);
   }
 
   const [rows] = await db.query(

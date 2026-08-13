@@ -91,6 +91,38 @@ describe('listClassesWithStats', () => {
     expect(res.body.data.some((c) => c.id === otherClassRes.body.data.id)).toBe(false);
   });
 
+  it('searches by class name, section, or class teacher name', async () => {
+    const otherClassRes = await request(app)
+      .post('/api/v1/classes')
+      .set('Authorization', auth(school.accessToken))
+      .send({ academicYearId: school.academicYearId, name: 'Form 3', section: 'B' });
+
+    await createTeacher(school.accessToken, { name: 'Kofi Mensah' });
+    const teachersRes = await request(app).get('/api/v1/teachers').set('Authorization', auth(school.accessToken));
+    const teacherId = teachersRes.body.data.find((t) => t.name === 'Kofi Mensah').id;
+    await request(app)
+      .put(`/api/v1/classes/${otherClassRes.body.data.id}`)
+      .set('Authorization', auth(school.accessToken))
+      .send({ classTeacherId: teacherId });
+
+    const byName = await request(app)
+      .get('/api/v1/classes?withStats=true&search=form')
+      .set('Authorization', auth(school.accessToken));
+    expect(byName.body.data).toHaveLength(1);
+    expect(byName.body.data[0].id).toBe(otherClassRes.body.data.id);
+
+    const byTeacher = await request(app)
+      .get('/api/v1/classes?withStats=true&search=Kofi')
+      .set('Authorization', auth(school.accessToken));
+    expect(byTeacher.body.data).toHaveLength(1);
+    expect(byTeacher.body.data[0].id).toBe(otherClassRes.body.data.id);
+
+    const noMatch = await request(app)
+      .get('/api/v1/classes?withStats=true&search=zzz-nonexistent')
+      .set('Authorization', auth(school.accessToken));
+    expect(noMatch.body.data).toHaveLength(0);
+  });
+
   it('the plain (non-stats) list is unaffected — still the lightweight shape', async () => {
     const res = await request(app).get('/api/v1/classes').set('Authorization', auth(school.accessToken));
     expect(res.status).toBe(200);

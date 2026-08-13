@@ -3,9 +3,9 @@ const { ok, fail } = require('../../utils/apiResponse');
 const classService = require('./class.service');
 
 exports.list = asyncHandler(async (req, res) => {
-  const { academicYearId, classTeacherId, withStats } = req.query;
+  const { academicYearId, classTeacherId, withStats, search } = req.query;
   const classes = withStats
-    ? await classService.listClassesWithStats(req.schoolId, { academicYearId, classTeacherId })
+    ? await classService.listClassesWithStats(req.schoolId, { academicYearId, classTeacherId, search })
     : await classService.listClasses(req.schoolId, { academicYearId });
   return ok(res, classes);
 });

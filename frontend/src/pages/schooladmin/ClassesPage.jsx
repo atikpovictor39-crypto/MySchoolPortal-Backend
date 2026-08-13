@@ -46,6 +46,8 @@ export default function ClassesPage() {
   // ---- Filters ----
   const [yearFilter, setYearFilter] = useState('');
   const [teacherFilter, setTeacherFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   // ---- Subjects for a class (feeds the timetable auto-generator) ----
   const [managingClassId, setManagingClassId] = useState(null);
@@ -77,7 +79,11 @@ export default function ClassesPage() {
     setIsLoading(true);
     try {
       const [classList, yearList, subjectList, teacherList] = await Promise.all([
-        listClassesWithStats({ academicYearId: yearFilter || undefined, classTeacherId: teacherFilter || undefined }),
+        listClassesWithStats({
+          academicYearId: yearFilter || undefined,
+          classTeacherId: teacherFilter || undefined,
+          search: search || undefined,
+        }),
         listAcademicYears(),
         listSubjects(),
         listTeachers(),
@@ -96,7 +102,13 @@ export default function ClassesPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearFilter, teacherFilter]);
+  }, [yearFilter, teacherFilter, search]);
+
+  // Debounced so typing a name doesn't fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Defaults the create-class form to the current academic year once years
   // have loaded — only when the field is still empty, so it never clobbers
@@ -396,6 +408,15 @@ export default function ClassesPage() {
 
       <div className="mb-4 flex flex-wrap gap-3 items-end">
         <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Search by name, section or teacher</label>
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="e.g. Grade 5"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-56"
+          />
+        </div>
+        <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Academic year</label>
           <select
             value={yearFilter}
@@ -452,7 +473,9 @@ export default function ClassesPage() {
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : classes.length === 0 ? (
-        <p className="text-sm text-slate-500">No classes match.</p>
+        <p className="text-sm text-slate-500">
+          {search || yearFilter || teacherFilter ? 'No classes match.' : 'No classes yet.'}
+        </p>
       ) : (
         <div className="overflow-x-auto">
         <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

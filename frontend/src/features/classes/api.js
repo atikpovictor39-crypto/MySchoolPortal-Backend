@@ -40,9 +40,14 @@ export async function removeClassSubject(classId, subjectAssignmentId) {
   await axiosClient.delete(`/classes/${classId}/subjects/${subjectAssignmentId}`);
 }
 
-export async function listClassesWithStats({ academicYearId, classTeacherId } = {}) {
+export async function listClassesWithStats({ academicYearId, classTeacherId, search } = {}) {
   const { data } = await axiosClient.get('/classes', {
-    params: { withStats: 'true', ...(academicYearId ? { academicYearId } : {}), ...(classTeacherId ? { classTeacherId } : {}) },
+    params: {
+      withStats: 'true',
+      ...(academicYearId ? { academicYearId } : {}),
+      ...(classTeacherId ? { classTeacherId } : {}),
+      ...(search ? { search } : {}),
+    },
   });
   return data.data;
 }
