@@ -28,6 +28,7 @@ import AuditLogPage from '../pages/schooladmin/AuditLogPage';
 import DataExportPage from '../pages/schooladmin/DataExportPage';
 import SupportTicketsPage from '../pages/schooladmin/SupportTicketsPage';
 import SubscriptionPage from '../pages/schooladmin/SubscriptionPage';
+import AccountPage from '../pages/schooladmin/AccountPage';
 import TicketsPage from '../pages/superadmin/TicketsPage';
 import ActivityLogPage from '../pages/superadmin/ActivityLogPage';
 import PlatformAnnouncementsPage from '../pages/superadmin/AnnouncementsPage';
@@ -67,6 +68,7 @@ export default function AppRoutes() {
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/fees" element={<FeesPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/admin/school-details" element={<SchoolDetailsPage />} />
           <Route path="/admin/notifications" element={<NotificationsPage />} />
           <Route path="/admin/audit-log" element={<AuditLogPage />} />

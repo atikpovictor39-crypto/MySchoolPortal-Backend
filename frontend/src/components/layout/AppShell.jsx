@@ -13,7 +13,6 @@ const STAFF_LINKS = [
   { to: '/academic-years', label: 'Academic Years' },
   { to: '/classes', label: 'Classes' },
   { to: '/students', label: 'Students' },
-  { to: '/teachers', label: 'Teachers' },
   { to: '/clock-in', label: 'Clock-In' },
   { to: '/leave-requests', label: 'Leave Requests' },
   { to: '/subjects', label: 'Subjects' },
@@ -23,11 +22,18 @@ const STAFF_LINKS = [
   { to: '/attendance', label: 'Attendance' },
   { to: '/fees', label: 'Fees & Accounts' },
   { to: '/announcements', label: 'Announcements' },
+  { to: '/account', label: 'Account' },
 ];
 
 // SCHOOL_ADMIN only — Teachers share the staff nav above but these
 // endpoints are all requireRole('SCHOOL_ADMIN') on the backend too.
+// Teachers manage/list is here rather than in the shared nav above since a
+// teacher browsing their own portal has no use for the school's full staff
+// roster/add-teacher form — the backend's GET /teachers (used to populate
+// dropdowns elsewhere, e.g. Timetable's "View by Teacher") stays open to
+// TEACHER regardless; only this management page is admin-only.
 const ADMIN_LINKS = [
+  { to: '/teachers', label: 'Teachers' },
   { to: '/admin/school-details', label: 'School Details' },
   { to: '/admin/notifications', label: 'Notifications' },
   { to: '/admin/audit-log', label: 'Audit Log' },
