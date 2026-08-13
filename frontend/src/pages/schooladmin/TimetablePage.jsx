@@ -3,11 +3,58 @@ import { useAuth } from '../../context/AuthContext';
 import { listClasses } from '../../features/classes/api';
 import { listSubjects } from '../../features/subjects/api';
 import { listTeachers } from '../../features/teachers/api';
-import { listTimetable, createSlot, updateSlot, deleteSlot } from '../../features/timetable/api';
+import {
+  listTimetable,
+  listForTeacher,
+  createSlot,
+  updateSlot,
+  deleteSlot,
+  listSubstitutions,
+  createSubstitution,
+  deleteSubstitution,
+} from '../../features/timetable/api';
 
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOT_TYPE_LABELS = { subject: 'Subject', assembly: 'Assembly', break: 'Break' };
 const emptyForm = { slotType: 'subject', dayOfWeek: '1', startTime: '', endTime: '', subjectId: '', teacherId: '' };
+
+// A different light color per subject so the grid is scannable at a
+// glance — assigned by subject id, so it stays stable across reloads
+// without needing to store a color anywhere.
+const SUBJECT_COLORS = [
+  'bg-blue-50 border-blue-100',
+  'bg-emerald-50 border-emerald-100',
+  'bg-amber-50 border-amber-100',
+  'bg-purple-50 border-purple-100',
+  'bg-pink-50 border-pink-100',
+  'bg-cyan-50 border-cyan-100',
+  'bg-orange-50 border-orange-100',
+  'bg-lime-50 border-lime-100',
+  'bg-indigo-50 border-indigo-100',
+  'bg-rose-50 border-rose-100',
+];
+function colorForSubject(subjectId) {
+  if (!subjectId) return '';
+  return SUBJECT_COLORS[subjectId % SUBJECT_COLORS.length];
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Backend day_of_week is 1=Monday...7=Sunday; JS's Date#getDay is
+// 0=Sunday...6=Saturday.
+function jsDayToDayOfWeek(date) {
+  const d = date.getDay();
+  return d === 0 ? 7 : d;
+}
+
+// Parsed as a local date (not `new Date(dateStr)`, which reads 'YYYY-MM-DD'
+// as UTC midnight and can land on the wrong day depending on timezone).
+function isoDateToDayOfWeek(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return jsDayToDayOfWeek(new Date(y, m - 1, d));
+}
 
 // Assembly/break periods have no subject_id — this is what a cell/edit form
 // actually displays for them instead.
@@ -23,15 +70,47 @@ export default function TimetablePage() {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [classId, setClassId] = useState('');
-  const [slots, setSlots] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // ---- View by Class vs. View by Teacher ----
+  const [viewMode, setViewMode] = useState('class'); // 'class' | 'teacher'
+  const [classId, setClassId] = useState('');
+  const [filterTeacherId, setFilterTeacherId] = useState('');
+  const [slots, setSlots] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ---- Day filter ----
+  const [selectedDay, setSelectedDay] = useState(null); // null = whole week
+
+  // ---- Add/Edit period (class view, admin only) ----
+  const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  // ---- Substitute teachers (class view only — tied to a specific slot,
+  // managed from wherever that slot's regular schedule lives) ----
+  const [subDate, setSubDate] = useState(todayIso());
+  const [substitutions, setSubstitutions] = useState([]);
+  const [assigningSubForSlotId, setAssigningSubForSlotId] = useState(null);
+  const [subAssignForm, setSubAssignForm] = useState({ substituteTeacherId: '', reason: '' });
+
+  // ---- Current-period highlight — re-ticks every minute so it doesn't go
+  // stale on a page left open, without needing a full data refetch. ----
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+  const todayDow = jsDayToDayOfWeek(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  function isCurrentPeriod(slot) {
+    if (slot.day_of_week !== todayDow) return false;
+    const [sh, sm] = slot.start_time.slice(0, 5).split(':').map(Number);
+    const [eh, em] = slot.end_time.slice(0, 5).split(':').map(Number);
+    return nowMinutes >= sh * 60 + sm && nowMinutes < eh * 60 + em;
+  }
 
   useEffect(() => {
     Promise.all([listClasses(), listSubjects(), listTeachers()])
@@ -44,32 +123,69 @@ export default function TimetablePage() {
   }, []);
 
   async function refreshSlots() {
-    if (!classId) return;
-    setIsLoading(true);
-    try {
-      setSlots(await listTimetable(classId));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load timetable');
-    } finally {
-      setIsLoading(false);
+    if (viewMode === 'class') {
+      if (!classId) return;
+      setIsLoading(true);
+      try {
+        setSlots(await listTimetable(classId));
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to load timetable');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      if (!filterTeacherId) return;
+      setIsLoading(true);
+      try {
+        setSlots(await listForTeacher(filterTeacherId));
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to load timetable');
+      } finally {
+        setIsLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     refreshSlots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId]);
+  }, [viewMode, classId, filterTeacherId]);
+
+  async function refreshSubstitutions() {
+    if (viewMode !== 'class' || !classId) {
+      setSubstitutions([]);
+      return;
+    }
+    try {
+      setSubstitutions(await listSubstitutions({ classId, date: subDate }));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load substitutions');
+    }
+  }
+
+  useEffect(() => {
+    refreshSubstitutions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, classId, subDate]);
 
   const subjectNameById = Object.fromEntries(subjects.map((s) => [s.id, s.name]));
   const teacherNameById = Object.fromEntries(teachers.map((t) => [t.id, t.name]));
+  const subBySlotId = Object.fromEntries(substitutions.map((s) => [s.timetable_slot_id, s]));
+  // A substitute can only be assigned to a slot that actually falls on
+  // subDate's weekday (e.g. a Monday slot needs a Monday date) — the
+  // backend enforces this too, this just keeps the "+ Substitute" button
+  // from showing up on days it'd only get rejected.
+  const subDateDow = subDate ? isoDateToDayOfWeek(subDate) : null;
 
   // Column headers: every distinct period (start–end time) that appears
   // anywhere in the week, sorted chronologically — not just one day's
   // periods, since a period that only meets on Wednesday still needs its
-  // own column so Wednesday has somewhere to show it.
+  // own column so Wednesday has somewhere to show it. Narrowed down to just
+  // the selected day's periods when a day filter is active.
   const periodKey = (start, end) => `${start.slice(0, 5)}-${end.slice(0, 5)}`;
   const periodsByKey = new Map();
   for (const slot of slots) {
+    if (selectedDay && slot.day_of_week !== selectedDay) continue;
     const key = periodKey(slot.start_time, slot.end_time);
     if (!periodsByKey.has(key)) {
       periodsByKey.set(key, { key, startTime: slot.start_time.slice(0, 5), endTime: slot.end_time.slice(0, 5) });
@@ -83,9 +199,12 @@ export default function TimetablePage() {
   const eveningPeriods = periods.filter((p) => p.startTime >= '12:00');
 
   // Monday–Friday always shown (the standard school week); Saturday/Sunday
-  // only appear as rows if something is actually scheduled on them.
+  // only appear as rows if something is actually scheduled on them. Narrowed
+  // to just the selected day when a day filter is active.
   const daysWithSlots = new Set(slots.map((s) => s.day_of_week));
-  const daysToShow = [1, 2, 3, 4, 5, 6, 7].filter((d) => d <= 5 || daysWithSlots.has(d));
+  const daysToShow = selectedDay
+    ? [selectedDay]
+    : [1, 2, 3, 4, 5, 6, 7].filter((d) => d <= 5 || daysWithSlots.has(d));
 
   const slotGrid = {}; // slotGrid[day][periodKey] = slot
   for (const slot of slots) {
@@ -94,6 +213,8 @@ export default function TimetablePage() {
     slotGrid[day] = slotGrid[day] || {};
     slotGrid[day][key] = slot;
   }
+
+  const currentSlot = slots.find(isCurrentPeriod);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -162,40 +283,184 @@ export default function TimetablePage() {
   // day + time instead of making the admin retype them.
   function prefillEmptyCell(day, period) {
     setEditingId(null);
+    setShowAddForm(true);
     setForm({ ...emptyForm, dayOfWeek: String(day), startTime: period.startTime, endTime: period.endTime });
   }
+
+  function startAssignSub(slot) {
+    setAssigningSubForSlotId(slot.id);
+    setSubAssignForm({ substituteTeacherId: '', reason: '' });
+  }
+
+  async function saveAssignSub(slot) {
+    setError('');
+    try {
+      await createSubstitution({
+        timetableSlotId: slot.id,
+        date: subDate,
+        substituteTeacherId: subAssignForm.substituteTeacherId,
+        reason: subAssignForm.reason || undefined,
+      });
+      setAssigningSubForSlotId(null);
+      await refreshSubstitutions();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to assign substitute');
+    }
+  }
+
+  async function handleRemoveSub(id) {
+    setError('');
+    try {
+      await deleteSubstitution(id);
+      await refreshSubstitutions();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to remove substitute');
+    }
+  }
+
+  const selectedClassName = (() => {
+    const c = classes.find((c) => String(c.id) === String(classId));
+    return c ? `${c.name}${c.section ? ` ${c.section}` : ''}` : '';
+  })();
+  const selectedTeacherName = teacherNameById[filterTeacherId] || '';
+  const printTitle =
+    viewMode === 'class' ? selectedClassName && `Timetable — ${selectedClassName}` : selectedTeacherName && `Timetable — ${selectedTeacherName}`;
 
   return (
     <div className="max-w-5xl">
       <h1 className="text-xl font-semibold text-slate-900 mb-6">Timetable</h1>
 
-      <div className="mb-6 bg-white border border-slate-200 rounded-xl shadow-sm p-4">
-        <label className="block text-xs font-medium text-slate-600 mb-1">Class</label>
-        <select
-          value={classId}
-          onChange={(e) => setClassId(e.target.value)}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-        >
-          <option value="">Select…</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-              {c.section ? ` ${c.section}` : ''}
-            </option>
-          ))}
-        </select>
+      <div className="print:hidden">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">View by</label>
+            <div className="inline-flex rounded-md border border-slate-300 overflow-hidden text-sm">
+              {[
+                { key: 'class', label: 'Class' },
+                { key: 'teacher', label: 'Teacher' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setViewMode(opt.key)}
+                  className={`px-3 py-1.5 ${
+                    viewMode === opt.key ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {viewMode === 'class' ? (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Class</label>
+              <select
+                value={classId}
+                onChange={(e) => setClassId(e.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                <option value="">Select…</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.section ? ` ${c.section}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Teacher</label>
+              <select
+                value={filterTeacherId}
+                onChange={(e) => setFilterTeacherId(e.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              >
+                <option value="">Select…</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(classId || filterTeacherId) && (
+            <button
+              onClick={() => window.print()}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Print / Download PDF
+            </button>
+          )}
+
+          {viewMode === 'class' && classId && isAdmin && (
+            <button
+              onClick={() => setShowAddForm((v) => !v)}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              {showAddForm ? 'Hide add period form' : '+ Add / Edit Timetable'}
+            </button>
+          )}
+        </div>
+
+        {(classId || filterTeacherId) && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-slate-600">Day:</span>
+            <button
+              onClick={() => setSelectedDay(null)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium border ${
+                !selectedDay ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              Whole week
+            </button>
+            {[1, 2, 3, 4, 5].map((d) => (
+              <button
+                key={d}
+                onClick={() => setSelectedDay(d)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium border ${
+                  selectedDay === d ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {DAY_NAMES[d].slice(0, 3)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {viewMode === 'class' && classId && (
+          <div className="mb-4 flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-600">Substitutes for</label>
+            <input
+              type="date"
+              value={subDate}
+              onChange={(e) => setSubDate(e.target.value)}
+              className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+            />
+          </div>
+        )}
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600 mb-4">
+        <p role="alert" className="text-sm text-red-600 mb-4 print:hidden">
           {error}
         </p>
       )}
 
-      {classId && isAdmin && (
+      {currentSlot && (
+        <p className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-2 mb-4">
+          You are in {slotLabel(currentSlot, subjectNameById)} now (
+          {currentSlot.start_time.slice(0, 5)}–{currentSlot.end_time.slice(0, 5)})
+        </p>
+      )}
+
+      {viewMode === 'class' && classId && isAdmin && showAddForm && (
         <form
           onSubmit={handleCreate}
-          className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-end"
+          className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-end print:hidden"
         >
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Period type</label>
@@ -292,8 +557,12 @@ export default function TimetablePage() {
         </form>
       )}
 
-      {!classId ? (
-        <p className="text-sm text-slate-500">Select a class to view its timetable.</p>
+      {printTitle && <p className="hidden print:block text-base font-semibold mb-4">{printTitle}</p>}
+
+      {!classId && !filterTeacherId ? (
+        <p className="text-sm text-slate-500">
+          {viewMode === 'class' ? 'Select a class to view its timetable.' : 'Select a teacher to view their timetable.'}
+        </p>
       ) : isLoading ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : slots.length === 0 ? (
@@ -428,33 +697,104 @@ export default function TimetablePage() {
                       return (
                         <td
                           key={p.key}
-                          onClick={isAdmin ? () => prefillEmptyCell(day, p) : undefined}
-                          className={`px-3 py-2 min-w-[140px] ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                          onClick={viewMode === 'class' && isAdmin ? () => prefillEmptyCell(day, p) : undefined}
+                          className={`px-3 py-2 min-w-[140px] ${
+                            viewMode === 'class' && isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''
+                          }`}
                         />
                       );
                     }
 
+                    const substitution = subBySlotId[slot.id];
+                    const isAssigningSub = assigningSubForSlotId === slot.id;
+
                     return (
                       <td
                         key={p.key}
-                        className={`px-3 py-2 align-top min-w-[140px] group ${
-                          slot.slot_type !== 'subject' ? 'bg-slate-50' : ''
-                        }`}
+                        className={`px-3 py-2 align-top min-w-[140px] group border ${
+                          slot.slot_type !== 'subject' ? 'bg-slate-50 border-transparent' : colorForSubject(slot.subject_id) || 'border-transparent'
+                        } ${isCurrentPeriod(slot) ? 'ring-2 ring-inset ring-blue-500' : ''}`}
                       >
                         <p className={`font-medium ${slot.slot_type === 'subject' ? 'text-slate-900' : 'text-slate-600 italic'}`}>
                           {slotLabel(slot, subjectNameById)}
                         </p>
-                        {(slot.teacher_name || slot.teacher_id) && (
+                        {viewMode === 'teacher' && slot.class_name && (
+                          <p className="text-xs text-slate-500">
+                            {slot.class_name}
+                            {slot.section ? ` ${slot.section}` : ''}
+                          </p>
+                        )}
+                        {viewMode === 'class' && (slot.teacher_name || slot.teacher_id) && (
                           <p className="text-xs text-slate-500">{slot.teacher_name || teacherNameById[slot.teacher_id]}</p>
                         )}
-                        {isAdmin && (
-                          <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                        {viewMode === 'class' && substitution && (
+                          <p className="text-xs text-amber-700 font-medium mt-1">
+                            {substitution.substitute_teacher_name} is covering
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleRemoveSub(substitution.id)}
+                                className="ml-1 text-red-600 font-normal print:hidden"
+                              >
+                                (remove)
+                              </button>
+                            )}
+                          </p>
+                        )}
+
+                        {viewMode === 'class' && isAdmin && slot.slot_type === 'subject' && !substitution && isAssigningSub && (
+                          <div className="mt-1 flex flex-col gap-1 print:hidden">
+                            <select
+                              value={subAssignForm.substituteTeacherId}
+                              onChange={(e) => setSubAssignForm({ ...subAssignForm, substituteTeacherId: e.target.value })}
+                              className="rounded border border-slate-300 px-1 py-0.5 text-xs"
+                            >
+                              <option value="" disabled>
+                                Substitute…
+                              </option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              value={subAssignForm.reason}
+                              onChange={(e) => setSubAssignForm({ ...subAssignForm, reason: e.target.value })}
+                              placeholder="Reason (optional)"
+                              className="rounded border border-slate-300 px-1 py-0.5 text-xs"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => saveAssignSub(slot)}
+                                disabled={!subAssignForm.substituteTeacherId}
+                                className="text-blue-600 text-xs font-medium disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                              <button onClick={() => setAssigningSubForSlotId(null)} className="text-slate-500 text-xs">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {viewMode === 'class' && isAdmin && (
+                          <div className="flex flex-wrap gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
                             <button onClick={() => startEdit(slot)} className="text-blue-600 text-xs font-medium">
                               Edit
                             </button>
                             <button onClick={() => handleDelete(slot.id)} className="text-red-600 text-xs font-medium">
                               Delete
                             </button>
+                            {slot.slot_type === 'subject' &&
+                              !substitution &&
+                              !isAssigningSub &&
+                              slot.day_of_week === subDateDow && (
+                                <button onClick={() => startAssignSub(slot)} className="text-amber-700 text-xs font-medium">
+                                  + Substitute
+                                </button>
+                              )}
                           </div>
                         )}
                       </td>

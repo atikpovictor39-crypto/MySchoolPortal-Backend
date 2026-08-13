@@ -243,6 +243,130 @@ async function deleteSlot(schoolId, id) {
   return result.affectedRows > 0;
 }
 
+// ---- Substitute teachers (one-off cover for a single date) ----
+
+const SUBSTITUTION_COLUMNS = `sub.id, sub.timetable_slot_id, sub.date, sub.substitute_teacher_id,
+  u.name AS substitute_teacher_name, sub.reason, sub.created_at`;
+
+// classId is optional — omit it to get every substitution on that date
+// across the whole school (used when overlaying a "View by Teacher" grid,
+// where slots span multiple classes).
+async function listSubstitutions(schoolId, { date, classId } = {}) {
+  const conditions = ['sub.school_id = ?', 'sub.date = ?'];
+  const params = [schoolId, date];
+  if (classId) {
+    conditions.push('ts.class_id = ?');
+    params.push(classId);
+  }
+
+  const [rows] = await db.query(
+    `SELECT ${SUBSTITUTION_COLUMNS}
+     FROM timetable_substitutions sub
+     JOIN timetable_slots ts ON ts.id = sub.timetable_slot_id
+     JOIN teachers t ON t.id = sub.substitute_teacher_id
+     JOIN users u ON u.id = t.user_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY sub.date`,
+    params
+  );
+  return rows;
+}
+
+async function getSubstitutionById(schoolId, id) {
+  const [rows] = await db.query(
+    `SELECT ${SUBSTITUTION_COLUMNS}
+     FROM timetable_substitutions sub
+     JOIN teachers t ON t.id = sub.substitute_teacher_id
+     JOIN users u ON u.id = t.user_id
+     WHERE sub.id = ? AND sub.school_id = ? LIMIT 1`,
+    [id, schoolId]
+  );
+  return rows[0] || null;
+}
+
+// Same "can't be in two places at once" rule as assertNoTeacherConflict,
+// extended to cover a substitute: they can't already be the REGULAR teacher
+// of another class at that day/time, nor already covering a different slot
+// on the same date/time.
+async function assertNoSubstituteConflict(schoolId, substituteTeacherId, dayOfWeek, startTime, date, excludeSubId = null) {
+  const [regularConflict] = await db.query(
+    'SELECT id FROM timetable_slots WHERE school_id = ? AND teacher_id = ? AND day_of_week = ? AND start_time = ?',
+    [schoolId, substituteTeacherId, dayOfWeek, startTime]
+  );
+  if (regularConflict.length > 0) {
+    const err = new Error('This teacher already regularly teaches another class at that day and time');
+    err.status = 409;
+    throw err;
+  }
+
+  let sql = `SELECT sub.id FROM timetable_substitutions sub
+    JOIN timetable_slots ts ON ts.id = sub.timetable_slot_id
+    WHERE sub.school_id = ? AND sub.substitute_teacher_id = ? AND sub.date = ? AND ts.start_time = ?`;
+  const params = [schoolId, substituteTeacherId, date, startTime];
+  if (excludeSubId) {
+    sql += ' AND sub.id != ?';
+    params.push(excludeSubId);
+  }
+  const [subConflict] = await db.query(sql, params);
+  if (subConflict.length > 0) {
+    const err = new Error('This teacher is already covering another class at that same date and time');
+    err.status = 409;
+    throw err;
+  }
+}
+
+async function createSubstitution(schoolId, createdBy, { timetableSlotId, date, substituteTeacherId, reason }) {
+  const slot = await getSlotById(schoolId, timetableSlotId);
+  if (!slot) {
+    const err = new Error('Timetable slot not found');
+    err.status = 404;
+    throw err;
+  }
+  if (slot.slot_type !== 'subject') {
+    const err = new Error('Only a subject period can have a substitute teacher');
+    err.status = 400;
+    throw err;
+  }
+  // date has to actually be an occurrence of this slot's weekday — otherwise
+  // "covering Monday's Math" could get recorded against a Wednesday.
+  const [y, m, d] = date.split('-').map(Number);
+  const jsDay = new Date(y, m - 1, d).getDay();
+  const dateDayOfWeek = jsDay === 0 ? 7 : jsDay;
+  if (dateDayOfWeek !== slot.day_of_week) {
+    const err = new Error(`date must fall on a ${DAY_NAMES[slot.day_of_week]}, since that's this slot's day`);
+    err.status = 400;
+    throw err;
+  }
+  if (!(await teacherBelongsToSchool(schoolId, substituteTeacherId))) {
+    const err = new Error('substituteTeacherId does not belong to this school');
+    err.status = 400;
+    throw err;
+  }
+
+  await assertNoSubstituteConflict(schoolId, substituteTeacherId, slot.day_of_week, slot.start_time, date);
+
+  try {
+    const [result] = await db.query(
+      `INSERT INTO timetable_substitutions (school_id, timetable_slot_id, date, substitute_teacher_id, reason, created_by)
+       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      [schoolId, timetableSlotId, date, substituteTeacherId, reason || null, createdBy]
+    );
+    return getSubstitutionById(schoolId, result[0].id);
+  } catch (err) {
+    if (err.code === '23505') {
+      const dupErr = new Error('This period already has a substitute assigned for that date');
+      dupErr.status = 409;
+      throw dupErr;
+    }
+    throw err;
+  }
+}
+
+async function deleteSubstitution(schoolId, id) {
+  const [result] = await db.query('DELETE FROM timetable_substitutions WHERE id = ? AND school_id = ?', [id, schoolId]);
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   DAY_NAMES,
   SLOT_TYPES,
@@ -252,4 +376,7 @@ module.exports = {
   createSlot,
   updateSlot,
   deleteSlot,
+  listSubstitutions,
+  createSubstitution,
+  deleteSubstitution,
 };

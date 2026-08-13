@@ -78,3 +78,34 @@ exports.remove = asyncHandler(async (req, res) => {
   if (!deleted) return fail(res, 'Timetable slot not found', 404);
   return ok(res, null);
 });
+
+// ---- Substitute teachers ----
+
+exports.listSubstitutions = asyncHandler(async (req, res) => {
+  const { date, classId } = req.query;
+  if (!date) return fail(res, 'date query param is required', 400);
+
+  const substitutions = await timetableService.listSubstitutions(req.schoolId, { date, classId });
+  return ok(res, substitutions);
+});
+
+exports.createSubstitution = asyncHandler(async (req, res) => {
+  const { timetableSlotId, date, substituteTeacherId, reason } = req.body;
+  if (!timetableSlotId || !date || !substituteTeacherId) {
+    return fail(res, 'timetableSlotId, date and substituteTeacherId are required', 400);
+  }
+
+  const substitution = await timetableService.createSubstitution(req.schoolId, req.user.id, {
+    timetableSlotId,
+    date,
+    substituteTeacherId,
+    reason,
+  });
+  return ok(res, substitution, 201);
+});
+
+exports.removeSubstitution = asyncHandler(async (req, res) => {
+  const deleted = await timetableService.deleteSubstitution(req.schoolId, req.params.id);
+  if (!deleted) return fail(res, 'Substitution not found', 404);
+  return ok(res, null);
+});

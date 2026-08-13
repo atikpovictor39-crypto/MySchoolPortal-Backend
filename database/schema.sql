@@ -253,6 +253,24 @@ CREATE INDEX idx_tt_school ON timetable_slots(school_id);
 CREATE INDEX idx_tt_class_day ON timetable_slots(class_id, day_of_week);
 CREATE INDEX idx_tt_teacher ON timetable_slots(teacher_id);
 
+-- A one-off cover for a single regular period on a single date — the
+-- regular slot's teacher_id is untouched (still the normal teacher for
+-- every other day), this just overlays "who's actually taking it" for one
+-- date. One substitute per slot per date.
+CREATE TABLE timetable_substitutions (
+  id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  school_id             BIGINT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  timetable_slot_id     BIGINT NOT NULL REFERENCES timetable_slots(id) ON DELETE CASCADE,
+  date                  DATE NOT NULL,
+  substitute_teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  reason                VARCHAR(255),
+  created_by            BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_timetable_substitution UNIQUE (timetable_slot_id, date)
+);
+CREATE INDEX idx_tt_sub_school ON timetable_substitutions(school_id);
+CREATE INDEX idx_tt_sub_date ON timetable_substitutions(date);
+
 -- ============================================================================
 -- 4. STUDENTS & PARENTS
 -- ============================================================================

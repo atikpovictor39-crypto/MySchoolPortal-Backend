@@ -16,4 +16,8 @@ router.post('/', requireRole('SCHOOL_ADMIN'), controller.create);
 router.put('/:id', requireRole('SCHOOL_ADMIN'), controller.update);
 router.delete('/:id', requireRole('SCHOOL_ADMIN'), controller.remove);
 
+router.get('/substitutions', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.listSubstitutions); // ?date=&classId=
+router.post('/substitutions', requireRole('SCHOOL_ADMIN'), controller.createSubstitution);
+router.delete('/substitutions/:id', requireRole('SCHOOL_ADMIN'), controller.removeSubstitution);
+
 module.exports = router;

@@ -24,6 +24,7 @@ const TABLES_TO_TRUNCATE = [
   'fee_structures',
   'student_guardians',
   'students',
+  'timetable_substitutions',
   'timetable_slots',
   'class_subjects',
   'teachers',

@@ -5,6 +5,11 @@ export async function listTimetable(classId) {
   return data.data;
 }
 
+export async function listForTeacher(teacherId) {
+  const { data } = await axiosClient.get(`/timetable/teacher/${teacherId}`);
+  return data.data;
+}
+
 export async function createSlot(payload) {
   const { data } = await axiosClient.post('/timetable', payload);
   return data.data;
@@ -17,4 +22,18 @@ export async function updateSlot(id, payload) {
 
 export async function deleteSlot(id) {
   await axiosClient.delete(`/timetable/${id}`);
+}
+
+export async function listSubstitutions({ date, classId }) {
+  const { data } = await axiosClient.get('/timetable/substitutions', { params: { date, classId } });
+  return data.data;
+}
+
+export async function createSubstitution(payload) {
+  const { data } = await axiosClient.post('/timetable/substitutions', payload);
+  return data.data;
+}
+
+export async function deleteSubstitution(id) {
+  await axiosClient.delete(`/timetable/substitutions/${id}`);
 }
