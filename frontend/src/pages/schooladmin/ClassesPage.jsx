@@ -66,6 +66,16 @@ export default function ClassesPage() {
     refresh();
   }, []);
 
+  // Defaults the create-class form to the current academic year once years
+  // have loaded — only when the field is still empty, so it never clobbers
+  // an admin who's deliberately picked a different year.
+  useEffect(() => {
+    if (years.length === 0) return;
+    const current = years.find((y) => y.is_current);
+    if (!current) return;
+    setForm((prev) => (prev.academicYearId ? prev : { ...prev, academicYearId: String(current.id) }));
+  }, [years]);
+
   async function openManageSubjects(classId) {
     setError('');
     setManagingClassId(classId);
