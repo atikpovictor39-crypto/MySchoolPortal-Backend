@@ -15,7 +15,7 @@ import {
   confirmClaim,
   rejectClaim,
 } from '../../features/fees/api';
-import { getPaymentDetails, updatePaymentDetails } from '../../features/schools/api';
+import { getPaymentDetails, updatePaymentDetails, getMyProfile } from '../../features/schools/api';
 import { formatMoney as money } from '../../utils/money';
 
 const TABS = [
@@ -65,6 +65,8 @@ export default function FeesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ amount: '', paymentMethod: 'cash', paymentRef: '' });
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [schoolProfile, setSchoolProfile] = useState(null);
+  const [receiptPayment, setReceiptPayment] = useState(null);
 
   const [debtors, setDebtors] = useState([]);
 
@@ -104,6 +106,9 @@ export default function FeesPage() {
     refreshStructures().catch((err) => setError(err.response?.data?.message || 'Failed to load fee structures'));
 
     if (isAdmin) {
+      getMyProfile()
+        .then(setSchoolProfile)
+        .catch(() => {});
       getPaymentDetails()
         .then((details) =>
           setPayoutForm({
@@ -172,6 +177,7 @@ export default function FeesPage() {
   async function openInvoice(id) {
     setError('');
     setPaymentForm({ amount: '', paymentMethod: 'cash', paymentRef: '' });
+    setReceiptPayment(null);
     try {
       setSelectedInvoice(await getInvoice(id));
     } catch (err) {
@@ -665,107 +671,207 @@ export default function FeesPage() {
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 print:shadow-none print:max-w-none">
-            <div className="flex justify-between items-start mb-4 print:hidden">
-              <h2 className="text-base font-semibold text-slate-900">Invoice #{selectedInvoice.id}</h2>
-              <button onClick={() => setSelectedInvoice(null)} className="text-slate-400 hover:text-slate-600 text-sm">
-                Close
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm font-medium text-slate-900">
-                {selectedInvoice.first_name} {selectedInvoice.last_name} ({selectedInvoice.admission_no})
-              </p>
-              <p className="text-sm text-slate-600">{selectedInvoice.fee_name}</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Due: {selectedInvoice.due_date ? selectedInvoice.due_date.slice(0, 10) : '—'}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-sm mb-4 border-y border-slate-200 py-3">
-              <div>
-                <p className="text-xs text-slate-500">Amount due</p>
-                <p className="font-medium">{money(selectedInvoice.amount_due_cents)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Paid</p>
-                <p className="font-medium">{money(selectedInvoice.amount_paid_cents)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Balance</p>
-                <p className="font-medium">{money(remainingCents)}</p>
-              </div>
-            </div>
-
-            {selectedInvoice.payments.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-medium text-slate-600 mb-1">Payment history</p>
-                <ul className="text-sm space-y-1">
-                  {selectedInvoice.payments.map((p) => (
-                    <li key={p.id} className="flex justify-between text-slate-700">
-                      <span>
-                        {p.paid_at.slice(0, 10)} · {p.payment_method}
-                        {p.payment_ref ? ` (${p.payment_ref})` : ''}
-                      </span>
-                      <span>{money(p.amount_cents)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {isAdmin && canPay && (
-              <form onSubmit={handleRecordPayment} className="print:hidden flex flex-wrap gap-2 items-end border-t border-slate-200 pt-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Amount</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-24"
-                  />
+            {receiptPayment ? (
+              <>
+                <div className="flex justify-between items-start mb-4 print:hidden">
+                  <h2 className="text-base font-semibold text-slate-900">Receipt</h2>
+                  <div className="flex gap-3">
+                    <button onClick={() => window.print()} className="text-blue-600 text-sm font-medium">
+                      Print
+                    </button>
+                    <button onClick={() => setReceiptPayment(null)} className="text-slate-400 hover:text-slate-600 text-sm">
+                      Back
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Method</label>
-                  <select
-                    value={paymentForm.paymentMethod}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+
+                <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    {schoolProfile?.logo_url && (
+                      <img src={schoolProfile.logo_url} alt="" className="w-14 h-14 object-contain shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-lg font-bold text-slate-900 leading-tight">{schoolProfile?.name || 'School'}</p>
+                      {schoolProfile?.address && <p className="text-xs text-slate-600">{schoolProfile.address}</p>}
+                      <p className="text-xs text-slate-600">
+                        {[schoolProfile?.phone, schoolProfile?.email].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-center text-sm font-semibold text-slate-900 uppercase tracking-wide mb-4">
+                  Payment Receipt
+                </p>
+
+                <div className="flex justify-between text-xs text-slate-500 mb-4">
+                  <span>Receipt No. {receiptPayment.id}</span>
+                  <span>Date: {receiptPayment.paid_at.slice(0, 10)}</span>
+                </div>
+
+                <div className="text-sm mb-4 space-y-1">
+                  <p>
+                    <span className="text-slate-500">Received from:</span> {selectedInvoice.first_name}{' '}
+                    {selectedInvoice.last_name} ({selectedInvoice.admission_no})
+                  </p>
+                  <p>
+                    <span className="text-slate-500">For:</span> {selectedInvoice.fee_name}
+                  </p>
+                  <p>
+                    <span className="text-slate-500">Payment method:</span>{' '}
+                    <span className="capitalize">{receiptPayment.payment_method.replace('_', ' ')}</span>
+                  </p>
+                  {receiptPayment.payment_ref && (
+                    <p>
+                      <span className="text-slate-500">Reference:</span> {receiptPayment.payment_ref}
+                    </p>
+                  )}
+                </div>
+
+                <div className="border-y border-slate-200 py-3 mb-4">
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>Amount paid</span>
+                    <span>{money(receiptPayment.amount_cents)}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-xs text-slate-600 mb-8">
+                  <div>
+                    <p>Invoice total</p>
+                    <p className="font-medium text-slate-900">{money(selectedInvoice.amount_due_cents)}</p>
+                  </div>
+                  <div>
+                    <p>Paid to date</p>
+                    <p className="font-medium text-slate-900">{money(selectedInvoice.amount_paid_cents)}</p>
+                  </div>
+                  <div>
+                    <p>Balance</p>
+                    <p className="font-medium text-slate-900">{money(remainingCents)}</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 mt-10 border-t border-slate-300 pt-1 w-48">Authorized Signature</p>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-start mb-4 print:hidden">
+                  <h2 className="text-base font-semibold text-slate-900">Invoice #{selectedInvoice.id}</h2>
+                  <button
+                    onClick={() => {
+                      setSelectedInvoice(null);
+                      setReceiptPayment(null);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 text-sm"
                   >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
+                    Close
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Reference</label>
-                  <input
-                    value={paymentForm.paymentRef}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentRef: e.target.value })}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-28"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isRecordingPayment}
-                  className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isRecordingPayment ? 'Saving…' : 'Record payment'}
-                </button>
-              </form>
-            )}
 
-            <button
-              onClick={() => window.print()}
-              className="print:hidden mt-4 text-sm text-blue-600 underline"
-            >
-              Print receipt
-            </button>
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-slate-900">
+                    {selectedInvoice.first_name} {selectedInvoice.last_name} ({selectedInvoice.admission_no})
+                  </p>
+                  <p className="text-sm text-slate-600">{selectedInvoice.fee_name}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Due: {selectedInvoice.due_date ? selectedInvoice.due_date.slice(0, 10) : '—'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-sm mb-4 border-y border-slate-200 py-3">
+                  <div>
+                    <p className="text-xs text-slate-500">Amount due</p>
+                    <p className="font-medium">{money(selectedInvoice.amount_due_cents)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Paid</p>
+                    <p className="font-medium">{money(selectedInvoice.amount_paid_cents)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Balance</p>
+                    <p className="font-medium">{money(remainingCents)}</p>
+                  </div>
+                </div>
+
+                {selectedInvoice.payments.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-medium text-slate-600 mb-1">Payment history</p>
+                    <ul className="text-sm space-y-1">
+                      {selectedInvoice.payments.map((p) => (
+                        <li key={p.id} className="flex justify-between items-center text-slate-700">
+                          <span>
+                            {p.paid_at.slice(0, 10)} · {p.payment_method}
+                            {p.payment_ref ? ` (${p.payment_ref})` : ''}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            {money(p.amount_cents)}
+                            <button
+                              type="button"
+                              onClick={() => setReceiptPayment(p)}
+                              className="text-xs text-blue-600 underline"
+                            >
+                              Receipt
+                            </button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {isAdmin && canPay && (
+                  <form onSubmit={handleRecordPayment} className="print:hidden flex flex-wrap gap-2 items-end border-t border-slate-200 pt-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Amount</label>
+                      <input
+                        required
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={paymentForm.amount}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-24"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Method</label>
+                      <select
+                        value={paymentForm.paymentMethod}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                      >
+                        {PAYMENT_METHODS.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Reference</label>
+                      <input
+                        value={paymentForm.paymentRef}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, paymentRef: e.target.value })}
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-28"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isRecordingPayment}
+                      className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isRecordingPayment ? 'Saving…' : 'Record payment'}
+                    </button>
+                  </form>
+                )}
+
+                <button
+                  onClick={() => window.print()}
+                  className="print:hidden mt-4 text-sm text-blue-600 underline"
+                >
+                  Print invoice summary
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

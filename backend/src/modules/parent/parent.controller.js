@@ -81,6 +81,19 @@ exports.getChildFees = asyncHandler(async (req, res) => {
   return ok(res, fees);
 });
 
+// Powers the parent-facing receipt drill-down — reuses the same invoice +
+// payments shape the admin sees, but studentId and invoiceId are independent
+// URL params, so re-check the invoice actually belongs to this child rather
+// than just any invoice in the school.
+exports.getChildInvoice = asyncHandler(async (req, res) => {
+  if (!(await assertOwnChild(req, res))) return;
+  const invoice = await feeService.getInvoiceById(req.schoolId, req.params.invoiceId);
+  if (!invoice || String(invoice.student_id) !== String(req.params.studentId)) {
+    return fail(res, 'Invoice not found', 404);
+  }
+  return ok(res, invoice);
+});
+
 // "I've made this payment" — the parent self-identifies as the payer for a
 // specific invoice so the admin isn't left guessing whose money just landed.
 exports.submitPaymentClaim = asyncHandler(async (req, res) => {

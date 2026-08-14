@@ -25,6 +25,11 @@ export async function getChildFees(studentId) {
   return data.data;
 }
 
+export async function getChildInvoice(studentId, invoiceId) {
+  const { data } = await axiosClient.get(`/parent/children/${studentId}/fees/${invoiceId}`);
+  return data.data;
+}
+
 export async function listAnnouncements() {
   const { data } = await axiosClient.get('/parent/announcements');
   return data.data;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParent } from '../../context/ParentContext';
 import ChildTabs from '../../components/parent/ChildTabs';
-import { getChildFees, getPaymentDetails, submitPaymentClaim } from '../../features/parent/api';
+import { getChildFees, getChildInvoice, getPaymentDetails, getSchoolInfo, submitPaymentClaim } from '../../features/parent/api';
 import { formatMoney as money } from '../../utils/money';
 
 const STATUS_STYLE = {
@@ -43,6 +43,10 @@ export default function ParentFeesPage() {
   const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
   const [claimError, setClaimError] = useState('');
 
+  const [schoolProfile, setSchoolProfile] = useState(null);
+  const [viewInvoice, setViewInvoice] = useState(null);
+  const [receiptPayment, setReceiptPayment] = useState(null);
+
   function refreshFees() {
     return getChildFees(selectedChildId).then(setFees);
   }
@@ -60,7 +64,20 @@ export default function ParentFeesPage() {
     getPaymentDetails()
       .then(setPayoutDetails)
       .catch(() => {});
+    getSchoolInfo()
+      .then(setSchoolProfile)
+      .catch(() => {});
   }, []);
+
+  async function openInvoice(invoiceId) {
+    setError('');
+    setReceiptPayment(null);
+    try {
+      setViewInvoice(await getChildInvoice(selectedChildId, invoiceId));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load payment history');
+    }
+  }
 
   const hasMomo = payoutDetails?.momo_number;
   const hasBank = payoutDetails?.bank_account_number;
@@ -99,7 +116,8 @@ export default function ParentFeesPage() {
   if (isLoadingChildren) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="max-w-2xl">
+    <>
+    <div className="max-w-2xl print:hidden">
       <h1 className="text-xl font-semibold text-slate-900 mb-6">Fees &amp; Payments</h1>
 
       {(childrenError || error) && (
@@ -185,14 +203,24 @@ export default function ParentFeesPage() {
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        {canClaim && (
-                          <button
-                            onClick={() => openClaimForm(f)}
-                            className="text-blue-600 text-xs font-medium whitespace-nowrap"
-                          >
-                            I've made this payment
-                          </button>
-                        )}
+                        <div className="flex flex-col items-start gap-1">
+                          {canClaim && (
+                            <button
+                              onClick={() => openClaimForm(f)}
+                              className="text-blue-600 text-xs font-medium whitespace-nowrap"
+                            >
+                              I've made this payment
+                            </button>
+                          )}
+                          {f.amount_paid_cents > 0 && (
+                            <button
+                              onClick={() => openInvoice(f.id)}
+                              className="text-slate-600 text-xs font-medium whitespace-nowrap underline"
+                            >
+                              View receipts
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -202,6 +230,150 @@ export default function ParentFeesPage() {
             </div>
           )}
         </>
+      )}
+    </div>
+
+      {viewInvoice && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 print:shadow-none print:max-w-none">
+            {receiptPayment ? (
+              <>
+                <div className="flex justify-between items-start mb-4 print:hidden">
+                  <h2 className="text-base font-semibold text-slate-900">Receipt</h2>
+                  <div className="flex gap-3">
+                    <button onClick={() => window.print()} className="text-blue-600 text-sm font-medium">
+                      Print
+                    </button>
+                    <button onClick={() => setReceiptPayment(null)} className="text-slate-400 hover:text-slate-600 text-sm">
+                      Back
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    {schoolProfile?.logo_url && (
+                      <img src={schoolProfile.logo_url} alt="" className="w-14 h-14 object-contain shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-lg font-bold text-slate-900 leading-tight">{schoolProfile?.name || 'School'}</p>
+                      {schoolProfile?.address && <p className="text-xs text-slate-600">{schoolProfile.address}</p>}
+                      <p className="text-xs text-slate-600">
+                        {[schoolProfile?.phone, schoolProfile?.email].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-center text-sm font-semibold text-slate-900 uppercase tracking-wide mb-4">
+                  Payment Receipt
+                </p>
+
+                <div className="flex justify-between text-xs text-slate-500 mb-4">
+                  <span>Receipt No. {receiptPayment.id}</span>
+                  <span>Date: {receiptPayment.paid_at.slice(0, 10)}</span>
+                </div>
+
+                <div className="text-sm mb-4 space-y-1">
+                  <p>
+                    <span className="text-slate-500">Received from:</span> {viewInvoice.first_name} {viewInvoice.last_name}{' '}
+                    ({viewInvoice.admission_no})
+                  </p>
+                  <p>
+                    <span className="text-slate-500">For:</span> {viewInvoice.fee_name}
+                  </p>
+                  <p>
+                    <span className="text-slate-500">Payment method:</span>{' '}
+                    <span className="capitalize">{receiptPayment.payment_method.replace('_', ' ')}</span>
+                  </p>
+                  {receiptPayment.payment_ref && (
+                    <p>
+                      <span className="text-slate-500">Reference:</span> {receiptPayment.payment_ref}
+                    </p>
+                  )}
+                </div>
+
+                <div className="border-y border-slate-200 py-3 mb-4">
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>Amount paid</span>
+                    <span>{money(receiptPayment.amount_cents)}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-xs text-slate-600 mb-8">
+                  <div>
+                    <p>Invoice total</p>
+                    <p className="font-medium text-slate-900">{money(viewInvoice.amount_due_cents)}</p>
+                  </div>
+                  <div>
+                    <p>Paid to date</p>
+                    <p className="font-medium text-slate-900">{money(viewInvoice.amount_paid_cents)}</p>
+                  </div>
+                  <div>
+                    <p>Balance</p>
+                    <p className="font-medium text-slate-900">
+                      {money(viewInvoice.amount_due_cents - viewInvoice.amount_paid_cents)}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 mt-10 border-t border-slate-300 pt-1 w-48">Authorized Signature</p>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-start mb-4 print:hidden">
+                  <h2 className="text-base font-semibold text-slate-900">{viewInvoice.fee_name}</h2>
+                  <button
+                    onClick={() => {
+                      setViewInvoice(null);
+                      setReceiptPayment(null);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 text-sm"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-sm mb-4 border-y border-slate-200 py-3">
+                  <div>
+                    <p className="text-xs text-slate-500">Amount due</p>
+                    <p className="font-medium">{money(viewInvoice.amount_due_cents)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Paid</p>
+                    <p className="font-medium">{money(viewInvoice.amount_paid_cents)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Balance</p>
+                    <p className="font-medium">{money(viewInvoice.amount_due_cents - viewInvoice.amount_paid_cents)}</p>
+                  </div>
+                </div>
+
+                <p className="text-xs font-medium text-slate-600 mb-1">Payment history</p>
+                <ul className="text-sm space-y-1">
+                  {viewInvoice.payments.map((p) => (
+                    <li key={p.id} className="flex justify-between items-center text-slate-700">
+                      <span>
+                        {p.paid_at.slice(0, 10)} · {p.payment_method.replace('_', ' ')}
+                        {p.payment_ref ? ` (${p.payment_ref})` : ''}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {money(p.amount_cents)}
+                        <button
+                          type="button"
+                          onClick={() => setReceiptPayment(p)}
+                          className="text-xs text-blue-600 underline"
+                        >
+                          Receipt
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {claimInvoice && (
@@ -281,6 +453,6 @@ export default function ParentFeesPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
