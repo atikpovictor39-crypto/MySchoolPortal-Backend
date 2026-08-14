@@ -199,7 +199,6 @@ export default function ResultsPage() {
       termStartDate: exam.term_start_date?.slice(0, 10) || '',
       termEndDate: exam.term_end_date?.slice(0, 10) || '',
       reopeningDate: exam.reopening_date?.slice(0, 10) || '',
-      headmasterSignedDate: exam.headmaster_signed_date?.slice(0, 10) || '',
     });
   }
 
@@ -558,15 +557,6 @@ export default function ResultsPage() {
                       type="date"
                       value={editExamForm.reopeningDate}
                       onChange={(e) => setEditExamForm({ ...editExamForm, reopeningDate: e.target.value })}
-                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Headmaster signed date</label>
-                    <input
-                      type="date"
-                      value={editExamForm.headmasterSignedDate}
-                      onChange={(e) => setEditExamForm({ ...editExamForm, headmasterSignedDate: e.target.value })}
                       className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                     />
                   </div>
@@ -1107,12 +1097,11 @@ export default function ResultsPage() {
                 <p>
                   Headmaster's Signature: {schoolProfile?.headmaster_signature || '_______________________'}
                 </p>
-                <p>Date: {reportCard.exam.headmaster_signed_date?.slice(0, 10) || '_______________________'}</p>
               </div>
               {isAdmin && !schoolProfile?.headmaster_signature && (
                 <p className="print:hidden text-xs text-slate-400 mt-1">
-                  Set the headmaster's signature once in School Details, and the signed date on this exam (via Edit
-                  on the Exams tab) — both then apply to every student's report card automatically.
+                  Set the headmaster's signature once in School Details — it then applies to every student's report
+                  card automatically.
                 </p>
               )}
             </div>
