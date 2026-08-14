@@ -13,7 +13,6 @@ import {
   createExam,
   updateExam,
   addExamSubjects,
-  getResultsSheet,
   saveResults,
   getReportCard,
   getClassReport,
@@ -89,8 +88,12 @@ export default function ResultsPage() {
   const [selectedExam, setSelectedExam] = useState(null);
 
   // ---- Enter Scores tab ----
-  const [selectedExamSubjectId, setSelectedExamSubjectId] = useState('');
-  const [sheet, setSheet] = useState(null);
+  // Student-first, not subject-first: picking a student surfaces every
+  // subject on the exam in one table so a class teacher can fill in all of
+  // that student's marks and save once, instead of switching subjects and
+  // re-scanning the whole class roster each time.
+  const [scoreStudentId, setScoreStudentId] = useState('');
+  const [scoreSubjects, setScoreSubjects] = useState(null);
   const [isSavingResults, setIsSavingResults] = useState(false);
 
   // ---- Report Cards tab ----
@@ -125,8 +128,8 @@ export default function ResultsPage() {
 
   // Loading a new exam resets everything derived from the previous one.
   useEffect(() => {
-    setSelectedExamSubjectId('');
-    setSheet(null);
+    setScoreStudentId('');
+    setScoreSubjects(null);
     setSelectedStudentId('');
     setReportCard(null);
     setRanking(null);
@@ -145,14 +148,14 @@ export default function ResultsPage() {
   }, [selectedExamId]);
 
   useEffect(() => {
-    if (!selectedExamSubjectId) {
-      setSheet(null);
+    if (!scoreStudentId) {
+      setScoreSubjects(null);
       return;
     }
-    getResultsSheet(selectedExamSubjectId)
-      .then(setSheet)
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load results sheet'));
-  }, [selectedExamSubjectId]);
+    getReportCard(selectedExamId, scoreStudentId)
+      .then((card) => setScoreSubjects(card.subjects))
+      .catch((err) => setError(err.response?.data?.message || 'Failed to load subjects for this student'));
+  }, [scoreStudentId]);
 
   useEffect(() => {
     if (tab === 'class-ranking' && selectedExamId) {
@@ -243,26 +246,31 @@ export default function ResultsPage() {
     }
   }
 
-  function setMark(studentId, field, value) {
-    setSheet((prev) => ({
-      ...prev,
-      students: prev.students.map((s) => (s.student_id === studentId ? { ...s, [field]: value } : s)),
-    }));
+  function setSubjectMark(examSubjectId, field, value) {
+    setScoreSubjects((prev) =>
+      prev.map((s) => (s.exam_subject_id === examSubjectId ? { ...s, [field]: value } : s))
+    );
   }
 
+  // Saves every subject with a mark entered for the one selected student.
+  // saveResults is a per-subject endpoint (records for many students, one
+  // subject), so entering all of one student's subjects at once still means
+  // firing it once per subject here — the teacher just does it in one click
+  // instead of switching subjects and re-finding the student each time.
   async function handleSaveResults() {
     setError('');
     setIsSavingResults(true);
     try {
-      const records = sheet.students
-        .filter((s) => s.marks_obtained !== null && s.marks_obtained !== '')
-        .map((s) => ({
-          studentId: s.student_id,
-          marksObtained: Number(s.marks_obtained),
-          remarks: s.remarks || undefined,
-        }));
-      const updated = await saveResults(selectedExamSubjectId, records);
-      setSheet(updated);
+      const toSave = scoreSubjects.filter((s) => s.marks_obtained !== null && s.marks_obtained !== '');
+      await Promise.all(
+        toSave.map((s) =>
+          saveResults(s.exam_subject_id, [
+            { studentId: scoreStudentId, marksObtained: Number(s.marks_obtained), remarks: s.remarks || undefined },
+          ])
+        )
+      );
+      const card = await getReportCard(selectedExamId, scoreStudentId);
+      setScoreSubjects(card.subjects);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save results');
     } finally {
@@ -653,16 +661,16 @@ export default function ResultsPage() {
               </div>
               {selectedExam && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Student</label>
                   <select
-                    value={selectedExamSubjectId}
-                    onChange={(e) => setSelectedExamSubjectId(e.target.value)}
+                    value={scoreStudentId}
+                    onChange={(e) => setScoreStudentId(e.target.value)}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
                   >
                     <option value="">Select…</option>
-                    {selectedExam.subjects.map((s) => (
-                      <option key={s.exam_subject_id} value={s.exam_subject_id}>
-                        {s.subject_name}
+                    {classStudents.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.first_name} {s.last_name} ({s.admission_no})
                       </option>
                     ))}
                   </select>
@@ -670,69 +678,72 @@ export default function ResultsPage() {
               )}
             </div>
 
-            {sheet && (
+            {scoreSubjects && (
               <>
-                <div className="overflow-x-auto">
-                <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-4">
-                  <thead className="bg-slate-50 text-left text-slate-600">
-                    <tr>
-                      <th className="px-4 py-2">Admission No.</th>
-                      <th className="px-4 py-2">Name</th>
-                      <th className="px-4 py-2">
-                        Marks (max {sheet.examSubject.max_marks})
-                      </th>
-                      <th className="px-4 py-2">Grade</th>
-                      <th className="px-4 py-2">Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sheet.students.map((s) => (
-                      <tr key={s.student_id} className="border-t border-slate-100">
-                        <td className="px-4 py-2">{s.admission_no}</td>
-                        <td className="px-4 py-2">
-                          {s.first_name} {s.last_name}
-                        </td>
-                        <td className="px-4 py-2">
-                          {canEnterScores ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max={sheet.examSubject.max_marks}
-                              value={s.marks_obtained ?? ''}
-                              onChange={(e) => setMark(s.student_id, 'marks_obtained', e.target.value)}
-                              className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
-                            />
-                          ) : (
-                            s.marks_obtained ?? '—'
-                          )}
-                        </td>
-                        <td className="px-4 py-2">{s.grade || '—'}</td>
-                        <td className="px-4 py-2">
-                          {canEnterScores ? (
-                            <input
-                              value={s.remarks || ''}
-                              onChange={(e) => setMark(s.student_id, 'remarks', e.target.value)}
-                              className="rounded border border-slate-300 px-2 py-1 text-sm w-32"
-                            />
-                          ) : (
-                            s.remarks || ''
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                </div>
+                {scoreSubjects.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No subjects have been added to this exam yet — add some under the Exams tab first.
+                  </p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-4">
+                      <thead className="bg-slate-50 text-left text-slate-600">
+                        <tr>
+                          <th className="px-4 py-2">Subject</th>
+                          <th className="px-4 py-2">Marks</th>
+                          <th className="px-4 py-2">Grade</th>
+                          <th className="px-4 py-2">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scoreSubjects.map((s) => (
+                          <tr key={s.exam_subject_id} className="border-t border-slate-100">
+                            <td className="px-4 py-2 uppercase">{s.subject_name}</td>
+                            <td className="px-4 py-2">
+                              {canEnterScores ? (
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max={s.max_marks}
+                                  value={s.marks_obtained ?? ''}
+                                  onChange={(e) => setSubjectMark(s.exam_subject_id, 'marks_obtained', e.target.value)}
+                                  className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
+                                />
+                              ) : (
+                                s.marks_obtained ?? '—'
+                              )}
+                              <span className="text-xs text-slate-400 ml-1">/ {s.max_marks}</span>
+                            </td>
+                            <td className="px-4 py-2">{s.grade || '—'}</td>
+                            <td className="px-4 py-2">
+                              {canEnterScores ? (
+                                <input
+                                  value={s.remarks || ''}
+                                  onChange={(e) => setSubjectMark(s.exam_subject_id, 'remarks', e.target.value)}
+                                  className="rounded border border-slate-300 px-2 py-1 text-sm w-32"
+                                />
+                              ) : (
+                                s.remarks || ''
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
 
-                {canEnterScores && (
-                  <button
-                    onClick={handleSaveResults}
-                    disabled={isSavingResults}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {isSavingResults ? 'Saving…' : 'Save results'}
-                  </button>
+                    {canEnterScores && (
+                      <button
+                        onClick={handleSaveResults}
+                        disabled={isSavingResults}
+                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {isSavingResults ? 'Saving…' : 'Save results'}
+                      </button>
+                    )}
+                  </>
                 )}
               </>
             )}
