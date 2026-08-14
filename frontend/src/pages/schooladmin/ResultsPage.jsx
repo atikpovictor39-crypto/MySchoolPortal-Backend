@@ -27,6 +27,7 @@ const emptyNotesForm = {
   headmasterRemarks: '',
   promotedTo: '',
 };
+const emptyExamFieldsForm = { vacationDate: '', teacherName: '', teacherSignature: '', teacherSignedDate: '' };
 
 // 1st, 2nd, 3rd, 4th, 11th–13th stay "th" (not "11st"/"12nd"/"13rd").
 function ordinalSuffix(n) {
@@ -102,6 +103,10 @@ export default function ResultsPage() {
   const [reportCard, setReportCard] = useState(null);
   const [schoolProfile, setSchoolProfile] = useState(null);
   const [notesForm, setNotesForm] = useState(emptyNotesForm);
+  // Exam-level fields (shared by every student in the exam, unlike notesForm
+  // above which is per-student) — vacation date plus the class teacher's own
+  // name/signature/date, editable by admin or teacher alongside the notes.
+  const [examFieldsForm, setExamFieldsForm] = useState(emptyExamFieldsForm);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   // ---- Class Ranking tab ----
@@ -290,6 +295,15 @@ export default function ResultsPage() {
         headmasterRemarks: card.notes.headmaster_remarks || '',
         promotedTo: card.notes.promoted_to || '',
       });
+      setExamFieldsForm({
+        vacationDate: card.exam.term_end_date?.slice(0, 10) || '',
+        // Pre-fills with the auto-derived class teacher name as a starting
+        // point — saving without changing it just confirms that name as the
+        // explicit override going forward.
+        teacherName: card.exam.teacher_name || card.classTeacherName || '',
+        teacherSignature: card.exam.teacher_signature || '',
+        teacherSignedDate: card.exam.teacher_signed_date?.slice(0, 10) || '',
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load report card');
     }
@@ -299,8 +313,16 @@ export default function ResultsPage() {
     setError('');
     setIsSavingNotes(true);
     try {
-      const notes = await saveReportCardNotes(selectedExamId, selectedStudentId, notesForm);
-      setReportCard((prev) => ({ ...prev, notes }));
+      const [notes, exam] = await Promise.all([
+        saveReportCardNotes(selectedExamId, selectedStudentId, notesForm),
+        updateExam(selectedExamId, {
+          termEndDate: examFieldsForm.vacationDate || null,
+          teacherName: examFieldsForm.teacherName || null,
+          teacherSignature: examFieldsForm.teacherSignature || null,
+          teacherSignedDate: examFieldsForm.teacherSignedDate || null,
+        }),
+      ]);
+      setReportCard((prev) => ({ ...prev, notes, exam }));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save notes');
     } finally {
@@ -904,9 +926,19 @@ export default function ResultsPage() {
                   ? reportCard.attendance.total - reportCard.attendance.present
                   : 'N/A'}
               </p>
-              <p>
-                <span className="font-semibold">Vacation Date: </span>
-                {reportCard.exam.term_end_date ? reportCard.exam.term_end_date.slice(0, 10) : '—'}
+              <p className="flex items-center gap-1">
+                <span className="font-semibold shrink-0">Vacation Date: </span>
+                {canEditNotes ? (
+                  <input
+                    type="date"
+                    value={examFieldsForm.vacationDate}
+                    onChange={(e) => setExamFieldsForm({ ...examFieldsForm, vacationDate: e.target.value })}
+                    className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                  />
+                ) : null}
+                <span className={canEditNotes ? 'hidden print:inline' : ''}>
+                  {examFieldsForm.vacationDate || '—'}
+                </span>
               </p>
               <p>
                 <span className="font-semibold">Re-opening Date: </span>
@@ -1013,16 +1045,54 @@ export default function ResultsPage() {
               <p className={`whitespace-pre-wrap ${canEditNotes ? 'hidden print:block' : ''}`}>
                 {notesForm.classTeacherRemarks || '—'}
               </p>
-              <div className="flex justify-between items-end mt-2 text-xs">
-                <p>Teacher's Name: {reportCard.classTeacherName || '_______________________'}</p>
-                <p>Signature: _______________________</p>
+              <div className="flex flex-wrap justify-between items-end mt-2 gap-3 text-xs">
+                <p className="flex items-center gap-1">
+                  <span className="shrink-0">Teacher's Name: </span>
+                  {canEditNotes ? (
+                    <input
+                      value={examFieldsForm.teacherName}
+                      onChange={(e) => setExamFieldsForm({ ...examFieldsForm, teacherName: e.target.value })}
+                      className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-xs w-36"
+                    />
+                  ) : null}
+                  <span className={canEditNotes ? 'hidden print:inline' : ''}>
+                    {examFieldsForm.teacherName || '_______________________'}
+                  </span>
+                </p>
+                <p className="flex items-center gap-1">
+                  <span className="shrink-0">Signature: </span>
+                  {canEditNotes ? (
+                    <input
+                      value={examFieldsForm.teacherSignature}
+                      onChange={(e) => setExamFieldsForm({ ...examFieldsForm, teacherSignature: e.target.value })}
+                      className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-xs w-32"
+                    />
+                  ) : null}
+                  <span className={canEditNotes ? 'hidden print:inline' : ''}>
+                    {examFieldsForm.teacherSignature || '_______________________'}
+                  </span>
+                </p>
+                <p className="flex items-center gap-1">
+                  <span className="shrink-0">Date: </span>
+                  {canEditNotes ? (
+                    <input
+                      type="date"
+                      value={examFieldsForm.teacherSignedDate}
+                      onChange={(e) => setExamFieldsForm({ ...examFieldsForm, teacherSignedDate: e.target.value })}
+                      className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+                    />
+                  ) : null}
+                  <span className={canEditNotes ? 'hidden print:inline' : ''}>
+                    {examFieldsForm.teacherSignedDate || '_______________________'}
+                  </span>
+                </p>
               </div>
             </div>
 
             {/* Headmaster */}
             <div className="text-sm mb-2">
               <p className="font-semibold mb-1">Headmaster's Remarks:</p>
-              {isAdmin ? (
+              {canEditNotes ? (
                 <textarea
                   rows={2}
                   value={notesForm.headmasterRemarks}
@@ -1030,7 +1100,7 @@ export default function ResultsPage() {
                   className="print:hidden w-full rounded border border-slate-300 px-2 py-1 text-sm"
                 />
               ) : null}
-              <p className={`whitespace-pre-wrap ${isAdmin ? 'hidden print:block' : ''}`}>
+              <p className={`whitespace-pre-wrap ${canEditNotes ? 'hidden print:block' : ''}`}>
                 {notesForm.headmasterRemarks || '—'}
               </p>
               <div className="flex justify-between items-end mt-2 text-xs gap-4">
@@ -1053,7 +1123,7 @@ export default function ResultsPage() {
                 disabled={isSavingNotes}
                 className="print:hidden rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 mt-2"
               >
-                {isSavingNotes ? 'Saving…' : 'Save remarks'}
+                {isSavingNotes ? 'Saving…' : 'Save'}
               </button>
             )}
             <button onClick={() => window.print()} className="print:hidden mt-2 ml-3 text-sm text-blue-600 underline">

@@ -399,6 +399,9 @@ CREATE TABLE exams (
   term_end_date   TIMESTAMP NULL, -- also printed as "Vacation Date"
   reopening_date  TIMESTAMP NULL,
   headmaster_signed_date DATE, -- date the headmaster signed this exam's whole batch of report cards; same for every student
+  teacher_name      VARCHAR(150), -- optional override for the auto-derived class teacher name printed on the report card
+  teacher_signature VARCHAR(255), -- typed, like headmaster_signature but per-exam since a school has many class teachers
+  teacher_signed_date DATE, -- date the class teacher signed this exam's whole batch of report cards; same for every student
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_exams_school ON exams(school_id);

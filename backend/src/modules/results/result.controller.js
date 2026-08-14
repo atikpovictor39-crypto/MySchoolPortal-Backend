@@ -37,14 +37,25 @@ exports.createExam = asyncHandler(async (req, res) => {
 // Term dates (vacation/re-opening) are usually only confirmed near the end
 // of term, so this is edited after the exam already exists.
 exports.updateExam = asyncHandler(async (req, res) => {
-  const { name, term, termStartDate, termEndDate, reopeningDate, headmasterSignedDate } = req.body;
+  const { name, term, termStartDate, termEndDate, reopeningDate, headmasterSignedDate, teacherName, teacherSignature, teacherSignedDate } =
+    req.body;
+  const isAdmin = req.user.role === 'SCHOOL_ADMIN';
   const exam = await resultService.updateExam(req.schoolId, req.params.id, {
-    name,
-    term,
-    termStartDate,
+    // The exam's identity/schedule and the headmaster's own signed date stay
+    // admin-only; passing undefined here leaves whatever's already saved
+    // intact rather than letting a TEACHER's request silently blank them
+    // (updateExam's set() only touches a column when the value isn't undefined).
+    name: isAdmin ? name : undefined,
+    term: isAdmin ? term : undefined,
+    termStartDate: isAdmin ? termStartDate : undefined,
+    reopeningDate: isAdmin ? reopeningDate : undefined,
+    headmasterSignedDate: isAdmin ? headmasterSignedDate : undefined,
+    // Vacation date and the class teacher's own name/signature/date are
+    // fair game for whichever class teacher is filling out the report card.
     termEndDate,
-    reopeningDate,
-    headmasterSignedDate,
+    teacherName,
+    teacherSignature,
+    teacherSignedDate,
   });
   if (!exam) return fail(res, 'Exam not found', 404);
   return ok(res, exam);
@@ -102,22 +113,11 @@ exports.getClassReport = asyncHandler(async (req, res) => {
 // lives outside exam_subjects/results entirely. See report_card_notes.
 exports.saveReportCardNotes = asyncHandler(async (req, res) => {
   const { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo } = req.body;
-  const isAdmin = req.user.role === 'SCHOOL_ADMIN';
   const notes = await resultService.upsertReportCardNotes(
     req.schoolId,
     req.params.examId,
     req.params.studentId,
-    {
-      interest,
-      academicStrength,
-      classTeacherRemarks,
-      // Headmaster's remarks is the one field a TEACHER isn't allowed to set
-      // — passing undefined here leaves whatever value is already saved
-      // intact (see upsertReportCardNotes' merge-with-existing behavior)
-      // rather than silently blanking it out on a teacher's save.
-      headmasterRemarks: isAdmin ? headmasterRemarks : undefined,
-      promotedTo,
-    },
+    { interest, academicStrength, classTeacherRemarks, headmasterRemarks, promotedTo },
     req.user.id
   );
   return ok(res, notes);

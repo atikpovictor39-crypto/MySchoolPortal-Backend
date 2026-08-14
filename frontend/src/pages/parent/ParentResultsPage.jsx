@@ -225,9 +225,12 @@ export default function ParentResultsPage() {
             <div className="text-sm mb-3">
               <p className="font-semibold mb-1">Class Teacher's Remarks:</p>
               <p className="whitespace-pre-wrap">{reportCard.notes.class_teacher_remarks || '—'}</p>
-              <div className="flex justify-between items-end mt-2 text-xs">
-                <p>Teacher's Name: {reportCard.classTeacherName || '_______________________'}</p>
-                <p>Signature: _______________________</p>
+              <div className="flex flex-wrap justify-between items-end mt-2 gap-3 text-xs">
+                <p>
+                  Teacher's Name: {reportCard.exam.teacher_name || reportCard.classTeacherName || '_______________________'}
+                </p>
+                <p>Signature: {reportCard.exam.teacher_signature || '_______________________'}</p>
+                <p>Date: {reportCard.exam.teacher_signed_date?.slice(0, 10) || '_______________________'}</p>
               </div>
             </div>
 

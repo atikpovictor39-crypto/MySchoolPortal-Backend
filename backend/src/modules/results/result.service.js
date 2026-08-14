@@ -38,7 +38,7 @@ async function subjectBelongsToSchool(schoolId, subjectId) {
 // ---- Exams ----
 
 const EXAM_COLUMNS =
-  'id, academic_year_id, class_id, name, term, term_start_date, term_end_date, reopening_date, headmaster_signed_date, created_at';
+  'id, academic_year_id, class_id, name, term, term_start_date, term_end_date, reopening_date, headmaster_signed_date, teacher_name, teacher_signature, teacher_signed_date, created_at';
 
 async function listExams(schoolId, { classId } = {}) {
   const conditions = ['school_id = ?'];
@@ -98,7 +98,11 @@ async function createExam(schoolId, { academicYearId, classId, name, term, termS
 // Term dates are typically only known/settled near the end of term (once
 // vacation and re-opening are confirmed), so these are edited after the
 // exam already exists rather than required up front at creation.
-async function updateExam(schoolId, id, { name, term, termStartDate, termEndDate, reopeningDate, headmasterSignedDate }) {
+async function updateExam(
+  schoolId,
+  id,
+  { name, term, termStartDate, termEndDate, reopeningDate, headmasterSignedDate, teacherName, teacherSignature, teacherSignedDate }
+) {
   const existing = await getExamById(schoolId, id);
   if (!existing) return null;
 
@@ -118,6 +122,11 @@ async function updateExam(schoolId, id, { name, term, termStartDate, termEndDate
   // Same date for every student's report card in this exam — the headmaster
   // signs one batch, not one date per student.
   set('headmaster_signed_date', headmasterSignedDate);
+  // Same reasoning as the headmaster fields above, but for the class
+  // teacher — one teacher per exam's class, signing one batch.
+  set('teacher_name', teacherName);
+  set('teacher_signature', teacherSignature);
+  set('teacher_signed_date', teacherSignedDate);
 
   if (fields.length === 0) return existing;
 

@@ -152,21 +152,16 @@ describe('Report card notes', () => {
     });
   });
 
-  it("ignores a TEACHER's attempt to set headmasterRemarks, and preserves an admin's existing value", async () => {
-    await request(app)
-      .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
-      .set('Authorization', auth(school.accessToken))
-      .send({ headmasterRemarks: 'Set by the admin.' });
-
+  it('lets a TEACHER set headmasterRemarks too — small schools often have one person filling in the whole card', async () => {
     const teacherLogin = await createTeacher(school.accessToken);
     const res = await request(app)
       .put(`/api/v1/results/exams/${examId}/report-card/${student.id}/notes`)
       .set('Authorization', auth(teacherLogin.accessToken))
-      .send({ interest: 'Athletics', headmasterRemarks: 'Sneaky teacher edit.' });
+      .send({ interest: 'Athletics', headmasterRemarks: 'Set by the teacher.' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.interest).toBe('Athletics');
-    expect(res.body.data.headmaster_remarks).toBe('Set by the admin.');
+    expect(res.body.data.headmaster_remarks).toBe('Set by the teacher.');
   });
 
   it("falls back Teacher's Name to whoever saved the class teacher remarks when no class teacher is assigned", async () => {
@@ -395,7 +390,7 @@ describe('Headmaster signature (school-wide) and signed date (per-exam)', () => 
     expect(cardB.body.data.exam.headmaster_signed_date).toContain('2026-04-03');
   });
 
-  it('blocks a TEACHER from setting the headmaster signed date on an exam', async () => {
+  it("silently ignores a TEACHER's attempt to set the headmaster signed date (route is open, field is not)", async () => {
     const examRes = await request(app)
       .post('/api/v1/results/exams')
       .set('Authorization', auth(school.accessToken))
@@ -408,7 +403,55 @@ describe('Headmaster signature (school-wide) and signed date (per-exam)', () => 
       .set('Authorization', auth(teacherLogin.accessToken))
       .send({ headmasterSignedDate: '2026-04-03' });
 
-    expect(res.status).toBe(403);
+    // TEACHER now has route access (for vacation date + their own
+    // name/signature/date below), but the headmaster's own signed date
+    // stays admin-only — the request succeeds, the field just doesn't move.
+    expect(res.status).toBe(200);
+    expect(res.body.data.headmaster_signed_date).toBeNull();
+  });
+
+  it('lets a TEACHER set the exam vacation date and their own name/signature/date', async () => {
+    const examRes = await request(app)
+      .post('/api/v1/results/exams')
+      .set('Authorization', auth(school.accessToken))
+      .send({ academicYearId: school.academicYearId, classId: school.classId, name: 'Term 1 Exam' });
+    const examId = examRes.body.data.id;
+
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({
+        termEndDate: '2026-04-03',
+        teacherName: 'Ama Boateng',
+        teacherSignature: 'Ama Boateng',
+        teacherSignedDate: '2026-04-02',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.term_end_date).toContain('2026-04-03');
+    expect(res.body.data.teacher_name).toBe('Ama Boateng');
+    expect(res.body.data.teacher_signature).toBe('Ama Boateng');
+    expect(res.body.data.teacher_signed_date).toContain('2026-04-02');
+  });
+
+  it("blocks a TEACHER from sneaking the exam name/class/headmaster date past the field-level restriction", async () => {
+    const examRes = await request(app)
+      .post('/api/v1/results/exams')
+      .set('Authorization', auth(school.accessToken))
+      .send({ academicYearId: school.academicYearId, classId: school.classId, name: 'Term 1 Exam' });
+    const examId = examRes.body.data.id;
+
+    const teacherLogin = await createTeacher(school.accessToken);
+    const res = await request(app)
+      .put(`/api/v1/results/exams/${examId}`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ name: 'Renamed by teacher', term: 'Sneaky term', headmasterSignedDate: '2026-04-03' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe('Term 1 Exam');
+    expect(res.body.data.term).toBeNull();
+    expect(res.body.data.headmaster_signed_date).toBeNull();
   });
 });
 

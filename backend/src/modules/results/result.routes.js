@@ -16,17 +16,19 @@ router.use(requireAuth, tenantScope, requirePasswordChange, blockDuringMaintenan
 router.get('/exams', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.listExams);
 router.post('/exams', requireRole('SCHOOL_ADMIN'), controller.createExam);
 router.get('/exams/:id', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getExam);
-router.put('/exams/:id', requireRole('SCHOOL_ADMIN'), controller.updateExam);
+// Field-level split (name/term/dates vs. vacation date + teacher's own
+// name/signature/date) is enforced in the controller, same pattern as
+// saveReportCardNotes' headmasterRemarks restriction below.
+router.put('/exams/:id', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.updateExam);
 router.post('/exams/:id/subjects', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.addExamSubjects);
 
 router.get('/exam-subjects/:examSubjectId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getResultsSheet);
 router.post('/exam-subjects/:examSubjectId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.saveResults);
 
 router.get('/exams/:examId/report-card/:studentId', requireRole('SCHOOL_ADMIN', 'TEACHER'), controller.getReportCard);
-// TEACHER can save interest/academic-strength/class-teacher-remarks/
-// promoted-to (the fields a class teacher normally fills in); headmaster's
-// remarks stays admin-only, enforced in the controller since it's a
-// field-level restriction rather than a whole-route one.
+// TEACHER and SCHOOL_ADMIN can both save every note field, including
+// headmaster's remarks — small schools often have the same person filling
+// in the whole report card, so this isn't split at the field level.
 router.put(
   '/exams/:examId/report-card/:studentId/notes',
   requireRole('SCHOOL_ADMIN', 'TEACHER'),
