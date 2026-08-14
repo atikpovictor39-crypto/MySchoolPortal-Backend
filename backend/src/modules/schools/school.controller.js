@@ -74,6 +74,13 @@ exports.updateMyProfile = asyncHandler(async (req, res) => {
     return fail(res, 'name cannot be empty', 400);
   }
 
+  if (req.body.showGradesOnReportCard !== undefined) {
+    if (typeof req.body.showGradesOnReportCard !== 'boolean') {
+      return fail(res, 'showGradesOnReportCard must be a boolean', 400);
+    }
+    updates.showGradesOnReportCard = req.body.showGradesOnReportCard;
+  }
+
   const updated = await schoolService.updateSchoolProfile(req.schoolId, updates);
 
   await auditService.record({

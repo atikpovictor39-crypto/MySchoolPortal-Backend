@@ -173,6 +173,9 @@ export default function ParentResultsPage() {
                   <tr>
                     <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Subjects</th>
                     <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Marks</th>
+                    {schoolProfile?.show_grades_on_report_card && (
+                      <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Grade</th>
+                    )}
                     <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Position</th>
                     <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Remarks</th>
                   </tr>
@@ -182,6 +185,7 @@ export default function ParentResultsPage() {
                     <tr key={s.exam_subject_id} className="border-b border-slate-200">
                       <td className="py-1 px-2 uppercase">{s.subject_name}</td>
                       <td className="py-1 px-2">{s.marks_obtained !== null ? s.marks_obtained : '—'}</td>
+                      {schoolProfile?.show_grades_on_report_card && <td className="py-1 px-2">{s.grade || '—'}</td>}
                       <td className="py-1 px-2">{s.position ? `${s.position}${ordinalSuffix(s.position)}` : '—'}</td>
                       <td className="py-1 px-2">{s.remarks || ''}</td>
                     </tr>
@@ -189,6 +193,9 @@ export default function ParentResultsPage() {
                   <tr className="font-semibold">
                     <td className="py-1 px-2">Total</td>
                     <td className="py-1 px-2">{reportCard.totalObtained}</td>
+                    {schoolProfile?.show_grades_on_report_card && (
+                      <td className="py-1 px-2">{reportCard.overallGrade || '—'}</td>
+                    )}
                     <td className="py-1 px-2">
                       {reportCard.position ? `${reportCard.position}${ordinalSuffix(reportCard.position)}` : '—'}
                     </td>

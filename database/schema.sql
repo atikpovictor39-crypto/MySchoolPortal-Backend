@@ -43,6 +43,7 @@ CREATE TABLE schools (
   bank_account_name   VARCHAR(150),
   logo_url      VARCHAR(500),
   headmaster_signature VARCHAR(255), -- typed, admin-only; set once, printed on every report card (see exams.headmaster_signed_date for the per-exam signing date)
+  show_grades_on_report_card BOOLEAN NOT NULL DEFAULT TRUE, -- school-wide toggle for the letter-grade (A-F) column on report cards
   status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','archived')),
   is_demo       BOOLEAN NOT NULL DEFAULT FALSE, -- public read-only demo tenant, see demoReadOnly.middleware.js
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

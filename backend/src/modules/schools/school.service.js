@@ -123,14 +123,18 @@ async function createSchool({ name, adminName, adminEmail, adminPassword, planId
 // also exposes phone/address/logo for the School Details admin page.
 async function getSchoolProfile(schoolId) {
   const [rows] = await db.query(
-    `SELECT id, name, slug, email, phone, address, logo_url, headmaster_signature, status, created_at
+    `SELECT id, name, slug, email, phone, address, logo_url, headmaster_signature,
+       show_grades_on_report_card, status, created_at
      FROM schools WHERE id = ? LIMIT 1`,
     [schoolId]
   );
   return rows[0] || null;
 }
 
-async function updateSchoolProfile(schoolId, { name, email, phone, address, logoUrl, headmasterSignature }) {
+async function updateSchoolProfile(
+  schoolId,
+  { name, email, phone, address, logoUrl, headmasterSignature, showGradesOnReportCard }
+) {
   await db.query(
     `UPDATE schools SET
        name = COALESCE(?, name),
@@ -138,9 +142,19 @@ async function updateSchoolProfile(schoolId, { name, email, phone, address, logo
        phone = ?,
        address = ?,
        logo_url = ?,
-       headmaster_signature = ?
+       headmaster_signature = ?,
+       show_grades_on_report_card = COALESCE(?, show_grades_on_report_card)
      WHERE id = ?`,
-    [name || null, email || null, phone || null, address || null, logoUrl || null, headmasterSignature || null, schoolId]
+    [
+      name || null,
+      email || null,
+      phone || null,
+      address || null,
+      logoUrl || null,
+      headmasterSignature || null,
+      showGradesOnReportCard === undefined ? null : showGradesOnReportCard,
+      schoolId,
+    ]
   );
   return getSchoolProfile(schoolId);
 }

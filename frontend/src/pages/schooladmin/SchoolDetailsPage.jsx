@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import { getMyProfile, updateMyProfile } from '../../features/schools/api';
 
-const emptyForm = { name: '', email: '', phone: '', address: '', logoUrl: '', headmasterSignature: '' };
+const emptyForm = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  logoUrl: '',
+  headmasterSignature: '',
+  showGradesOnReportCard: true,
+};
 
 export default function SchoolDetailsPage() {
   const [form, setForm] = useState(emptyForm);
@@ -20,6 +28,7 @@ export default function SchoolDetailsPage() {
           address: profile.address || '',
           logoUrl: profile.logo_url || '',
           headmasterSignature: profile.headmaster_signature || '',
+          showGradesOnReportCard: profile.show_grades_on_report_card !== false,
         })
       )
       .catch((err) => setError(err.response?.data?.message || 'Failed to load school details'))
@@ -119,6 +128,15 @@ export default function SchoolDetailsPage() {
             Set once here — it's printed automatically on every student's report card.
           </p>
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={form.showGradesOnReportCard}
+            onChange={(e) => setForm({ ...form, showGradesOnReportCard: e.target.checked })}
+          />
+          Show letter grades (A–F) on report cards
+        </label>
 
         {error && (
           <p role="alert" className="text-sm text-red-600">

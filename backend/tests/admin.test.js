@@ -22,6 +22,36 @@ describe('School profile (Admin > School Details)', () => {
     expect(res.body.data.name).toBe('Profile Test School');
   });
 
+  it('defaults show_grades_on_report_card to true for a new school', async () => {
+    const school = await registerSchool();
+    const res = await request(app).get('/api/v1/schools/me').set('Authorization', auth(school.accessToken));
+    expect(res.body.data.show_grades_on_report_card).toBe(true);
+  });
+
+  it('lets an admin turn off show_grades_on_report_card', async () => {
+    const school = await registerSchool();
+    const res = await request(app)
+      .put('/api/v1/schools/me')
+      .set('Authorization', auth(school.accessToken))
+      .send({ showGradesOnReportCard: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.show_grades_on_report_card).toBe(false);
+
+    const getRes = await request(app).get('/api/v1/schools/me').set('Authorization', auth(school.accessToken));
+    expect(getRes.body.data.show_grades_on_report_card).toBe(false);
+  });
+
+  it('rejects a non-boolean showGradesOnReportCard', async () => {
+    const school = await registerSchool();
+    const res = await request(app)
+      .put('/api/v1/schools/me')
+      .set('Authorization', auth(school.accessToken))
+      .send({ showGradesOnReportCard: 'yes' });
+
+    expect(res.status).toBe(400);
+  });
+
   it('updates the profile and writes an audit log entry', async () => {
     const school = await registerSchool();
     const res = await request(app)
