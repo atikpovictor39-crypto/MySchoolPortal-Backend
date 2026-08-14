@@ -5,7 +5,7 @@
 // Number(studentId) in result.service.js — these tests pin that behavior.
 const db = require('../src/config/db');
 const { resetDatabase } = require('./helpers/resetDb');
-const { app, request, auth, setupTenant, createStudent } = require('./helpers/fixtures');
+const { app, request, auth, setupTenant, createStudent, createTeacher } = require('./helpers/fixtures');
 
 let school;
 let studentTop;
@@ -100,5 +100,25 @@ describe('Score entry validation', () => {
       .send({ records: [{ studentId: studentTop.id, marksObtained: 150 }] });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('Teacher access to exam subjects', () => {
+  it('lets a TEACHER attach a subject to an exam', async () => {
+    const teacherLogin = await createTeacher(school.accessToken);
+
+    const secondSubjectRes = await request(app)
+      .post('/api/v1/subjects')
+      .set('Authorization', auth(school.accessToken))
+      .send({ name: 'English Language' });
+    const secondSubjectId = secondSubjectRes.body.data.id;
+
+    const res = await request(app)
+      .post(`/api/v1/results/exams/${examId}/subjects`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ subjects: [{ subjectId: secondSubjectId, maxMarks: 100, passingMarks: 40 }] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.subjects.some((s) => s.subject_id === secondSubjectId)).toBe(true);
   });
 });

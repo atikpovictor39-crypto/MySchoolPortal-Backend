@@ -56,6 +56,7 @@ export default function ResultsPage() {
   const { user } = useAuth();
   const isAdmin = user.role === 'SCHOOL_ADMIN';
   const canEnterScores = isAdmin || user.role === 'TEACHER';
+  const canManageExamSubjects = isAdmin || user.role === 'TEACHER';
   // Class teachers normally fill in interest/academic strength/their own
   // remarks/promoted-to; headmaster's remarks stays admin-only (see the
   // matching field-level restriction in result.controller.js).
@@ -580,7 +581,7 @@ export default function ResultsPage() {
                   </ul>
                 )}
 
-                {isAdmin && (
+                {canManageExamSubjects && (
                   <form onSubmit={handleAddExamSubject} className="flex flex-wrap gap-2 items-end border-t border-slate-200 pt-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
