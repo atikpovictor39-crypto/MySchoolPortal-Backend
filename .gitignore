@@ -49,6 +49,7 @@ vite.config.ts.timestamp-*
 .DS_Store
 Thumbs.db
 .vscode-test
+*.lnk
 
 # npm pack output
 *.tgz
