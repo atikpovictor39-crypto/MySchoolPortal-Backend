@@ -8,7 +8,7 @@ const emptyForm = { name: '', code: '' };
 export default function SubjectsPage() {
   const { user } = useAuth();
   const { deleteWithUndo } = useUndoToast();
-  const isAdmin = user.role === 'SCHOOL_ADMIN';
+  const canManage = user.role === 'SCHOOL_ADMIN' || user.role === 'TEACHER';
 
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,7 +85,7 @@ export default function SubjectsPage() {
     <div className="max-w-2xl">
       <h1 className="text-xl font-semibold text-slate-900 mb-6">Subjects</h1>
 
-      {isAdmin && (
+      {canManage && (
         <form
           onSubmit={handleSubmit}
           className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-end"
@@ -136,7 +136,7 @@ export default function SubjectsPage() {
             <tr>
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Code</th>
-              {isAdmin && <th className="px-4 py-2" />}
+              {canManage && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
@@ -172,7 +172,7 @@ export default function SubjectsPage() {
                 <tr key={s.id} className="border-t border-slate-100">
                   <td className="px-4 py-2">{s.name}</td>
                   <td className="px-4 py-2">{s.code || '—'}</td>
-                  {isAdmin && (
+                  {canManage && (
                     <td className="px-4 py-2">
                       <div className="flex gap-3 justify-end">
                         <button onClick={() => startEdit(s)} className="text-blue-600 text-xs font-medium">

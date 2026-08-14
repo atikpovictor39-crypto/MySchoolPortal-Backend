@@ -1,6 +1,6 @@
 const db = require('../src/config/db');
 const { resetDatabase } = require('./helpers/resetDb');
-const { app, request, auth, setupTenant } = require('./helpers/fixtures');
+const { app, request, auth, setupTenant, createTeacher } = require('./helpers/fixtures');
 
 afterAll(async () => {
   await db.end();
@@ -61,5 +61,31 @@ describe('Editing and deleting a subject', () => {
     const tenant = await setupTenant();
     const res = await request(app).delete('/api/v1/subjects/999999').set('Authorization', auth(tenant.accessToken));
     expect(res.status).toBe(404);
+  });
+});
+
+describe('Teacher access to the subject list', () => {
+  it('lets a TEACHER add, edit, and delete a subject', async () => {
+    const tenant = await setupTenant();
+    const teacherLogin = await createTeacher(tenant.accessToken);
+
+    const createRes = await request(app)
+      .post('/api/v1/subjects')
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ name: 'Physical Education', code: 'PE' });
+    expect(createRes.status).toBe(201);
+    const subject = createRes.body.data;
+
+    const updateRes = await request(app)
+      .put(`/api/v1/subjects/${subject.id}`)
+      .set('Authorization', auth(teacherLogin.accessToken))
+      .send({ name: 'Physical Education & Sports', code: 'PES' });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.data.name).toBe('Physical Education & Sports');
+
+    const deleteRes = await request(app)
+      .delete(`/api/v1/subjects/${subject.id}`)
+      .set('Authorization', auth(teacherLogin.accessToken));
+    expect(deleteRes.status).toBe(200);
   });
 });
