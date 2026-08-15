@@ -317,7 +317,12 @@ export default function ParentFeesPage() {
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 mt-10 border-t border-slate-300 pt-1 w-48">Authorized Signature</p>
+                <div className="mt-10 w-48">
+                  <p className="text-xs text-slate-600 border-t border-slate-300 pt-1 text-center">
+                    {schoolProfile?.headmaster_signature || '_______________________'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 text-center">Authorized Signature</p>
+                </div>
               </>
             ) : (
               <>
