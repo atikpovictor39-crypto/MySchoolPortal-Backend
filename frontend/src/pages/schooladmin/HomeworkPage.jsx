@@ -89,13 +89,13 @@ export default function HomeworkPage() {
 
       <form onSubmit={handleCreate} className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
         <div className="flex flex-wrap gap-3 items-end">
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="block text-xs font-medium text-slate-600 mb-1">Class</label>
             <select
               required
               value={form.classId}
               onChange={(e) => setForm({ ...form, classId: e.target.value })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
                 Select…
@@ -108,13 +108,13 @@ export default function HomeworkPage() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
             <select
               required
               value={form.subjectId}
               onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             >
               <option value="" disabled>
                 Select…
@@ -126,14 +126,14 @@ export default function HomeworkPage() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="block text-xs font-medium text-slate-600 mb-1">Due date</label>
             <input
               required
               type="date"
               value={form.dueDate}
               onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             />
           </div>
         </div>
