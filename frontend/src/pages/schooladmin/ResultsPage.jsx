@@ -862,8 +862,8 @@ export default function ResultsPage() {
       </div>
 
       {reportCard && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 print:static print:bg-transparent print:p-0 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 print:shadow-none print:max-w-none print:rounded-none">
+        <div className="fixed inset-0 z-50 bg-black/40 print:static print:bg-transparent">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-xl p-4 sm:p-6 print:static print:translate-x-0 print:translate-y-0 print:max-w-none print:max-h-none print:overflow-visible print:rounded-none print:shadow-none print:p-0">
             <div className="flex justify-between items-start mb-4 print:hidden">
               <h2 className="text-base font-semibold text-slate-900">Report Card</h2>
               <button onClick={() => setReportCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">
@@ -889,7 +889,7 @@ export default function ResultsPage() {
             <p className="text-center text-sm font-bold uppercase tracking-wide mb-4">Result Slip</p>
 
             {/* Student / term info grid */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm mb-4">
               <p>
                 <span className="font-semibold">Name of Student: </span>
                 {reportCard.student.first_name} {reportCard.student.last_name}
@@ -923,7 +923,7 @@ export default function ResultsPage() {
                     type="date"
                     value={examFieldsForm.vacationDate}
                     onChange={(e) => setExamFieldsForm({ ...examFieldsForm, vacationDate: e.target.value })}
-                    className="print:hidden rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                    className="print:hidden min-w-0 w-full rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
                 <span className={canEditNotes ? 'hidden print:inline' : ''}>
@@ -939,12 +939,12 @@ export default function ResultsPage() {
                 {reportCard.exam.term || '—'}
               </p>
               <p className="flex items-center gap-1">
-                <span className="font-semibold">Promoted To: </span>
+                <span className="font-semibold shrink-0">Promoted To: </span>
                 {canEditNotes ? (
                   <input
                     value={notesForm.promotedTo}
                     onChange={(e) => setNotesForm({ ...notesForm, promotedTo: e.target.value })}
-                    className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                    className="print:hidden flex-1 min-w-0 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
                 <span className={canEditNotes ? 'hidden print:inline' : ''}>{notesForm.promotedTo || '—'}</span>
@@ -952,7 +952,7 @@ export default function ResultsPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm mb-3 border border-slate-300 print:border-slate-800">
+              <table className="w-full text-xs sm:text-sm mb-3 border border-slate-300 print:border-slate-800">
                 <thead className="text-left bg-slate-50 print:bg-transparent">
                   <tr>
                     <th className="py-1.5 px-2 border-b border-slate-300 print:border-slate-800">Subjects</th>
@@ -997,7 +997,7 @@ export default function ResultsPage() {
                   <input
                     value={notesForm.interest}
                     onChange={(e) => setNotesForm({ ...notesForm, interest: e.target.value })}
-                    className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                    className="print:hidden flex-1 min-w-0 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
                 <span className={canEditNotes ? 'hidden print:inline' : ''}>{notesForm.interest || '—'}</span>
@@ -1008,7 +1008,7 @@ export default function ResultsPage() {
                   <input
                     value={notesForm.academicStrength}
                     onChange={(e) => setNotesForm({ ...notesForm, academicStrength: e.target.value })}
-                    className="print:hidden flex-1 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
+                    className="print:hidden flex-1 min-w-0 rounded border border-slate-300 px-1.5 py-0.5 text-sm"
                   />
                 ) : null}
                 <span className={canEditNotes ? 'hidden print:inline' : ''}>{notesForm.academicStrength || '—'}</span>
